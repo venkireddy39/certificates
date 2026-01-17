@@ -24,7 +24,14 @@ const StatCard = ({ label, value, color, icon: Icon }) => (
 );
 
 const StudentAttendanceProfile = ({ student, studentHistory = [], onClose }) => {
-    const [showHistory, setShowHistory] = React.useState(false);
+    const modalRef = React.useRef(null);
+
+    // Scroll to center on mount and resize
+    React.useEffect(() => {
+        if (modalRef.current) {
+            modalRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+    }, [showHistory]);
 
     // Reset view when student changes
     React.useEffect(() => {
@@ -59,7 +66,7 @@ const StudentAttendanceProfile = ({ student, studentHistory = [], onClose }) => 
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
             style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050, backdropFilter: 'blur(2px)' }}>
 
-            <div className="card border-0 shadow-lg" style={{ width: showHistory ? '800px' : '500px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', transition: 'width 0.3s ease' }}>
+            <div ref={modalRef} className="card border-0 shadow-lg" style={{ width: showHistory ? '800px' : '500px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
                 <div className="card-header bg-white border-0 d-flex justify-content-between align-items-center py-3 ps-4 pe-3">
                     <h5 className="mb-0 fw-bold text-primary">
                         {showHistory ? 'Full Attendance History' : 'Student Overview'}
@@ -175,17 +182,23 @@ const StudentAttendanceProfile = ({ student, studentHistory = [], onClose }) => 
                     )}
                 </div>
 
-                <div className="card-footer bg-light bg-opacity-50 text-end border-top-0 py-3 px-4">
-                    <button className="btn btn-outline-secondary btn-sm me-2" onClick={onClose}>Close</button>
-                    {!showHistory ? (
-                        <button className="btn btn-primary btn-sm" onClick={() => setShowHistory(true)}>
-                            View Full Profile
-                        </button>
-                    ) : (
-                        <button className="btn btn-outline-primary btn-sm" onClick={() => setShowHistory(false)}>
-                            Back to Overview
-                        </button>
-                    )}
+                <div className="card-footer bg-light bg-opacity-50 border-top-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                    <div className="text-muted small">
+                        Joined: <strong>{new Date().toLocaleDateString()}</strong>
+                    </div>
+                    <div>
+                        <button className="btn btn-outline-secondary btn-sm me-2" onClick={onClose}>Close</button>
+                        {!showHistory ? (
+                            <button className="btn btn-primary btn-sm" onClick={() => setShowHistory(true)}>
+                                <FiActivity className="me-2" />
+                                View Full History
+                            </button>
+                        ) : (
+                            <button className="btn btn-outline-primary btn-sm" onClick={() => setShowHistory(false)}>
+                                Back to Overview
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

@@ -102,11 +102,11 @@ const BatchBuilder = () => {
                     <div className="students-manager">
                         <div className="sm-header">
                             <div>
-                                <h3>Enrolled Students</h3>
-                                <p className="text-muted">{enrolledStudents.length} Students in this batch</p>
+                                <h3>Member Management</h3>
+                                <p className="text-muted">Manage students, faculty, and staff access</p>
                             </div>
                             <button className="btn-primary-add" onClick={() => setIsAddModalOpen(true)}>
-                                <FiPlus /> Add Student
+                                <FiPlus /> Add Member
                             </button>
                         </div>
 
@@ -115,36 +115,58 @@ const BatchBuilder = () => {
                                 <table className="w-100 table-custom">
                                     <thead>
                                         <tr>
-                                            <th>Name</th>
-                                            <th>Email</th>
-                                            <th>Joined Date</th>
-                                            <th>Status</th>
-                                            <th className="text-end">Actions</th>
+                                            <th>MEMBER PROFILE</th>
+                                            <th>ROLE & ID</th>
+                                            <th>ACADEMIC/DEPT</th>
+                                            <th>STATUS</th>
+                                            <th className="text-end">ACTIONS</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {enrolledStudents.map(student => (
                                             <tr key={student.id}>
                                                 <td>
-                                                    <div className="d-flex align-items-center gap-2">
-                                                        <div className="avatar-circle">{student.name.charAt(0)}</div>
-                                                        <span className="fw-bold">{student.name}</span>
+                                                    <div className="d-flex align-items-center gap-3">
+                                                        <div className="avatar-square" style={{ width: 40, height: 40, borderRadius: 8, background: student.name.charCodeAt(0) % 2 === 0 ? '#0ea5e9' : '#f59e0b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                                                            {student.name.substring(0, 2).toUpperCase()}
+                                                        </div>
+                                                        <div>
+                                                            <div className="fw-bold text-dark">{student.name}</div>
+                                                            <div className="small text-muted">{student.email}</div>
+                                                        </div>
                                                     </div>
                                                 </td>
-                                                <td>{student.email}</td>
-                                                <td>{student.joined}</td>
-                                                <td><span className={`status-badge ${student.status.toLowerCase()}`}>{student.status}</span></td>
+                                                <td>
+                                                    <span className="badge rounded-pill bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2">
+                                                        STUDENT
+                                                    </span>
+                                                    <span className="ms-2 text-muted small">ID: {student.id}</span>
+                                                </td>
+                                                <td>
+                                                    <div className="text-dark">Computer Science</div>
+                                                    <div className="small text-muted">2nd Year, Sem 3</div>
+                                                </td>
+                                                <td>
+                                                    <div className="d-flex align-items-center gap-2 text-dark">
+                                                        <div className="rounded-circle bg-success p-1" style={{ width: 6, height: 6 }}></div>
+                                                        Active
+                                                    </div>
+                                                </td>
                                                 <td className="text-end">
                                                     <div className="d-flex justify-content-end gap-2">
                                                         <button
-                                                            className="btn-icon-secondary"
+                                                            className="btn-icon-plain text-secondary hover-primary"
                                                             onClick={() => openTransferModal(student)}
-                                                            title="Transfer Batch"
+                                                            title="Edit"
                                                         >
-                                                            <FiRefreshCw />
+                                                            <FiSettings size={18} />
                                                         </button>
-                                                        <button className="btn-icon-danger" onClick={() => removeStudent(student.id)} title="Remove">
-                                                            <FiTrash2 />
+                                                        <button
+                                                            className="btn-icon-plain text-secondary hover-danger"
+                                                            onClick={() => removeStudent(student.id)}
+                                                            title="Delete"
+                                                        >
+                                                            <FiTrash2 size={18} />
                                                         </button>
                                                     </div>
                                                 </td>

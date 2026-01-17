@@ -38,10 +38,9 @@ const ReportPage = ({ batchId }) => {
             name: `Student ${i + 1} (${batch?.name})`
         }));
 
-        // Only generate for TODAY
-        const today = new Date().toISOString().split('T')[0];
-
+        // Generate history for LAST 30 DAYS
         const history = [];
+        const today = new Date();
 
         // Helper to get random status
         const getStatus = () => {
@@ -51,24 +50,32 @@ const ReportPage = ({ batchId }) => {
             return 'PRESENT';
         };
 
-        // Generate history for today only
-        students.forEach(student => {
-            const status = getStatus();
-            let minutes = 0;
-            if (status === 'PRESENT') minutes = 60;
-            if (status === 'LATE') minutes = 45;
+        for (let d = 0; d < 30; d++) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - d);
+            // Skip weekends
+            if (date.getDay() === 0 || date.getDay() === 6) continue;
 
-            history.push({
-                id: crypto.randomUUID(),
-                date: today,
-                courseName: course?.title || 'Unknown Course',
-                studentName: student.name,
-                studentId: student.id,
-                status,
-                method: Math.random() > 0.5 ? 'QR Scan' : 'Manual',
-                attendanceInMinutes: minutes
+            const dateStr = date.toISOString().split('T')[0];
+
+            students.forEach(student => {
+                const status = getStatus();
+                let minutes = 0;
+                if (status === 'PRESENT') minutes = 60;
+                if (status === 'LATE') minutes = 45;
+
+                history.push({
+                    id: crypto.randomUUID(),
+                    date: dateStr,
+                    courseName: course?.title || 'Unknown Course',
+                    studentName: student.name,
+                    studentId: student.id,
+                    status,
+                    method: Math.random() > 0.5 ? 'QR Scan' : 'Manual',
+                    attendanceInMinutes: minutes
+                });
             });
-        });
+        }
 
         return history;
     }, [selectedBatch]);

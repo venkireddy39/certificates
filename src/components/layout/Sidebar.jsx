@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { FiMoreVertical, FiSettings, FiLogOut, FiUser, FiHelpCircle, FiBell, FiShare2, FiChevronDown, FiChevronRight, FiShield, FiDollarSign, FiFileText, FiLayout, FiGlobe, FiSun, FiMoon } from 'react-icons/fi'
+import { FiMoreVertical, FiSettings, FiLogOut, FiUser, FiHelpCircle, FiBell, FiShare2, FiChevronDown, FiChevronRight, FiShield, FiDollarSign, FiFileText, FiLayout, FiGlobe, FiSun, FiMoon, FiLayers } from 'react-icons/fi'
 import './Sidebar.css';
 
 const Sidebar = ({ isOpen, toggleSidebar, isMobile }) => {
@@ -41,20 +41,21 @@ const Sidebar = ({ isOpen, toggleSidebar, isMobile }) => {
         <div className="d-flex align-items-center justify-content-between px-3 h-16 border-bottom" style={{ minHeight: 64 }}>
           {/* Auto-Expand Logo Click */}
           <div
-            className={`d-flex align-items-center gap-2 fw-bold fs-5 text-dark overflow-hidden cursor-pointer ${!isOpen ? 'd-none' : ''}`}
-            style={{ whiteSpace: 'nowrap' }}
+            className={`d-flex align-items-center gap-3 fw-bold fs-4 text-dark overflow-hidden cursor-pointer ${!isOpen ? 'd-none' : ''}`}
+            style={{ whiteSpace: 'nowrap', fontFamily: "'Outfit', sans-serif", letterSpacing: '-0.5px' }}
             onClick={() => !isOpen && toggleSidebar()}
           >
-            <div className="d-flex align-items-center justify-content-center text-white rounded-2 flex-shrink-0" style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' }}>A</div>
-            <span>Academy</span>
+            <FiLayers size={28} className="text-primary flex-shrink-0" />
+            <span>Class X 360</span>
           </div>
           {/* Collapsed Logo - Click to Expand */}
           {!isOpen && (
             <div
-              className="d-flex align-items-center justify-content-center text-white rounded-2 mx-auto flex-shrink-0 cursor-pointer"
-              style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' }}
+              className="d-flex align-items-center justify-content-center mx-auto flex-shrink-0 cursor-pointer"
               onClick={toggleSidebar}
-            >A</div>
+            >
+              <FiLayers size={28} className="text-primary" />
+            </div>
           )}
 
           <button className="btn btn-link text-secondary p-1 text-decoration-none ms-auto" onClick={toggleSidebar} style={{ minWidth: 32 }}>
@@ -95,12 +96,15 @@ const Sidebar = ({ isOpen, toggleSidebar, isMobile }) => {
 
             {/* FINANCE GROUP */}
             <MenuGroup title="Finance" icon="currency-dollar" isOpen={isOpen} expanded={groups.finance} onToggle={() => toggleGroup('finance')}>
-              <SidebarItem to="/fees" icon="cash" label="Fee Management" isOpen={isOpen} isSub />
+              <SidebarItem to="/fee" icon="cash" label="Fee Management" isOpen={isOpen} isSub />
               <SidebarItem to="/invoices" icon="receipt" label="Invoices" isOpen={isOpen} isSub />
             </MenuGroup>
 
-            {/* SETTINGS */}
-            <SidebarItem to="/settings" icon="gear" label="Settings" isOpen={isOpen} />
+            {/* ADMINISTRATION GROUP */}
+            <MenuGroup title="Administration" icon="shield" isOpen={isOpen} expanded={groups.system} onToggle={() => toggleGroup('system')}>
+              <SidebarItem to="/audit-logs" icon="file-text" label="Audit Logs" isOpen={isOpen} isSub />
+              <SidebarItem to="/settings" icon="gear" label="Settings" isOpen={isOpen} isSub />
+            </MenuGroup>
           </ul>
         </nav>
 

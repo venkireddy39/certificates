@@ -124,7 +124,29 @@ export const useCourses = () => {
         let imageUrl = formData.imgPreview;
         // Check if img is a file (not implemented backend upload yet)
         if (formData.img) {
-            imageUrl = "https://via.placeholder.com/300?text=Uploaded+Image";
+            // Using a placeholder because backend upload is not implemented and Blob URLs cause 500 errors
+            imageUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect fill='%23e2e8f0' width='300' height='200'/%3E%3Ctext fill='%2364748b' font-family='sans-serif' font-size='16' dy='10.5' font-weight='bold' x='50%25' y='50%25' text-anchor='middle'%3EUploaded Image%3C/text%3E%3C/svg%3E";
+        } else if (!imageUrl) {
+            // If no image and no preview, use random default
+            imageUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect fill='%23e2e8f0' width='300' height='200'/%3E%3Ctext fill='%2364748b' font-family='sans-serif' font-size='16' dy='10.5' font-weight='bold' x='50%25' y='50%25' text-anchor='middle'%3ECourse Image%3C/text%3E%3C/svg%3E";
+        }
+
+        // Sanitize Course Fee
+        let fee = 0.0;
+        if (formData.price) {
+            const parsed = parseFloat(formData.price);
+            if (!isNaN(parsed)) {
+                fee = parsed;
+            }
+        }
+
+        // Sanitize Validity
+        let validity = null;
+        if (formData.showValidity && formData.validityDuration) {
+            const parsedValid = parseInt(formData.validityDuration);
+            if (!isNaN(parsedValid)) {
+                validity = parsedValid;
+            }
         }
 
         // Sanitize Payload for Backend (Prevent 500 Errors)
@@ -133,18 +155,14 @@ export const useCourses = () => {
             description: formData.description || formData.overview || "No Description",
             duration: formData.duration || "Self Paced",
             toolsCovered: formData.toolsCovered || "",
-            courseFee: formData.price ? parseFloat(formData.price) : 0.0,
+            courseFee: fee,
 
-            // If user uploaded an image (preview exists), use it. 
-            // NOTE: This Blob URL is local-only. For production, you MUST implement backend file upload.
-            // If the backend rejects this (500 error), revert to the random URL logic.
-            courseImageUrl: formData.imgPreview ? formData.imgPreview : `https://source.unsplash.com/random/400x300/?coding,technology&sig=${Math.floor(Math.random() * 1000)}`,
+            // Use the sanitized imageUrl
+            courseImageUrl: imageUrl,
 
             showValidity: formData.showValidity === true, // Ensure boolean
-            // Only send validityInDays if showValidity is true, otherwise null (or backend handles logic)
-            validityInDays: (formData.showValidity && formData.validityDuration)
-                ? parseInt(formData.validityDuration)
-                : null,
+            // Only send validityInDays if showValidity is true
+            validityInDays: validity || 0,
 
             allowOfflineMobile: formData.allowOffline === true,
             enableContentAccess: formData.contentAccessEnabled === true,

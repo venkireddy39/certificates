@@ -66,7 +66,9 @@ export const courseService = {
                 body: JSON.stringify(data)
             });
             if (!response.ok) {
-                throw new Error(`Error creating course: ${response.status}`);
+                const errorText = await response.text();
+                console.error("Server Error Response:", errorText);
+                throw new Error(`Error creating course: ${response.status} - ${errorText}`);
             }
             return await response.json();
         } catch (error) {
@@ -84,7 +86,9 @@ export const courseService = {
                 body: JSON.stringify(data)
             });
             if (!response.ok) {
-                throw new Error(`Error updating course: ${response.status}`);
+                const errorText = await response.text();
+                console.error("Server Error Response:", errorText);
+                throw new Error(`Error updating course: ${response.status} - ${errorText}`);
             }
             return await response.json();
         } catch (error) {
@@ -101,7 +105,8 @@ export const courseService = {
                 headers: getHeaders()
             });
             if (!response.ok) {
-                throw new Error(`Error deleting course: ${response.status}`);
+                const errorText = await response.text();
+                throw new Error(`Error deleting course: ${response.status} - ${errorText}`);
             }
             return true;
         } catch (error) {

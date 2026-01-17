@@ -19,9 +19,10 @@ const OfflineSync = () => {
     const [lateMinutesMap, setLateMinutesMap] = useState({});
 
     // Filter Logic
-    const filteredBatches = useMemo(() =>
-        MOCK_BATCHES.filter(b => !selectedCourse || b.courseId === selectedCourse),
-        [selectedCourse]);
+    const filteredBatches = useMemo(() => {
+        if (!MOCK_BATCHES) return [];
+        return MOCK_BATCHES.filter(b => !selectedCourse || b.courseId === selectedCourse);
+    }, [selectedCourse]);
 
     // Available Sessions for Date
     const availableSessions = useMemo(() => {
@@ -125,8 +126,14 @@ const OfflineSync = () => {
     // Queue Logic
     const [queue, setQueue] = useState([]);
     const loadQueue = () => {
-        const stored = JSON.parse(localStorage.getItem('offline_attendance') || '[]');
-        setQueue(stored);
+        try {
+            const stored = JSON.parse(localStorage.getItem('offline_attendance') || '[]');
+            setQueue(stored);
+        } catch (e) {
+            console.error("Failed to parse offline_attendance queue, clearing.", e);
+            setQueue([]);
+            localStorage.removeItem('offline_attendance');
+        }
     };
     useEffect(() => { loadQueue(); }, [activeTab]);
 
