@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
-import { FiEye, FiEyeOff, FiSearch } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { FiEye, FiEyeOff, FiSearch, FiRefreshCw } from 'react-icons/fi';
+import { generateAffiliateCode } from '../../../../utils/codeGenerator';
 
 const AffiliateForm = ({ onSubmit, onCancel }) => {
     const [formData, setFormData] = useState({
@@ -8,6 +9,7 @@ const AffiliateForm = ({ onSubmit, onCancel }) => {
         email: '',
         mobile: '',
         password: '',
+        affiliateCode: '',
         commissionRate: 0,
         cookieDays: '',
         assignedCourses: [],
@@ -15,6 +17,17 @@ const AffiliateForm = ({ onSubmit, onCancel }) => {
         notify: false
     });
     const [showPassword, setShowPassword] = useState(false);
+
+    useEffect(() => {
+        // Auto-generate code on mount if empty
+        if (!formData.affiliateCode) {
+            setFormData(prev => ({ ...prev, affiliateCode: generateAffiliateCode() }));
+        }
+    }, []);
+
+    const handleRegenerateCode = () => {
+        setFormData(prev => ({ ...prev, affiliateCode: generateAffiliateCode() }));
+    };
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -32,6 +45,32 @@ const AffiliateForm = ({ onSubmit, onCancel }) => {
     return (
         <form onSubmit={handleSubmit} className="user-form-scroll">
             <h3 className="form-subtitle">Enter details to create affiliate account</h3>
+
+            <div className="form-group">
+                <label>Affiliate Code <span className="req">*</span></label>
+                <div className="input-group-simple">
+                    <input
+                        type="text"
+                        name="affiliateCode"
+                        className="form-control"
+                        value={formData.affiliateCode}
+                        onChange={handleChange}
+                        required
+                        readOnly
+                        style={{ backgroundColor: '#f8f9fa', cursor: 'pointer' }}
+                        title="Click regenerate to change"
+                    />
+                    <button
+                        type="button"
+                        className="btn-icon-plain"
+                        onClick={handleRegenerateCode}
+                        title="Regenerate Code"
+                    >
+                        <FiRefreshCw />
+                    </button>
+                </div>
+                <small className="text-muted">Unique identifier for tracking referrals</small>
+            </div>
 
             <div className="form-group">
                 <label>Name <span className="req">*</span></label>

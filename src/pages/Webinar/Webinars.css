@@ -79,12 +79,16 @@
 
 .create-container {
     display: flex;
-    gap: 32px;
+    gap: 40px;
+    /* Increased gap */
     align-items: flex-start;
-    max-width: 1400px;
-    max-width: 1400px;
+    max-width: 1200px;
+    /* Slightly reduced for better focus */
     margin: 0 auto;
-    padding: 0 32px;
+    padding: 24px 32px 48px;
+    /* Added bottom padding */
+    justify-content: center;
+    /* Ensure centering */
 }
 
 .create-left-column {
@@ -99,12 +103,14 @@
 .form-sections {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 24px;
+    gap: 32px;
+    /* Increased gap between inputs */
     align-items: start;
 }
 
 .create-sidebar {
-    width: 360px;
+    width: 380px;
+    /* Slightly wider */
     flex-shrink: 0;
 }
 

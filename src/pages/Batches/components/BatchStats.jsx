@@ -1,45 +1,45 @@
-
 import React from 'react';
-import { FiClock, FiActivity, FiCheckCircle, FiLayers } from 'react-icons/fi';
+import { Layers, Clock, Activity, CheckCircle } from 'lucide-react';
+import StatCard from '../../../components/common/StatCard';
 
 const BatchStats = ({ stats }) => {
     return (
-        <div className="batch-stats-grid">
-            <div className="stat-card-clean total">
-                <div className="icon-box">
-                    <FiLayers />
-                </div>
-                <div className="stat-text">
-                    <p>Total Batches</p>
-                    <h3>{stats.total}</h3>
-                </div>
+        <div className="row g-4 mb-4">
+            <div className="col-12 col-md-6 col-xl-3">
+                <StatCard
+                    title="Total Batches"
+                    value={stats.total}
+                    icon={Layers}
+                    iconBg="#F1F5F9"
+                    iconColor="#475569"
+                />
             </div>
-            <div className="stat-card-clean upcoming">
-                <div className="icon-box">
-                    <FiClock />
-                </div>
-                <div className="stat-text">
-                    <p>Upcoming</p>
-                    <h3>{stats.upcoming}</h3>
-                </div>
+            <div className="col-12 col-md-6 col-xl-3">
+                <StatCard
+                    title="Upcoming"
+                    value={stats.upcoming}
+                    icon={Clock}
+                    iconBg="#eff6ff"
+                    iconColor="#3b82f6"
+                />
             </div>
-            <div className="stat-card-clean ongoing">
-                <div className="icon-box">
-                    <FiActivity />
-                </div>
-                <div className="stat-text">
-                    <p>Ongoing</p>
-                    <h3>{stats.ongoing}</h3>
-                </div>
+            <div className="col-12 col-md-6 col-xl-3">
+                <StatCard
+                    title="Ongoing"
+                    value={stats.ongoing}
+                    icon={Activity}
+                    iconBg="#f0fdf4"
+                    iconColor="#16a34a"
+                />
             </div>
-            <div className="stat-card-clean completed">
-                <div className="icon-box">
-                    <FiCheckCircle />
-                </div>
-                <div className="stat-text">
-                    <p>Completed</p>
-                    <h3>{stats.completed}</h3>
-                </div>
+            <div className="col-12 col-md-6 col-xl-3">
+                <StatCard
+                    title="Completed"
+                    value={stats.completed}
+                    icon={CheckCircle}
+                    iconBg="#f8fafc"
+                    iconColor="#94a3b8"
+                />
             </div>
         </div>
     );

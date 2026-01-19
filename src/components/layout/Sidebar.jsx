@@ -13,6 +13,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isMobile }) => {
     users: true,
     finance: false,
     marketing: false,
+    affiliates: false,
     system: false
   });
 
@@ -68,42 +69,48 @@ const Sidebar = ({ isOpen, toggleSidebar, isMobile }) => {
           <ul className="list-unstyled m-0 p-0 d-flex flex-column gap-1">
 
             {/* Dashboard */}
-            <SidebarItem to="/" icon="house-door" label="Dashboard" isOpen={isOpen} onClick={() => !isOpen && toggleSidebar()} />
+            <SidebarItem to="/" icon="FiLayout" label="Dashboard" isOpen={isOpen} onClick={() => !isOpen && toggleSidebar()} />
 
             {/* ACADEMICS GROUP */}
-            <MenuGroup title="Academics" icon="journal-bookmark" isOpen={isOpen} expanded={groups.academics} onToggle={() => toggleGroup('academics')}>
-              <SidebarItem to="/courses" icon="journal-text" label="Courses" isOpen={isOpen} isSub />
-              <SidebarItem to="/batches" icon="collection" label="Batches" isOpen={isOpen} isSub />
-              <SidebarItem to="/webinar" icon="camera-video" label="Webinars" isOpen={isOpen} isSub />
-              <SidebarItem to="/exams" icon="pencil-square" label="Exams" isOpen={isOpen} isSub />
-              <SidebarItem to="/certificates" icon="patch-check" label="Certificates" isOpen={isOpen} isSub />
-              <SidebarItem to="/attendance" icon="calendar-check" label="Attendance" isOpen={isOpen} isSub />
+            <MenuGroup title="Academics" icon="FiBookOpen" isOpen={isOpen} expanded={groups.academics} onToggle={() => toggleGroup('academics')}>
+              <SidebarItem to="/courses" icon="FiBook" label="Courses" isOpen={isOpen} isSub />
+              <SidebarItem to="/batches" icon="FiUsers" label="Batches" isOpen={isOpen} isSub />
+              <SidebarItem to="/webinar" icon="FiVideo" label="Webinars" isOpen={isOpen} isSub />
+              <SidebarItem to="/exams" icon="FiEdit" label="Exams" isOpen={isOpen} isSub />
+              <SidebarItem to="/certificates" icon="FiAward" label="Certificates" isOpen={isOpen} isSub />
+              <SidebarItem to="/attendance" icon="FiCalendar" label="Attendance" isOpen={isOpen} isSub />
+              <SidebarItem to="/library" icon="FiBook" label="Library" isOpen={isOpen} isSub />
             </MenuGroup>
 
             {/* USERS GROUP */}
-            <MenuGroup title="User Management" icon="people" isOpen={isOpen} expanded={groups.users} onToggle={() => toggleGroup('users')}>
-              <SidebarItem to="/users" icon="person-badge" label="All Users" isOpen={isOpen} isSub />
-              <SidebarItem to="/users?tab=instructors" icon="mortarboard" label="Instructors" isOpen={isOpen} isSub />
+            <MenuGroup title="User Management" icon="FiUsers" isOpen={isOpen} expanded={groups.users} onToggle={() => toggleGroup('users')}>
+              <SidebarItem to="/users" icon="FiUser" label="All Users" isOpen={isOpen} isSub />
+              <SidebarItem to="/users?tab=instructors" icon="FiUserCheck" label="Instructors" isOpen={isOpen} isSub />
             </MenuGroup>
 
             {/* MARKETING GROUP */}
-            <MenuGroup title="Marketing" icon="megaphone" isOpen={isOpen} expanded={groups.marketing} onToggle={() => toggleGroup('marketing')}>
-              <SidebarItem to="/marketing" icon="bar-chart" label="Overview" isOpen={isOpen} isSub />
-              <SidebarItem to="/affiliatemarketing" icon="share" label="Affiliates" isOpen={isOpen} isSub />
-              <SidebarItem to="/websites" icon="globe" label="Website Builder" isOpen={isOpen} isSub />
-              <SidebarItem to="/myapp" icon="phone" label="Mobile App" isOpen={isOpen} isSub />
+            <MenuGroup title="Marketing" icon="FiMegaphone" isOpen={isOpen} expanded={groups.marketing} onToggle={() => toggleGroup('marketing')}>
+              <SidebarItem to="/marketing" icon="FiBarChart2" label="Marketing Hub" isOpen={isOpen} isSub />
+              <SidebarItem to="/websites" icon="FiGlobe" label="Website Builder" isOpen={isOpen} isSub />
+              <SidebarItem to="/myapp" icon="FiSmartphone" label="Mobile App" isOpen={isOpen} isSub />
+            </MenuGroup>
+
+            {/* AFFILIATES GROUP */}
+            <MenuGroup title="Affiliates" icon="FiShare2" isOpen={isOpen} expanded={groups.affiliates} onToggle={() => toggleGroup('affiliates')}>
+              <SidebarItem to="/affiliates" icon="FiUsers" label="All Affiliates" isOpen={isOpen} isSub />
+              <SidebarItem to="/affiliate/portal" icon="FiLayout" label="Partner Portal" isOpen={isOpen} isSub />
             </MenuGroup>
 
             {/* FINANCE GROUP */}
-            <MenuGroup title="Finance" icon="currency-dollar" isOpen={isOpen} expanded={groups.finance} onToggle={() => toggleGroup('finance')}>
-              <SidebarItem to="/fee" icon="cash" label="Fee Management" isOpen={isOpen} isSub />
-              <SidebarItem to="/invoices" icon="receipt" label="Invoices" isOpen={isOpen} isSub />
+            <MenuGroup title="Finance" icon="FiDollarSign" isOpen={isOpen} expanded={groups.finance} onToggle={() => toggleGroup('finance')}>
+              <SidebarItem to="/fee" icon="FiCreditCard" label="Fee Management" isOpen={isOpen} isSub />
+              <SidebarItem to="/invoices" icon="FiFileText" label="Invoices" isOpen={isOpen} isSub />
             </MenuGroup>
 
             {/* ADMINISTRATION GROUP */}
-            <MenuGroup title="Administration" icon="shield" isOpen={isOpen} expanded={groups.system} onToggle={() => toggleGroup('system')}>
-              <SidebarItem to="/audit-logs" icon="file-text" label="Audit Logs" isOpen={isOpen} isSub />
-              <SidebarItem to="/settings" icon="gear" label="Settings" isOpen={isOpen} isSub />
+            <MenuGroup title="Administration" icon="FiShield" isOpen={isOpen} expanded={groups.system} onToggle={() => toggleGroup('system')}>
+              <SidebarItem to="/audit-logs" icon="FiClipboard" label="Audit Logs" isOpen={isOpen} isSub />
+              <SidebarItem to="/settings" icon="FiSettings" label="Settings" isOpen={isOpen} isSub />
             </MenuGroup>
           </ul>
         </nav>

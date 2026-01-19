@@ -3,7 +3,7 @@ import { FiX, FiUser, FiUsers, FiShield, FiTrendingUp, FiSmile } from "react-ico
 import LearnerForm from "./forms/LearnerForm";
 import AdminForm from "./forms/AdminForm";
 import InstructorForm from "./forms/InstructorForm";
-import AffiliateForm from "./forms/AffiliateForm";
+import AffiliateForm from "../../Affiliates/components/AffiliateForm";
 import ParentForm from "./forms/ParentForm";
 import "./styles/AddUserModal.css";
 

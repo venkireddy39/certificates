@@ -1,5 +1,12 @@
 import React from 'react';
-import { FaCertificate, FaUserGraduate, FaChartLine, FaClock, FaPlus, FaPalette } from 'react-icons/fa';
+import {
+    Award,
+    TrendingUp,
+    GraduationCap,
+    Palette,
+    ArrowUpRight,
+    ArrowDownRight
+} from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const CertificateDashboard = ({ certificates, templates, onNavigate }) => {
@@ -31,91 +38,79 @@ const CertificateDashboard = ({ certificates, templates, onNavigate }) => {
         value: courseStats[key]
     }));
 
-    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+    const COLORS = ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6610f2'];
+
+    // Stats Card Component (Matches Dashboard.jsx)
+    const StatsCard = ({ title, value, icon: Icon, trend, color, subValue }) => (
+        <div className="card border-0 shadow-sm h-100 stats-card">
+            <div className="card-body">
+                <div className="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <p className="text-muted small text-uppercase fw-bold mb-1">{title}</p>
+                        <h2 className="mb-0 fw-bold">{value}</h2>
+                    </div>
+                    <div className={`p-2 rounded-3 bg-${color}-subtle`}>
+                        <Icon className={`text-${color}`} size={24} />
+                    </div>
+                </div>
+                <div className="d-flex align-items-center">
+                    {trend !== undefined && (
+                        <span className={`badge bg-${trend > 0 ? 'success' : 'danger'}-subtle text-${trend > 0 ? 'success' : 'danger'} me-2`}>
+                            {trend > 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                            {Math.abs(trend)}%
+                        </span>
+                    )}
+                    <span className="text-muted small">{subValue}</span>
+                </div>
+            </div>
+        </div>
+    );
 
     return (
         <div className="animate-fade-in text-start"> {/* text-start ensures left alignment like admin panels usually are */}
 
             {/* Stats Cards Row */}
             <div className="row g-4 mb-5">
-                <div className="col-md-3">
-                    <div className="card border-0 shadow-sm rounded-4 h-100 bg-primary text-white position-relative overflow-hidden">
-                        <div className="card-body p-4">
-                            <div className="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <p className="mb-1 opacity-75 fw-medium">Total Issued</p>
-                                    <h3 className="fw-bold mb-0">{totalIssued}</h3>
-                                </div>
-                                <div className="p-2 bg-white bg-opacity-25 rounded-3">
-                                    <FaCertificate size={24} />
-                                </div>
-                            </div>
-                            <div className="mt-4 small d-flex align-items-center">
-                                <span className="badge bg-white text-primary me-2">+12%</span>
-                                <span className="opacity-75">vs last month</span>
-                            </div>
-                        </div>
-                        {/* Decorative Circle */}
-                        <div className="position-absolute top-0 end-0 bg-white opacity-10 rounded-circle" style={{ width: '100px', height: '100px', margin: '-20px' }}></div>
-                    </div>
+                <div className="col-xl-3 col-md-6">
+                    <StatsCard
+                        title="Total Issued"
+                        value={totalIssued}
+                        icon={Award}
+                        trend={12}
+                        color="primary"
+                        subValue="vs last month"
+                    />
                 </div>
 
-                <div className="col-md-3">
-                    <div className="card border-0 shadow-sm rounded-4 h-100 bg-dark text-white position-relative overflow-hidden">
-                        <div className="card-body p-4">
-                            <div className="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <p className="mb-1 opacity-75 fw-medium">Issued This Month</p>
-                                    <h3 className="fw-bold mb-0">{issuedThisMonth}</h3>
-                                </div>
-                                <div className="p-2 bg-white bg-opacity-25 rounded-3">
-                                    <FaChartLine size={24} />
-                                </div>
-                            </div>
-                            <div className="mt-4 small d-flex align-items-center">
-                                <span className="badge bg-success text-white me-2">Active</span>
-                                <span className="opacity-75">issuance period</span>
-                            </div>
-                        </div>
-                    </div>
+                <div className="col-xl-3 col-md-6">
+                    <StatsCard
+                        title="Issued This Month"
+                        value={issuedThisMonth}
+                        icon={TrendingUp}
+                        // trend={0} // No trend functionality yet
+                        color="success"
+                        subValue="Active issuance period"
+                    />
                 </div>
 
-                <div className="col-md-3">
-                    <div className="card border-0 shadow-sm rounded-4 h-100 bg-white text-dark position-relative overflow-hidden border-start border-4 border-info">
-                        <div className="card-body p-4">
-                            <div className="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <p className="text-muted mb-1 fw-medium">Top Course</p>
-                                    <h5 className="fw-bold mb-0 text-truncate" style={{ maxWidth: '150px' }} title={topCourse}>{topCourse}</h5>
-                                </div>
-                                <div className="p-2 bg-light rounded-3 text-info">
-                                    <FaUserGraduate size={24} />
-                                </div>
-                            </div>
-                            <div className="mt-4 small text-muted">
-                                Most popular certification
-                            </div>
-                        </div>
-                    </div>
+                <div className="col-xl-3 col-md-6">
+                    <StatsCard
+                        title="Top Course"
+                        value={topCourse}
+                        icon={GraduationCap}
+                        color="info"
+                        subValue="Most popular certification"
+                    />
                 </div>
 
-                <div className="col-md-3">
-                    <div className="card border-0 shadow-sm rounded-4 h-100 bg-white text-dark position-relative overflow-hidden border-start border-4 border-warning">
-                        <div className="card-body p-4">
-                            <div className="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <p className="text-muted mb-1 fw-medium">Templates</p>
-                                    <h3 className="fw-bold mb-0">{totalTemplates}</h3>
-                                </div>
-                                <div className="p-2 bg-light rounded-3 text-warning">
-                                    <FaPalette size={24} />
-                                </div>
-                            </div>
-                            <div className="mt-4 small text-muted">
-                                Available designs
-                            </div>
-                        </div>
-                    </div>
+                <div className="col-xl-3 col-md-6">
+                    <StatsCard
+                        title="Templates"
+                        value={totalTemplates}
+                        icon={Palette}
+                        color="warning"
+                        subValue="Available designs"
+                    />
                 </div>
             </div>
 
@@ -202,13 +197,13 @@ const CertificateDashboard = ({ certificates, templates, onNavigate }) => {
                             <div className="card-body p-4 d-flex flex-column justify-content-center text-center">
                                 <h5 className="fw-bold mb-3">Quick Actions</h5>
                                 <button className="btn btn-primary w-100 mb-3 py-2 shadow-sm" onClick={() => onNavigate('issue')}>
-                                    <FaPlus className="me-2" /> Issue New Certificate
+                                    <Award className="me-2" /> Issue New Certificate
                                 </button>
                                 <button className="btn btn-white border w-100 mb-3 py-2 shadow-sm" onClick={() => onNavigate('templates')}>
-                                    <FaPalette className="me-2" /> Design Template
+                                    <Palette className="me-2" /> Design Template
                                 </button>
                                 <button className="btn btn-white border w-100 py-2 shadow-sm" onClick={() => onNavigate('settings')}>
-                                    <FaClock className="me-2" /> Manage Settings
+                                    <TrendingUp className="me-2" /> Manage Settings
                                 </button>
                             </div>
                         </div>

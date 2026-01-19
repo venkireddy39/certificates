@@ -231,3 +231,41 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Utility Colors for Stats Cards */
+.bg-green-subtle {
+    background-color: #dcfce7;
+}
+
+.text-green {
+    color: #16a34a;
+}
+
+.bg-blue-subtle {
+    background-color: #dbeafe;
+}
+
+.text-blue {
+    color: #3b82f6;
+}
+
+.bg-warning-subtle {
+    background-color: #fef9c3;
+}
+
+.text-warning {
+    color: #854d0e;
+}
+
+/* Form Switch */
+.form-check.form-switch {
+    display: flex;
+    align-items: center;
+}
+
+.form-check-input {
+    width: 2.5em;
+    /* Bigger switch */
+    height: 1.25em;
+    cursor: pointer;
+}

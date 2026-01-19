@@ -43,16 +43,15 @@ const Batches = () => {
     } = useBatches(courses);
 
     return (
-        <div className="batches-page">
-
+        <>
             {/* Header */}
-            <div className="batches-header-premium">
-                <div className="header-titles">
-                    <h1>Batch Management</h1>
-                    <p>Manage batch schedules, pricing, and access.</p>
+            <div className="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4">
+                <div className="mb-3 mb-md-0">
+                    <h1 className="h3 mb-1 text-dark fw-bold">Batch Management</h1>
+                    <p className="text-secondary small mb-0">Manage batch schedules, pricing, and access.</p>
                 </div>
-                <div className="header-actions">
-                    <button className="btn-primary-add" onClick={() => openModal()}>
+                <div>
+                    <button className="btn btn-primary d-flex align-items-center gap-2 shadow-sm" onClick={() => openModal()}>
                         <FiPlus size={18} /> Create New Batch
                     </button>
                 </div>
@@ -162,7 +161,7 @@ const Batches = () => {
                 courses={courses}
                 instructors={instructors}
             />
-        </div>
+        </>
     );
 };
 

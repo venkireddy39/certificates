@@ -1,93 +1,37 @@
-import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
-import Sidebar from './Sidebar'
-import Navbar from './Navbar'
+import { useState, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
-
-const SIDEBAR_WIDTH = 260
-const SIDEBAR_COLLAPSED_WIDTH = 60
+import TopNav from './TopNav'
+import ContextNav from './ContextNav'
 
 const DashboardLayout = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768)
+
+  // Mobile check preserved 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
-  const location = useLocation()
-  const isFullWidth = location.pathname.startsWith('/exams') || location.pathname.startsWith('/webinar') || location.pathname.startsWith('/courses') || location.pathname.startsWith('/attendance') || location.pathname.startsWith('/fee')
 
   useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth <= 768
-      setIsMobile(mobile)
-      setIsSidebarOpen(!mobile)
-    }
-
+    const handleResize = () => setIsMobile(window.innerWidth <= 768)
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(prev => !prev)
-  }
-
   return (
-    <div
-      style={{
-        height: '100vh',
-        overflow: 'hidden',
-        backgroundColor: '#fff'
-      }}
-    >
-      {/* SIDEBAR (FIXED, NO FLEX) */}
-      <Sidebar
-        isOpen={isSidebarOpen}
-        toggleSidebar={toggleSidebar}
-        isMobile={isMobile}
-      />
+    <div className="d-flex flex-column" style={{ height: '100dvh', backgroundColor: '#f5f7fb' }}>
+      {/* 1. PRIMARY NAVIGATION (Top Row) */}
+      <div className="flex-shrink-0 w-100">
+        <TopNav />
+      </div>
 
-      {/* MAIN CONTENT */}
-      <div
-        style={{
-          marginLeft: isMobile
-            ? 0
-            : isSidebarOpen
-              ? SIDEBAR_WIDTH
-              : SIDEBAR_COLLAPSED_WIDTH,
-          transition: 'margin-left 0.25s ease-out',
-          height: '100vh',
-          display: 'flex',
-          flexDirection: 'column'
-        }}
-      >
-        {/* TOP NAVBAR */}
-        <Navbar toggleSidebar={toggleSidebar} />
+      {/* 2. SECONDARY CONTEXT NAVIGATION (Sub Row) */}
+      <div className="z-2 position-relative flex-shrink-0 w-100">
+        <ContextNav />
+      </div>
 
-        {/* SCROLLABLE CONTENT ONLY */}
-        <main
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: isFullWidth ? '0' : '1.5rem',
-            position: 'relative'
-          }}
-        >
+      {/* 3. SCROLLABLE CONTENT AREA */}
+      <main className="flex-grow-1 overflow-auto">
+        <div className="container-fluid px-4 py-4" style={{ maxWidth: 1600 }}>
           <Outlet />
-        </main>
-      </div>
-
-      {/* FLOATING CHAT */}
-      <div
-        className="position-fixed d-flex align-items-center justify-content-center text-white rounded-circle shadow"
-        style={{
-          width: 50,
-          height: 50,
-          bottom: 24,
-          right: 24,
-          background: 'linear-gradient(135deg, #667eea, #764ba2)',
-          cursor: 'pointer',
-          zIndex: 1050
-        }}
-      >
-        <i className="bi bi-chat-dots fs-5"></i>
-      </div>
+        </div>
+      </main>
     </div>
   )
 }
