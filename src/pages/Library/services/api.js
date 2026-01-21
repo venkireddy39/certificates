@@ -1,4 +1,5 @@
 import { MockAPI } from './mockData';
+export { MockAPI };
 
 /* =========================
    RESOURCE (BOOK) SERVICE

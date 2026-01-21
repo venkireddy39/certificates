@@ -3,8 +3,7 @@ import { useState } from 'react';
 
 export const useCourseFilters = (courses) => {
     const [search, setSearch] = useState("");
-    const [filterType, setFilterType] = useState("All");
-
+    const [statusFilter, setStatusFilter] = useState("All");
 
     const filteredCourses = courses.filter(c => {
         const courseName = c.name ? c.name.toLowerCase() : "";
@@ -12,16 +11,19 @@ export const useCourseFilters = (courses) => {
         const query = search.toLowerCase();
 
         const matchesSearch = courseName.includes(query) || mentor.includes(query);
-        const matchesType = filterType === "All" || c.courseType === filterType;
 
-        return matchesSearch && matchesType;
+        // Filter by Status: All, Active, Disabled
+        // Ensure accurate matching with backend values (ACTIVE, DISABLED)
+        const matchesStatus = statusFilter === "All" || (c.status && c.status.toUpperCase() === statusFilter.toUpperCase());
+
+        return matchesSearch && matchesStatus;
     });
 
     return {
         search,
         setSearch,
-        filterType,
-        setFilterType,
+        statusFilter,
+        setStatusFilter,
         filteredCourses
     };
 };

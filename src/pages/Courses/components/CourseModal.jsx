@@ -272,6 +272,33 @@ const CourseModal = ({
                                 </div>
                             </div>
 
+                            {/* Status */}
+                            <div className="form-field">
+                                <label>Course Status</label>
+                                <div style={{ display: "flex", gap: 16 }}>
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="status"
+                                            value="ACTIVE"
+                                            checked={formData.status === "ACTIVE"}
+                                            onChange={handleInputChange}
+                                        />{" "}
+                                        Active
+                                    </label>
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="status"
+                                            value="DISABLED"
+                                            checked={formData.status === "DISABLED"}
+                                            onChange={handleInputChange}
+                                        />{" "}
+                                        Disabled
+                                    </label>
+                                </div>
+                            </div>
+
 
 
                             {/* Certificate */}
@@ -309,7 +336,7 @@ const CourseModal = ({
                     <button className="btn-secondary" onClick={onClose}>
                         Cancel
                     </button>
-                    <button className="btn-primary" onClick={handleSave}>
+                    <button className="btn-secondary" onClick={handleSave}>
                         {isEdit ? "Update Course" : "Create Course"}
                     </button>
                 </div>

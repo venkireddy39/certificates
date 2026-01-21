@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { FiUploadCloud, FiLink, FiVideo } from 'react-icons/fi';
 
 const VideoForm = ({ onSave, onCancel, initialData }) => {
-    const [method, setMethod] = useState(initialData?.method || 'upload'); // 'upload' | 'url'
+    // Determine initial method based on whether there's a file or url
+    const [method, setMethod] = useState(initialData?.method || (initialData?.url ? 'url' : 'upload'));
     const [formData, setFormData] = useState({
         title: initialData?.title || '',
         url: initialData?.url || '',
@@ -15,7 +16,9 @@ const VideoForm = ({ onSave, onCancel, initialData }) => {
         e.preventDefault();
         onSave({
             ...formData,
-            fileName: formData.file ? formData.file.name : (initialData?.fileName || null),
+            // If using URL method, ensure file is null so logic knows
+            file: method === 'upload' ? formData.file : null,
+            fileName: method === 'upload' && formData.file ? formData.file.name : null,
             method
         });
     };
@@ -23,94 +26,114 @@ const VideoForm = ({ onSave, onCancel, initialData }) => {
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            setFormData({ ...formData, file });
+            setFormData(prev => ({
+                ...prev,
+                file,
+                // Auto-fill title if empty
+                title: prev.title || file.name.replace(/\.[^/.]+$/, "")
+            }));
         }
     };
 
     return (
         <form className="builder-form" onSubmit={handleSubmit}>
-            <h3>{initialData ? 'Edit Video Content' : 'Add Video Content'}</h3>
+            <div className="d-flex justify-content-between align-items-center mb-4">
+                <h3 className="mb-0">{initialData ? 'Edit Content' : 'Add Content'}</h3>
+            </div>
 
-            {/* ... fields ... */}
-
-            <div className="form-group">
-                <label>Video Title</label>
+            {/* 1. TITLE */}
+            <div className="form-group mb-3">
+                <label className="form-label fw-bold">Title</label>
                 <input
                     type="text"
+                    className="form-control"
                     required
                     value={formData.title}
                     onChange={e => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="e.g. Introduction to React"
+                    placeholder="e.g. Introduction to the Course"
                 />
             </div>
 
-            <div className="form-group">
-                <label>Source Type</label>
-                <div className="source-type-tabs" style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                    <button
-                        type="button"
-                        className={`btn-tab ${method === 'upload' ? 'active' : ''}`}
-                        onClick={() => setMethod('upload')}
-                        style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #e2e8f0', background: method === 'upload' ? '#eff6ff' : '#fff', color: method === 'upload' ? '#2563eb' : '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                    >
-                        <FiUploadCloud style={{ marginRight: '8px' }} /> Upload
-                    </button>
-                    <button
-                        type="button"
-                        className={`btn-tab ${method === 'url' ? 'active' : ''}`}
-                        onClick={() => setMethod('url')}
-                        style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #e2e8f0', background: method === 'url' ? '#eff6ff' : '#fff', color: method === 'url' ? '#2563eb' : '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                    >
-                        <FiLink style={{ marginRight: '8px' }} /> URL
-                    </button>
-                </div>
-            </div>
-
-            {method === 'url' ? (
-                <div className="form-group">
-                    <label>Video URL (YouTube/Vimeo/S3)</label>
-                    <input
-                        type="url"
-                        required={method === 'url'}
-                        value={formData.url}
-                        onChange={e => setFormData({ ...formData, url: e.target.value })}
-                        placeholder="https://..."
-                    />
-                </div>
-            ) : (
-                <div className="form-group">
-                    <label>Video File (MP4, WebM)</label>
-                    <div className="file-upload-box">
-                        <input
-                            type="file"
-                            accept="video/*"
-                            onChange={handleFileChange}
-                            id="video-upload"
-                            className="file-input-hidden"
-                        />
-                        <label htmlFor="video-upload" className="file-drop-area">
-                            <FiVideo size={32} />
-                            <span>{formData.file ? formData.file.name : (initialData?.fileName || 'Click to Browse or Drag Video')}</span>
-                        </label>
-                    </div>
-                </div>
-            )}
-
-            <div className="form-group">
-                <label>Description</label>
+            {/* 2. DESCRIPTION */}
+            <div className="form-group mb-3">
+                <label className="form-label fw-bold">Description</label>
                 <textarea
+                    className="form-control"
                     value={formData.description}
                     onChange={e => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Enter video description..."
+                    placeholder="Brief description of this content..."
                     rows="3"
-                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #d1d5db' }}
                 />
             </div>
 
-            <div className="form-actions">
-                <button type="button" className="btn-text" onClick={onCancel}>Cancel</button>
-                <button type="submit" className="btn-primary" disabled={method === 'upload' && !formData.file && !initialData?.fileName}>
-                    {initialData ? 'Update Video' : 'Add Video'}
+            {/* 3. CONTENT TYPE / SOURCE */}
+            <div className="form-group mb-3">
+                <label className="form-label fw-bold">Content Type / Source</label>
+                <div className="btn-group w-100" role="group">
+                    <input
+                        type="radio"
+                        className="btn-check"
+                        name="method"
+                        id="method-upload"
+                        checked={method === 'upload'}
+                        onChange={() => setMethod('upload')}
+                    />
+                    <label className="btn btn-outline-primary" htmlFor="method-upload">
+                        <FiUploadCloud className="me-2" /> Upload Video
+                    </label>
+
+                    <input
+                        type="radio"
+                        className="btn-check"
+                        name="method"
+                        id="method-url"
+                        checked={method === 'url'}
+                        onChange={() => setMethod('url')}
+                    />
+                    <label className="btn btn-outline-primary" htmlFor="method-url">
+                        <FiLink className="me-2" /> External URL
+                    </label>
+                </div>
+            </div>
+
+            {/* 4. FILE OR URL INPUT */}
+            <div className="form-group mb-4">
+                {method === 'url' ? (
+                    <>
+                        <label className="form-label">Video URL</label>
+                        <input
+                            type="url"
+                            className="form-control"
+                            required={method === 'url'}
+                            value={formData.url}
+                            onChange={e => setFormData({ ...formData, url: e.target.value })}
+                            placeholder="https://youtube.com/..."
+                        />
+                    </>
+                ) : (
+                    <>
+                        <label className="form-label">Video File</label>
+                        <div className="border rounded p-4 text-center bg-light">
+                            <input
+                                type="file"
+                                id="video-upload"
+                                accept="video/*"
+                                className="d-none"
+                                onChange={handleFileChange}
+                            />
+                            <label htmlFor="video-upload" className="cursor-pointer text-primary">
+                                <FiVideo size={24} className="mb-2 d-block mx-auto" />
+                                <span className="fw-bold">{formData.file ? formData.file.name : "Click to Select Video File"}</span>
+                            </label>
+                        </div>
+                    </>
+                )}
+            </div>
+
+            <div className="d-flex justify-content-end gap-2">
+                <button type="button" className="btn btn-light" onClick={onCancel}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={method === 'upload' && !formData.file && !initialData?.fileName}>
+                    {initialData ? 'Update Content' : 'Add Content'}
                 </button>
             </div>
         </form>

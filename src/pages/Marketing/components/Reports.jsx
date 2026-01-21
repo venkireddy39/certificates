@@ -1,8 +1,27 @@
 import React, { useState } from 'react';
-import { FiDownload, FiFileText, FiClock, FiCheck, FiRefreshCw, FiCalendar } from 'react-icons/fi';
+import { FiDownload, FiFileText, FiClock, FiCheck, FiRefreshCw, FiCalendar, FiTrendingUp, FiPieChart } from 'react-icons/fi';
+import {
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    PieChart, Pie, Cell, Legend
+} from 'recharts';
 
 const Reports = () => {
     const [isGenerating, setIsGenerating] = useState(false);
+
+    // Mock Data for Charts
+    const roiData = [
+        { name: 'Email', value: 450, color: '#0088FE' },
+        { name: 'Ads', value: 300, color: '#00C49F' },
+        { name: 'Affiliate', value: 150, color: '#FFBB28' },
+        { name: 'Organic', value: 100, color: '#FF8042' },
+    ];
+
+    const performanceData = [
+        { name: 'Q1', goal: 4000, actual: 4200 },
+        { name: 'Q2', goal: 5000, actual: 4800 },
+        { name: 'Q3', goal: 6000, actual: 6500 },
+        { name: 'Q4', goal: 7000, actual: 4300 }, // Current
+    ];
 
     // Mock Data for Export History
     const [exportHistory, setExportHistory] = useState([
@@ -37,23 +56,89 @@ const Reports = () => {
 
     return (
         <div className="reports-page fade-in">
+            <div className="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h5 className="mb-1 d-flex align-items-center gap-2">
+                        <FiFileText className="text-primary" /> Reports & Analytics
+                    </h5>
+                    <p className="text-muted small mb-0">Deep dive into channel ROI and campaign performance.</p>
+                </div>
+            </div>
+
+            {/* ANALYTICS PREVIEW SECTION */}
+            <div className="row g-4 mb-4">
+                <div className="col-md-6">
+                    <div className="card border-0 shadow-sm h-100">
+                        <div className="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
+                            <h6 className="d-flex align-items-center gap-2 mb-0">
+                                <FiPieChart /> Channel ROI Breakdown
+                            </h6>
+                        </div>
+                        <div className="card-body" style={{ minHeight: 300 }}>
+                            <ResponsiveContainer width="100%" height={250}>
+                                <PieChart>
+                                    <Pie
+                                        data={roiData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        fill="#8884d8"
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                        label
+                                    >
+                                        {roiData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                    <Legend />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                </div>
+                <div className="col-md-6">
+                    <div className="card border-0 shadow-sm h-100">
+                        <div className="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
+                            <h6 className="d-flex align-items-center gap-2 mb-0">
+                                <FiTrendingUp /> Campaign Performance (Goal vs Actual)
+                            </h6>
+                        </div>
+                        <div className="card-body" style={{ minHeight: 300 }}>
+                            <ResponsiveContainer width="100%" height={250}>
+                                <BarChart data={performanceData}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="name" />
+                                    <YAxis />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Bar dataKey="goal" fill="#82ca9d" name="Goal" />
+                                    <Bar dataKey="actual" fill="#8884d8" name="Actual Revenue" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
             {/* 1. REPORT GENERATOR */}
             <div className="card border-0 shadow-sm mb-4">
                 <div className="card-header bg-white py-3 border-bottom">
-                    <h5 className="mb-0 d-flex align-items-center gap-2">
-                        <FiFileText className="text-primary" /> Generate New Report
-                    </h5>
+                    <h6 className="mb-0 fw-bold">Generate Custom Report</h6>
                 </div>
                 <div className="card-body p-4">
                     <form onSubmit={handleGenerate}>
                         <div className="row g-3">
                             <div className="col-md-3">
-                                <label className="form-label small text-muted fw-bold">Export Type</label>
+                                <label className="form-label small text-muted fw-bold">Report Type</label>
                                 <select name="type" className="form-select" required>
-                                    <option value="Leads">All Leads</option>
-                                    <option value="Campaigns">Campaign Performance</option>
-                                    <option value="Revenue">Revenue Attribution</option>
-                                    <option value="Coupons">Coupon Usage</option>
+                                    <option value="Campaign Performance">Campaign Performance</option>
+                                    <option value="Channel ROI">Channel ROI Analysis</option>
+                                    <option value="Leads Summary">Leads Summary</option>
+                                    <option value="Executive Activity">Executive Activity Log</option>
                                 </select>
                             </div>
                             <div className="col-md-3">
@@ -72,14 +157,14 @@ const Reports = () => {
                                         <label className="form-check-label" htmlFor="fmtCSV">CSV</label>
                                     </div>
                                     <div className="form-check">
-                                        <input className="form-check-input" type="radio" name="format" id="fmtXLSX" value="XLSX" />
-                                        <label className="form-check-label" htmlFor="fmtXLSX">Excel</label>
+                                        <input className="form-check-input" type="radio" name="format" id="fmtPDF" value="PDF" />
+                                        <label className="form-check-label" htmlFor="fmtPDF">PDF</label>
                                     </div>
                                 </div>
                             </div>
                             <div className="col-12 mt-4 d-flex justify-content-end">
                                 <button type="submit" className="btn btn-primary px-4" disabled={isGenerating}>
-                                    {isGenerating ? <><FiRefreshCw className="spin me-2" /> Generating...</> : 'Generate Report'}
+                                    {isGenerating ? <><FiRefreshCw className="spin me-2" /> Generating...</> : 'Download Report'}
                                 </button>
                             </div>
                         </div>
@@ -90,9 +175,9 @@ const Reports = () => {
             {/* 2. EXPORT HISTORY */}
             <div className="card border-0 shadow-sm">
                 <div className="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-                    <h5 className="mb-0 d-flex align-items-center gap-2">
-                        <FiClock className="text-secondary" /> Export History
-                    </h5>
+                    <h6 className="mb-0 fw-bold d-flex align-items-center gap-2">
+                        <FiClock className="text-muted" /> Recent Downloads
+                    </h6>
                 </div>
                 <div className="table-responsive">
                     <table className="table table-hover align-middle mb-0">

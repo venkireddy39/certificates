@@ -10,6 +10,16 @@ export default defineConfig({
         target: 'http://192.168.1.23:5151',
         changeOrigin: true,
         secure: false,
+      },
+      '/uploads': {
+        target: 'http://192.168.1.23:5151',
+        changeOrigin: true,
+        secure: false,
+        configure: (proxy, _options) => {
+          proxy.on('proxyRes', (proxyRes, req, _res) => {
+            delete proxyRes.headers['x-frame-options'];
+          });
+        }
       }
     }
   }

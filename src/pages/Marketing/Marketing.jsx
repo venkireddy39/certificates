@@ -1,70 +1,39 @@
-import React, { useState } from 'react';
-import { FiDownload, FiPlus } from 'react-icons/fi';
+import React from 'react';
+import { useAuth } from '../Library/context/AuthContext'; // Adapting path to where AuthContext is
+import MarketingManager from './MarketingManager';
+import MarketingExecutive from './MarketingExecutive';
 import './Marketing.css';
 
-// Import Components
-import MarketingOverview from './components/MarketingOverview';
-import Campaigns from './components/Campaigns';
-import Coupons from './components/Coupons';
-import Leads from './components/Leads';
-import Analytics from './components/Analytics';
-import Automations from './components/Automations';
-import MarketingSettings from './components/MarketingSettings';
-import Reports from './components/Reports';
-
 const Marketing = () => {
-  const [activeTab, setActiveTab] = useState('overview');
+  const { user, login } = useAuth();
 
-  const handleExport = () => {
-    // Basic CSV export simulation
-    const csvContent = "data:text/csv;charset=utf-8,Marketing Report\nGenerated on " + new Date().toLocaleDateString();
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "marketing_report.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  // For development debug/demo purposes, if no user is logged in, show a dev selection
+  if (!user) {
+    return (
+      <div className="marketing-login-debug" style={{ padding: '2rem', textAlign: 'center' }}>
+        <h2>Marketing Portal Access</h2>
+        <p>Please select a role to enter (Demo Mode)</p>
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}>
+          <button className="btn-primary" onClick={() => login('MARKETING_MANAGER')}>Login as Manager</button>
+          <button className="btn-secondary" onClick={() => login('MARKETING_EXECUTIVE')}>Login as Executive</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Dispatch based on role
+  if (user.role === 'MARKETING_MANAGER' || user.role === 'ADMIN') {
+    return <MarketingManager />;
+  }
+
+  if (user.role === 'MARKETING_EXECUTIVE') {
+    return <MarketingExecutive />;
+  }
 
   return (
-    <div className="marketing-page">
-      <header className="marketing-header">
-        <div className="page-title">
-          <h1>Marketing Hub</h1>
-          <p>Promotion strategy, campaigns, and growth analytics.</p>
-        </div>
-        <div className="marketing-actions">
-          <button className="btn-secondary" onClick={handleExport}><FiDownload /> Export Report</button>
-          {/* Note: Create Campaign button removed from header as it's now context-specific in Campaigns tab, 
-              or could be passed as prop if needed globally. Keeping header clean. */}
-        </div>
-      </header>
-
-      {/* Tabs */}
-      <div className="marketing-tabs">
-        {['overview', 'campaigns', 'coupons', 'leads', 'analytics', 'automation', 'reports', 'settings'].map(tab => (
-          <button
-            key={tab}
-            className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
-            style={{ textTransform: 'capitalize' }}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      <div className="tab-content" style={{ marginTop: 24 }}>
-        {activeTab === 'overview' && <MarketingOverview />}
-        {activeTab === 'campaigns' && <Campaigns />}
-        {activeTab === 'coupons' && <Coupons />}
-        {activeTab === 'leads' && <Leads />}
-        {activeTab === 'analytics' && <Analytics />}
-        {activeTab === 'automation' && <Automations />}
-        {activeTab === 'reports' && <Reports />}
-        {activeTab === 'settings' && <MarketingSettings />}
-      </div>
+    <div className="access-denied">
+      <h2>Access Denied</h2>
+      <p>You do not have permission to view the Marketing module.</p>
     </div>
   );
 };

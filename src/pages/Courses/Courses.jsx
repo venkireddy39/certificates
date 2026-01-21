@@ -53,6 +53,8 @@ const CoursesPage = () => {
           <CourseFilters
             search={search}
             setSearch={setSearch}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
           />
 
           <button className="btn-primary-add" onClick={() => openModal()}>

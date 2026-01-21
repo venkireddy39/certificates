@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { FiClock, FiUsers, FiAward, FiCheckCircle, FiPlayCircle, FiLock, FiBookOpen, FiArrowRight } from 'react-icons/fi';
-// import { useCourses } from './hooks/useCourses'; // Assuming we can use this or mock it
+import { courseService } from './services/courseService'; // Check path! File is in pages/Courses/CourseOverview.jsx, service is in pages/Courses/services/courseService.js
 
 const CourseOverview = () => {
-    const { id } = useParams();
+    const { id, shareCode } = useParams(); // Get shareCode from params
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -20,23 +20,39 @@ const CourseOverview = () => {
     useEffect(() => {
         const fetchCourse = async () => {
             try {
-                const data = await courseService.getCourseById(id);
+                let data;
+                if (shareCode) {
+                    data = await courseService.getCourseByShareCode(shareCode);
+                } else if (id) {
+                    data = await courseService.getCourseById(id);
+                } else {
+                    return;
+                }
+
+                // Helper to format image URL
+                const getFullImageUrl = (imgUrl) => {
+                    if (!imgUrl) return null;
+                    if (imgUrl.startsWith("http")) return imgUrl;
+                    // Prepend backend URL for relative paths
+                    return `http://192.168.1.23:5151${imgUrl.startsWith("/") ? "" : "/"}${imgUrl}`;
+                };
+
                 setCourse({
                     id: data.courseId,
                     title: data.courseName,
                     description: data.description,
-                    longDescription: data.description, // Backend doesn't have longDescription separate
-                    instructor: "TBD", // Backend missing instructor
+                    longDescription: data.description,
+                    instructor: "TBD",
                     instructorRole: "Instructor",
                     duration: data.duration,
-                    lessons: 0, // Topics not fetched
-                    students: 0, // Enrollment not fetched
-                    rating: 0, // Rating not fetched
+                    lessons: 0,
+                    students: 0,
+                    rating: 0,
                     price: data.courseFee ? `$${data.courseFee}` : "Free",
                     originalPrice: "",
-                    coverImage: data.courseImageUrl || "https://images.unsplash.com/photo-1633356122544-f134324a6cee",
+                    coverImage: getFullImageUrl(data.courseImageUrl) || "https://images.unsplash.com/photo-1633356122544-f134324a6cee",
                     topics: data.toolsCovered ? data.toolsCovered.split(',') : [],
-                    curriculum: [] // Topics are @JsonIgnore in backend for now
+                    curriculum: []
                 });
             } catch (error) {
                 console.error("Failed to load course details", error);
@@ -46,7 +62,7 @@ const CourseOverview = () => {
         };
 
         fetchCourse();
-    }, [id]);
+    }, [id, shareCode]);
 
     const handleEnroll = () => {
         if (!isLoggedIn) {

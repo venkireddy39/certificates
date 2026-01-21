@@ -4,26 +4,19 @@ import { useCourseBuilder } from './hooks/useCourseBuilder';
 
 import {
     FiArrowLeft,
-    FiSave,
-    FiEye,
     FiPlusCircle,
     FiTrash2,
-    FiMoreVertical,
-    FiEdit2,
+    FiMoreVertical, // Restored
+    FiEdit2, // Restored
     FiVideo,
     FiFileText,
     FiLayout
 } from 'react-icons/fi';
 
 import ChapterList from './builder/ChapterList';
-import ContentTypeSelector from './builder/content/ContentTypeSelector';
-import VideoForm from './builder/content/video/VideoForm';
-import PdfForm from './builder/content/pdf/PdfForm';
-import HeadingForm from './builder/content/heading/HeadingForm';
+import UnifiedContentForm from './builder/content/UnifiedContentForm';
 
 import './styles/CourseBuilder.css';
-
-const ALLOWED_TYPES = ['video', 'pdf', 'heading'];
 
 const CourseBuilder = () => {
     const { id } = useParams();
@@ -32,8 +25,6 @@ const CourseBuilder = () => {
     const {
         courseData,
         activeChapterId,
-        isSelectorOpen,
-        setIsSelectorOpen,
         addChapter,
         updateChapterTitle,
         deleteChapter,
@@ -45,7 +36,7 @@ const CourseBuilder = () => {
         moveContent
     } = useCourseBuilder(id);
 
-    const [activeForm, setActiveForm] = useState(null);
+    const [activeForm, setActiveForm] = useState(null); // 'content'
     const [expandedItemId, setExpandedItemId] = useState(null);
     const [contentMenuOpenId, setContentMenuOpenId] = useState(null);
     const [editingItem, setEditingItem] = useState(null);
@@ -74,17 +65,13 @@ const CourseBuilder = () => {
 
         groups.push(current);
         return groups;
-    }, [activeChapter, selectedContentId]);
-
-    const handleContentSelect = (type) => {
-        if (!ALLOWED_TYPES.includes(type)) return;
-        setActiveForm(type);
-        setIsSelectorOpen(false);
-        setEditingItem(null);
-        setSelectedContentId(null);
-    };
+    }, [activeChapter]);
 
     const handleSave = (data) => {
+        // If coming from UnifiedForm, data.type is explicit.
+        // Fallback to activeForm if needed (though it's just 'content' now)
+        const contentType = data.type || 'video'; // Default fallback
+
         if (editingItem) {
             updateContent(activeChapterId, editingItem.id, data);
             setEditingItem(null);
@@ -93,7 +80,7 @@ const CourseBuilder = () => {
             const targetChapterId = insertionPoint?.chapterId || activeChapterId;
             const insertAfterId = insertionPoint?.afterId || null;
 
-            addContent(targetChapterId, activeForm, data, insertAfterId);
+            addContent(targetChapterId, contentType, data, insertAfterId);
         }
         setActiveForm(null);
         setSelectedContentId(null);
@@ -114,7 +101,7 @@ const CourseBuilder = () => {
             selectChapter(chapterId);
         }
         setEditingItem(item);
-        setActiveForm(item.type);
+        setActiveForm('content'); // Logic handles type via editingItem.type
         setSelectedContentId(null);
     };
 
@@ -130,7 +117,9 @@ const CourseBuilder = () => {
         if (activeChapterId !== chapterId) {
             selectChapter(chapterId);
         }
-        setActiveForm(type);
+        // Unified form handles type selection internally, but we could pass it if we wanted pre-selection.
+        // For now, simple open 'content' form.
+        setActiveForm('content');
         setEditingItem(null);
         setSelectedContentId(null);
     };
@@ -140,7 +129,7 @@ const CourseBuilder = () => {
             selectChapter(chapterId);
         }
         setInsertionPoint({ chapterId, afterId });
-        setIsSelectorOpen(true);
+        setActiveForm('content'); // Open unified form directly
     };
 
     const handleChapterMainSelect = (chapterId) => {
@@ -177,8 +166,7 @@ const CourseBuilder = () => {
                     <h2>{courseData.title}</h2>
                 </div>
                 <div className="cb-header-actions">
-                    <button className="btn-secondary"><FiEye /> Preview</button>
-                    <button className="btn-primary"><FiSave /> Save</button>
+                    {/* Placeholder buttons removed */}
                 </div>
             </header>
 
@@ -218,7 +206,7 @@ const CourseBuilder = () => {
                                 <h1>{activeChapter.title}</h1>
                                 <button
                                     className="btn-primary"
-                                    onClick={() => setIsSelectorOpen(true)}
+                                    onClick={() => setActiveForm('content')}
                                 >
                                     <FiPlusCircle /> Add Item
                                 </button>
@@ -300,15 +288,39 @@ const CourseBuilder = () => {
                                                 </div>
 
                                                 {/* INLINE PREVIEW AREA */}
+                                                {/* INLINE PREVIEW AREA */}
                                                 {selectedContentId === item.id && (
                                                     <div className="mt-3 p-3 bg-light rounded border">
-                                                        {item.type === 'video' && item.data.file ? (
-                                                            <video controls width="100%" src={URL.createObjectURL(item.data.file)} className="rounded" />
-                                                        ) : item.type === 'pdf' && item.data.file ? (
-                                                            <iframe src={URL.createObjectURL(item.data.file)} width="100%" height="400px" title={item.title} className="rounded border bg-white" />
+                                                        {item.type === 'video' ? (
+                                                            (item.data.file || item.data.url) ? (
+                                                                <video
+                                                                    controls
+                                                                    width="100%"
+                                                                    src={item.data.file ? URL.createObjectURL(item.data.file) : item.data.url}
+                                                                    className="rounded"
+                                                                />
+                                                            ) : (
+                                                                <div className="text-center py-4 text-muted">
+                                                                    <p className="mb-0">No video source available (Database URL: {item.data.url || 'None'}).</p>
+                                                                </div>
+                                                            )
+                                                        ) : item.type === 'pdf' ? (
+                                                            (item.data.file || item.data.url) ? (
+                                                                <iframe
+                                                                    src={item.data.file ? URL.createObjectURL(item.data.file) : item.data.url}
+                                                                    width="100%"
+                                                                    height="400px"
+                                                                    title={item.title}
+                                                                    className="rounded border bg-white"
+                                                                />
+                                                            ) : (
+                                                                <div className="text-center py-4 text-muted">
+                                                                    <p className="mb-0">No PDF source available.</p>
+                                                                </div>
+                                                            )
                                                         ) : (
                                                             <div className="text-center py-4 text-muted">
-                                                                <p className="mb-0">No file uploaded for this content.</p>
+                                                                <p className="mb-0">Preview not available for this type.</p>
                                                             </div>
                                                         )}
                                                     </div>
@@ -336,51 +348,33 @@ const CourseBuilder = () => {
                                             <FiLayout size={48} />
                                         </div>
                                         <h5 className="text-muted">This chapter is empty</h5>
-                                        <button className="btn btn-outline-primary btn-sm mt-2" onClick={() => setIsSelectorOpen(true)}>
+                                        <button className="btn btn-outline-primary btn-sm mt-2" onClick={() => setActiveForm('content')}>
                                             <FiPlusCircle className="me-1" /> Add your first item
                                         </button>
                                     </div>
                                 )}
                             </div>
 
-                            {/* FORMS */}
-                            {/* FORMS - Render in Modal */}
-                            {activeForm && (
+                            {/* UNIFIED FORM OVERLAY */}
+                            {activeForm === 'content' && (
                                 <div className="cts-overlay">
                                     <div className="builder-form-container" style={{ width: '100%', maxWidth: '600px', margin: 0 }}>
-                                        {activeForm === 'video' && (
-                                            <VideoForm
-                                                onSave={handleSave}
-                                                onCancel={() => setActiveForm(null)}
-                                                initialData={editingItem?.data}
-                                            />
-                                        )}
-
-                                        {activeForm === 'pdf' && (
-                                            <PdfForm
-                                                onSave={handleSave}
-                                                onCancel={() => setActiveForm(null)}
-                                                initialData={editingItem?.data}
-                                            />
-                                        )}
-
-                                        {activeForm === 'heading' && (
-                                            <HeadingForm
-                                                onSave={handleSave}
-                                                onCancel={() => setActiveForm(null)}
-                                                initialData={editingItem?.data}
-                                            />
-                                        )}
+                                        <UnifiedContentForm
+                                            key={editingItem ? editingItem.id : 'new-content'}
+                                            onSave={handleSave}
+                                            onCancel={() => setActiveForm(null)}
+                                            initialData={editingItem ? {
+                                                ...editingItem.data,
+                                                title: editingItem.title,
+                                                type: editingItem.type,
+                                                // If description was lost in mapping, it's empty, but form handles it.
+                                            } : null}
+                                        />
                                     </div>
                                 </div>
                             )}
 
-                            {isSelectorOpen && (
-                                <ContentTypeSelector
-                                    onSelect={handleContentSelect}
-                                    onClose={() => setIsSelectorOpen(false)}
-                                />
-                            )}
+                            {/* SELECTOR REMOVED - using Unified Form directly */}
                         </>
                     )}
                 </main>

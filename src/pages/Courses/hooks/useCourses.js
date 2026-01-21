@@ -6,9 +6,7 @@ import { courseService } from '../services/courseService';
 export const useCourses = () => {
     const [courses, setCourses] = useState([]);
     const [showModal, setShowModal] = useState(false);
-    const [editIndex, setEditIndex] = useState(null); // We might want to use ID instead of index now, but keeping index for grid compatibility or switching to ID. The grid uses index? No, Grid usually iterates. Let's see. 
-    // Actually, it's better to verify if OpenModal passes index or object. The previous code passed index.
-    // I need to adapt openModal to work with the fetched data.
+    const [editIndex, setEditIndex] = useState(null);
     const [currentCourseId, setCurrentCourseId] = useState(null);
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState(INITIAL_FORM_DATA);
@@ -18,6 +16,17 @@ export const useCourses = () => {
         loadCourses();
     }, []);
 
+    // Helper to format image URL
+    const getFullImageUrl = (url) => {
+        if (!url) return null;
+        if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
+
+        // If relative path, prepend backend origin
+        // We use the same target as configured in vite.config.js
+        const BACKEND_URL = "http://192.168.1.23:5151";
+        return `${BACKEND_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+    };
+
     const loadCourses = async () => {
         try {
             const data = await courseService.getCourses();
@@ -25,21 +34,23 @@ export const useCourses = () => {
             const mappedCourses = data.map(c => ({
                 id: c.courseId,
                 name: c.courseName,
-                desc: c.description,
-                overview: c.description, // Map description to overview as well
+                // Split description if we combined them, or just use as is
+                description: c.description || "",
+                overview: unescape(c.description || ""),
                 toolsCovered: c.toolsCovered,
                 duration: c.duration,
-                price: c.courseFee, // Map courseFee to price
-                img: c.courseImageUrl || "https://images.unsplash.com/photo-1517694712202-14dd9538aa97",
+                price: c.courseFee,
+                img: getFullImageUrl(c.courseImageUrl) || "https://images.unsplash.com/photo-1517694712202-14dd9538aa97",
                 showValidity: c.showValidity,
                 validityDuration: c.validityInDays,
                 allowOffline: c.allowOfflineMobile,
-                provideCertificate: c.certificateProvided,
+                certificateEnabled: c.certificateProvided,
                 contentAccessEnabled: c.enableContentAccess,
-                status: c.status || "Draft",
-                // MOCK
-                mentorName: "TBD",
-                courseType: (c.courseFee && c.courseFee > 0) ? "Paid" : "Free"
+                status: c.status || "ACTIVE", // Default to ACTIVE if null
+                shareCode: c.shareCode,
+                shareLink: c.shareLink,
+                shareEnabled: c.shareEnabled,
+                accessPlatforms: ['Website'] // Default or map if you had a field
             }));
             setCourses(mappedCourses);
         } catch (error) {
@@ -55,6 +66,8 @@ export const useCourses = () => {
             val = (name === 'accessPlatforms') ? value : checked;
         } else if (value === 'true') val = true;
         else if (value === 'false') val = false;
+
+        // Handle Status specifically if needed (though it's string so likely handled by default)
 
         if (name === 'accessPlatforms') {
             setFormData(prev => {
@@ -93,19 +106,20 @@ export const useCourses = () => {
             // Map course data back to form data
             setFormData({
                 name: c.name,
-                description: c.desc,
+                description: c.description,
                 overview: c.overview,
                 toolsCovered: c.toolsCovered,
-                duration: c.duration, // Mapped
-                price: c.price, // Mapped
+                duration: c.duration,
+                price: c.price,
                 img: null,
                 imgPreview: c.img,
                 showValidity: c.showValidity,
                 validityDuration: c.validityDuration,
                 allowOffline: c.allowOffline,
-                certificateEnabled: c.provideCertificate,
+                certificateEnabled: c.certificateEnabled,
                 contentAccessEnabled: c.contentAccessEnabled,
-                accessPlatforms: ['Website'] // Default
+                status: c.status || "ACTIVE",
+                accessPlatforms: c.accessPlatforms || ['Website']
             });
         } else {
             resetForm();
@@ -114,70 +128,52 @@ export const useCourses = () => {
     };
 
     const handleSave = async () => {
-        // Validation check
-        // const errors = validateCourseForm(formData); 
-        // if (errors.length > 0) {
-        //     alert(errors.join("\n"));
-        //     return;
-        // }
+        // Sanitize numeric values
+        const fee = formData.price ? parseFloat(formData.price) : 0.0;
+        const validity = (formData.showValidity && formData.validityDuration)
+            ? parseInt(formData.validityDuration)
+            : null;
 
-        let imageUrl = formData.imgPreview;
-        // Check if img is a file (not implemented backend upload yet)
-        if (formData.img) {
-            // Using a placeholder because backend upload is not implemented and Blob URLs cause 500 errors
-            imageUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect fill='%23e2e8f0' width='300' height='200'/%3E%3Ctext fill='%2364748b' font-family='sans-serif' font-size='16' dy='10.5' font-weight='bold' x='50%25' y='50%25' text-anchor='middle'%3EUploaded Image%3C/text%3E%3C/svg%3E";
-        } else if (!imageUrl) {
-            // If no image and no preview, use random default
-            imageUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200' viewBox='0 0 300 200'%3E%3Crect fill='%23e2e8f0' width='300' height='200'/%3E%3Ctext fill='%2364748b' font-family='sans-serif' font-size='16' dy='10.5' font-weight='bold' x='50%25' y='50%25' text-anchor='middle'%3ECourse Image%3C/text%3E%3C/svg%3E";
-        }
-
-        // Sanitize Course Fee
-        let fee = 0.0;
-        if (formData.price) {
-            const parsed = parseFloat(formData.price);
-            if (!isNaN(parsed)) {
-                fee = parsed;
-            }
-        }
-
-        // Sanitize Validity
-        let validity = null;
-        if (formData.showValidity && formData.validityDuration) {
-            const parsedValid = parseInt(formData.validityDuration);
-            if (!isNaN(parsedValid)) {
-                validity = parsedValid;
-            }
-        }
-
-        // Sanitize Payload for Backend (Prevent 500 Errors)
+        // Construct Backend Payload
         const payload = {
-            courseName: formData.name || "Untitled Course", // Prevent null
+            courseName: formData.name || "Untitled Course",
             description: formData.description || formData.overview || "No Description",
             duration: formData.duration || "Self Paced",
             toolsCovered: formData.toolsCovered || "",
             courseFee: fee,
+            // Note: courseImageUrl is intentionally omitted for creation to allow 2-step process
+            // or handled via update if preserved.
 
-            // Use the sanitized imageUrl
-            courseImageUrl: imageUrl,
-
-            showValidity: formData.showValidity === true, // Ensure boolean
-            // Only send validityInDays if showValidity is true
-            validityInDays: validity || 0,
-
+            certificateProvided: formData.certificateEnabled === true,
+            status: formData.status || "ACTIVE",
+            showValidity: formData.showValidity === true,
+            validityInDays: validity,
             allowOfflineMobile: formData.allowOffline === true,
             enableContentAccess: formData.contentAccessEnabled === true,
-            certificateProvided: formData.certificateEnabled === true,
-
-            allowBookmark: false, // Explicitly false as removed from UI
-            status: "ACTIVE" // Fix: Uppercase as per Postman
+            shareEnabled: true
         };
 
+        // If editing and no new file, preserve current image URL if needed
+        if (currentCourseId && !formData.img && formData.imgPreview) {
+            payload.courseImageUrl = formData.imgPreview;
+        }
+
         try {
+            let savedCourse;
             if (currentCourseId) {
-                await courseService.updateCourse(currentCourseId, payload);
+                savedCourse = await courseService.updateCourse(currentCourseId, payload);
             } else {
-                await courseService.createCourse(payload);
+                savedCourse = await courseService.createCourse(payload);
             }
+
+            // Step 2: Upload Image if file exists
+            if (formData.img) {
+                const targetId = savedCourse?.courseId || currentCourseId;
+                if (targetId) {
+                    await courseService.uploadCourseImage(targetId, formData.img);
+                }
+            }
+
             await loadCourses();
             setShowModal(false);
             resetForm();
@@ -197,7 +193,12 @@ export const useCourses = () => {
                 loadCourses();
             } catch (error) {
                 console.error("Delete failed", error);
-                alert("Failed to delete course");
+                const msg = error.message || "";
+                if (msg.includes("foreign key constraint") || msg.includes("ConstraintViolationException")) {
+                    alert("Cannot delete this course because it has associated Content/Topics.\n\nPlease delete the course content first.");
+                } else {
+                    alert("Failed to delete course: " + msg);
+                }
             }
         }
     };

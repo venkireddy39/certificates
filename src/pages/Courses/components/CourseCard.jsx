@@ -108,7 +108,7 @@ const CourseCard = ({
                 {/* Actions */}
                 <div className="d-flex gap-2 mt-3">
                     <button
-                        className="btn btn-primary btn-sm w-100"
+                        className="btn btn-secondary btn-sm w-100"
                         onClick={() => onManageContent(course.id)}
                     >
                         <FiLayers className="me-1" /> Course Content

@@ -11,7 +11,7 @@ const Analytics = () => {
 
     // Mock Data for Charts
     const trafficData = [
-        { date: 'Mon', visits: 4000, signups: 240, purchases: 100 },
+        { date: 'Mon', visits: 4000, signup: 240, purchases: 100 },
         { date: 'Tue', visits: 3000, signups: 139, purchases: 80 },
         { date: 'Wed', visits: 2000, signups: 980, purchases: 200 },
         { date: 'Thu', visits: 2780, signups: 390, purchases: 150 },

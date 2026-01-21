@@ -1,358 +1,598 @@
-import React, { useState } from 'react';
-import { FiPlus, FiBarChart2, FiEdit, FiTrendingDown, FiTrendingUp } from 'react-icons/fi';
-import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
-} from 'recharts';
-import FilterBar from './FilterBar';
+import React, { useState, useEffect } from 'react';
+import { FiPlus, FiBarChart2, FiEdit, FiTrendingDown, FiTrendingUp, FiEye, FiCheck, FiPause, FiArchive, FiTag, FiDollarSign, FiGlobe } from 'react-icons/fi';
 
-const Campaigns = () => {
+import { marketingService } from '../../../services/marketingService';
+import { useAuth } from '../../../../src/pages/Library/context/AuthContext';
+
+const Campaigns = ({ role = 'MANAGER', startWizard = false }) => {
+    // --- STATE ---
+    const isManager = role === 'MANAGER' || role === 'ADMIN';
+    const { user } = useAuth() || {}; // Safety fallback
+
+    const [campaigns, setCampaigns] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [showManageCampaignModal, setShowManageCampaignModal] = useState(false);
-    const [selectedCampaign, setSelectedCampaign] = useState(null);
-    const [showCampaignAnalyticsModal, setShowCampaignAnalyticsModal] = useState(false);
+    const [wizardStep, setWizardStep] = useState(1);
+    const [wizardData, setWizardData] = useState({
+        name: '',
+        channel: 'Email',
+        budget: 0,
+
+        // Common
+        startDate: '',
+        endDate: '',
+        objective: 'Leads',
+        audienceSegment: 'All',
+        description: '',
+
+        // Email Specific
+        subjectLine: '',
+        emailBody: '',
+
+        // Ads/Social Specific
+        platform: 'Facebook',
+        content: '', // External Link
+        utmSource: '',
+        utmMedium: '',
+        utmCampaign: ''
+    });
+
     const [filters, setFilters] = useState({});
 
-    const [campaigns, setCampaigns] = useState([
-        {
-            id: 1,
-            name: 'Summer Bootcamp Sale',
-            type: 'Email',
-            status: 'Active',
-            sent: 12500,
-            clicks: 3400,
-            conversions: 120,
-            revenue: '$14,500',
-            startDate: '2024-03-01',
-            endDate: '2024-03-31',
-            budget: 5000,
-            leads: 450
-        },
-        {
-            id: 2,
-            name: 'Instagram Ad - React',
-            type: 'Social',
-            status: 'Paused',
-            sent: 50000,
-            clicks: 8900,
-            conversions: 45,
-            revenue: '$5,200',
-            startDate: '2024-02-15',
-            endDate: '2024-03-15',
-            budget: 2000,
-            leads: 120
-        },
-        {
-            id: 3,
-            name: 'New Year Early Bird',
-            type: 'Email',
-            status: 'Completed',
-            sent: 8000,
-            clicks: 2100,
-            conversions: 310,
-            revenue: '$35,000',
-            startDate: '2024-01-01',
-            endDate: '2024-01-31',
-            budget: 1500,
-            leads: 600
-        },
-    ]);
+    // Effect to trigger wizard if startWizard prop is true
+    useEffect(() => {
+        if (startWizard) {
+            setShowCreateModal(true);
+        }
+    }, [startWizard]);
 
-    const revenueData = [
-        { orderId: '#ORD-001', value: 100, currency: 'USD', product: 'React Course', discount: 10, netRevenue: 90, commission: 5 },
-        { orderId: '#ORD-002', value: 200, currency: 'USD', product: 'Full Stack Bundle', discount: 20, netRevenue: 180, commission: 10 },
-        { orderId: '#ORD-003', value: 150, currency: 'USD', product: 'Backend Masterclass', discount: 0, netRevenue: 150, commission: 8 },
-        { orderId: '#ORD-004', value: 100, currency: 'USD', product: 'React Course', discount: 15, netRevenue: 85, commission: 5 },
-    ];
+    // --- DATA FETCHING ---
+    const fetchCampaigns = async () => {
+        setLoading(true);
+        try {
+            let data = [];
+            if (isManager) {
+                data = await marketingService.getAllCampaigns();
+            } else {
+                if (user?.id) {
+                    data = await marketingService.getMyCampaigns(user.id);
+                }
+            }
+            setCampaigns(data || []);
+            setError(null);
+        } catch (err) {
+            console.error("Failed to fetch campaigns", err);
+            setError("Failed to load campaigns.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchCampaigns();
+    }, [isManager, user]);
+
+    // Filter Logic
+    const displayedCampaigns = campaigns.filter(c => {
+        if (filters.status && c.status !== filters.status) return false;
+        return true;
+    });
+
+    // --- HANDLERS ---
+    const handleStatusChange = async (id, newStatus) => {
+        try {
+            // Optimistic Update
+            setCampaigns(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
+
+            if (isManager) {
+                await marketingService.updateCampaignStatus(id, newStatus);
+            }
+        } catch (err) {
+            console.error("Failed to update status", err);
+            fetchCampaigns();
+        }
+    };
+
+    const handleCreateSubmit = async (isDraft = false) => {
+        try {
+            // VALIDATION: Basic checks
+            if (!wizardData.name) { alert("Campaign Name is required"); return; }
+            if (wizardData.channel === 'Ads' || wizardData.channel === 'Social') {
+                if (!wizardData.content) { alert("External Link is required for Ads"); return; }
+                if (!wizardData.utmSource || !wizardData.utmMedium || !wizardData.utmCampaign) {
+                    alert("UTM Parameters (Source, Medium, Campaign) are MANDATORY for tracking.");
+                    return;
+                }
+            }
+            if (wizardData.channel === 'Email') {
+                if (!wizardData.subjectLine) { alert("Subject Line is required"); return; }
+            }
+
+            const payload = {
+                name: wizardData.name,
+                channel: wizardData.channel,
+                budget: wizardData.budget,
+                objective: wizardData.objective,
+                startDate: wizardData.startDate,
+                endDate: wizardData.endDate,
+
+                // Email Specifics (Audit/Storage)
+                subjectLine: wizardData.channel === 'Email' ? wizardData.subjectLine : null,
+                emailBody: wizardData.channel === 'Email' ? wizardData.emailBody : null,
+                audienceSegment: wizardData.audienceSegment,
+
+                // Ads/Social Specifics (Tracking Only)
+                platform: (wizardData.channel === 'Ads' || wizardData.channel === 'Social') ? wizardData.platform : null,
+                content: (wizardData.channel === 'Ads' || wizardData.channel === 'Social') ? wizardData.content : null,
+
+                // UTM Tracking (Strictly Required for Ads)
+                utmSource: wizardData.utmSource,
+                utmMedium: wizardData.utmMedium,
+                utmCampaign: wizardData.utmCampaign,
+
+                description: wizardData.description,
+
+                createdBy: user?.id,
+                createdByRole: user?.role,
+                status: isDraft ? 'DRAFT' : 'PENDING_APPROVAL',
+                submittedAt: isDraft ? null : new Date().toISOString()
+            };
+
+            await marketingService.createCampaign(payload);
+
+            // Refresh list
+            fetchCampaigns();
+
+            setShowCreateModal(false);
+            setWizardStep(1); // Reset
+            // Reset full state
+            setWizardData({
+                name: '', channel: 'Email', budget: 0,
+                startDate: '', endDate: '',
+                objective: 'Leads', audienceSegment: 'All', description: '',
+                subjectLine: '', emailBody: '',
+                platform: 'Facebook', content: '',
+                utmSource: '', utmMedium: '', utmCampaign: ''
+            });
+
+        } catch (err) {
+            console.error("Failed to create campaign", err);
+            alert("Failed to create campaign. Please try again.");
+        }
+    };
+
+    // --- WIZARD CONTENT ---
+    const renderWizard = () => {
+        const steps = [
+            { id: 1, label: 'Placement' },
+            { id: 2, label: 'Details' },
+            { id: 3, label: 'Setup' },
+            { id: 4, label: 'Review' }
+        ];
+
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050 }}>
+                <div className="bg-white rounded shadow-lg w-100 max-w-4xl overflow-hidden d-flex" style={{ maxWidth: '900px', minHeight: '600px' }}>
+
+                    {/* LEFT PANEL: MAIN FORM */}
+                    <div className="p-4 flex-grow-1 d-flex flex-column" style={{ flex: '2', borderRight: '1px solid #f0f0f0' }}>
+
+                        {/* HEADER */}
+                        <div className="d-flex justify-content-between align-items-center mb-4">
+                            <h4 className="fw-bold m-0 text-dark">
+                                {wizardStep === 1 && 'Placement'}
+                                {wizardStep === 2 && 'Campaign Details'}
+                                {wizardStep === 3 && 'Channel Setup'}
+                                {wizardStep === 4 && 'Review & Submit'}
+                            </h4>
+                            <small className="text-muted">Step {wizardStep} of 4</small>
+                        </div>
+
+                        {/* STEP 1: PLACEMENT (CHANNEL) */}
+                        {wizardStep === 1 && (
+                            <div className="fade-in flex-grow-1">
+                                <p className="text-muted mb-3">Where do you want your campaign to be seen?</p>
+                                <div className="row g-3">
+                                    {[
+                                        { id: 'Email', icon: '📩', label: 'Email Blast', desc: 'Direct to inbox' },
+                                        { id: 'Ads', icon: '📢', label: 'Social Ads', desc: 'External Link Tracking' },
+                                        { id: 'Affiliate', icon: '🤝', label: 'Affiliates', desc: 'Partner network' },
+                                        { id: 'SMS', icon: '📱', label: 'SMS', desc: 'Text messages' }
+                                    ].map(opt => (
+                                        <div className="col-md-6" key={opt.id}>
+                                            <div
+                                                className={`card h-100 cursor-pointer p-3 border ${wizardData.channel === opt.id ? 'border-primary bg-light' : ''}`}
+                                                onClick={() => setWizardData({ ...wizardData, channel: opt.id })}
+                                                style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                                            >
+                                                <div className="fs-1 mb-2">{opt.icon}</div>
+                                                <h6 className="fw-bold">{opt.label}</h6>
+                                                <p className="small text-muted m-0">{opt.desc}</p>
+                                                {wizardData.channel === opt.id && <div className="text-primary position-absolute top-0 end-0 m-2"><FiCheck /></div>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* STEP 2: DETAILS */}
+                        {wizardStep === 2 && (
+                            <div className="fade-in flex-grow-1">
+                                <div className="mb-3">
+                                    <label className="form-label fw-semibold">Campaign Name</label>
+                                    <input
+                                        type="text" className="form-control form-control-lg" placeholder="e.g., Summer Sale 2024"
+                                        value={wizardData.name}
+                                        onChange={e => setWizardData({ ...wizardData, name: e.target.value })}
+                                        autoFocus
+                                    />
+                                </div>
+                                <div className="mb-3">
+                                    <label className="form-label fw-semibold">Objective</label>
+                                    <select
+                                        className="form-select"
+                                        value={wizardData.objective || 'Leads'}
+                                        onChange={e => setWizardData({ ...wizardData, objective: e.target.value })}
+                                    >
+                                        <option value="Leads">Lead Generation</option>
+                                        <option value="Sales">Direct Sales</option>
+                                        <option value="Awareness">Brand Awareness</option>
+                                    </select>
+                                </div>
+                                <div className="row">
+                                    <div className="col-md-6 mb-3">
+                                        <label className="form-label fw-semibold">Budget ($)</label>
+                                        <input
+                                            type="number" className="form-control"
+                                            value={wizardData.budget}
+                                            onChange={e => setWizardData({ ...wizardData, budget: parseFloat(e.target.value) })}
+                                        />
+                                    </div>
+                                    <div className="col-md-6 mb-3">
+                                        <label className="form-label fw-semibold">Audience Segment</label>
+                                        <select
+                                            className="form-select"
+                                            value={wizardData.audienceSegment || 'All'}
+                                            onChange={e => setWizardData({ ...wizardData, audienceSegment: e.target.value })}
+                                        >
+                                            <option value="All">All Users</option>
+                                            <option value="New">New Signups (Last 30 days)</option>
+                                            <option value="Inactive">Inactive (&gt; 90 days)</option>
+                                            <option value="Premium">Premium Members</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="row">
+                                    <div className="col-6">
+                                        <label className="form-label fw-semibold">Start Date</label>
+                                        <input
+                                            type="date" className="form-control"
+                                            value={wizardData.startDate}
+                                            onChange={e => setWizardData({ ...wizardData, startDate: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="col-6">
+                                        <label className="form-label fw-semibold">End Date</label>
+                                        <input
+                                            type="date" className="form-control"
+                                            value={wizardData.endDate}
+                                            onChange={e => setWizardData({ ...wizardData, endDate: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* STEP 3: CHANNEL SETUP */}
+                        {wizardStep === 3 && (
+                            <div className="fade-in flex-grow-1">
+                                {wizardData.channel === 'Email' ? (
+                                    <>
+                                        <div className="alert alert-info small mb-3">
+                                            <FiEye className="me-2" /> Configuring <strong>Email Blast</strong>. Content is audited before sending.
+                                        </div>
+                                        <div className="mb-3">
+                                            <label className="form-label fw-semibold">Email Subject Line</label>
+                                            <input
+                                                type="text" className="form-control"
+                                                placeholder="Enter a catchy subject..."
+                                                value={wizardData.subjectLine || ''}
+                                                onChange={e => setWizardData({ ...wizardData, subjectLine: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="mb-3">
+                                            <label className="form-label fw-semibold">Email Body Content</label>
+                                            <textarea
+                                                className="form-control" rows={5}
+                                                placeholder="Write your email content here (supports basic text for now)..."
+                                                value={wizardData.emailBody || ''}
+                                                onChange={e => setWizardData({ ...wizardData, emailBody: e.target.value })}
+                                            />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="vstack gap-3">
+                                        <div className="alert alert-warning small">
+                                            <FiGlobe className="me-2" /> Configuring <strong>{wizardData.channel}</strong>.
+                                            We do NOT host creatives. You must provide the external tracking link.
+                                        </div>
+
+                                        <div className="mb-3">
+                                            <label className="form-label fw-semibold">Platform</label>
+                                            <select
+                                                className="form-select"
+                                                value={wizardData.platform || 'Facebook'}
+                                                onChange={e => setWizardData({ ...wizardData, platform: e.target.value })}
+                                            >
+                                                <option value="Facebook">Facebook / Instagram</option>
+                                                <option value="LinkedIn">LinkedIn</option>
+                                                <option value="Google">Google Ads</option>
+                                                <option value="TikTok">TikTok</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="mb-3">
+                                            <label className="form-label fw-semibold">External Campaign Link (Creative URL)</label>
+                                            <input
+                                                type="url" className="form-control"
+                                                placeholder="https://facebook.com/ads/manager/..."
+                                                value={wizardData.content || ''}
+                                                onChange={e => setWizardData({ ...wizardData, content: e.target.value })}
+                                            />
+                                            <div className="form-text">Paste the link to the live ad or creative here.</div>
+                                        </div>
+
+                                        <div className="card p-3 bg-light border">
+                                            <h6 className="fw-bold small text-uppercase text-muted mb-3">UTM Tracking (Mandatory)</h6>
+                                            <div className="row g-2">
+                                                <div className="col-4">
+                                                    <label className="form-label small fw-bold">Source</label>
+                                                    <input
+                                                        type="text" className="form-control form-control-sm" placeholder="e.g. facebook"
+                                                        value={wizardData.utmSource || ''}
+                                                        onChange={e => setWizardData({ ...wizardData, utmSource: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div className="col-4">
+                                                    <label className="form-label small fw-bold">Medium</label>
+                                                    <input
+                                                        type="text" className="form-control form-control-sm" placeholder="e.g. cpc"
+                                                        value={wizardData.utmMedium || ''}
+                                                        onChange={e => setWizardData({ ...wizardData, utmMedium: e.target.value })}
+                                                    />
+                                                </div>
+                                                <div className="col-4">
+                                                    <label className="form-label small fw-bold">Campaign</label>
+                                                    <input
+                                                        type="text" className="form-control form-control-sm" placeholder="e.g. summer_24"
+                                                        value={wizardData.utmCampaign || ''}
+                                                        onChange={e => setWizardData({ ...wizardData, utmCampaign: e.target.value })}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* STEP 4: REVIEW & LAUNCH */}
+                        {wizardStep === 4 && (
+                            <div className="fade-in flex-grow-1">
+                                <div className="card bg-light mb-3 border-0">
+                                    <div className="card-body">
+                                        <h5 className="fw-bold">{wizardData.name}</h5>
+                                        <div className="d-flex gap-3 text-muted small mt-2">
+                                            <span className="badge bg-white text-dark border"><FiTag className="me-1" /> {wizardData.channel}</span>
+                                            <span className="badge bg-white text-dark border"><FiCheck className="me-1" /> {wizardData.objective}</span>
+                                            <span className="badge bg-white text-dark border"><FiDollarSign className="me-1" /> ${wizardData.budget}</span>
+                                        </div>
+                                        <hr className="my-3" />
+                                        <div className="row small">
+                                            <div className="col-6">
+                                                <strong>Details:</strong><br />
+                                                {wizardData.channel === 'Email' ? (
+                                                    <>Subject: {wizardData.subjectLine}</>
+                                                ) : (
+                                                    <><span className="text-break">Link: {wizardData.content}</span><br />
+                                                        Tracking: {wizardData.utmSource} / {wizardData.utmMedium}</>
+                                                )}
+                                            </div>
+                                            <div className="col-6">
+                                                <strong>Target:</strong><br />
+                                                {wizardData.audienceSegment} Audience<br />
+                                                {wizardData.startDate} to {wizardData.endDate}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="alert alert-secondary small d-flex align-items-center">
+                                    <FiPause className="me-2 fs-4" />
+                                    <div>
+                                        <strong>Ready for Approval?</strong><br />
+                                        Submitting will send this campaign to the Marketing Manager for review. It will not go live immediately.
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ACTIONS */}
+                        <div className="mt-auto pt-3 border-top d-flex justify-content-between">
+                            <button className="btn btn-outline-secondary" onClick={() => {
+                                if (wizardStep > 1) setWizardStep(wizardStep - 1);
+                                else setShowCreateModal(false);
+                            }}>
+                                {wizardStep === 1 ? 'Cancel' : 'Back'}
+                            </button>
+                            <div className="d-flex gap-2">
+                                {wizardStep === 4 && (
+                                    <button className="btn btn-outline-dark" onClick={() => handleCreateSubmit(true)}>
+                                        Save as Draft
+                                    </button>
+                                )}
+                                <button className="btn btn-primary px-4 fw-bold" onClick={() => {
+                                    if (wizardStep < 4) setWizardStep(wizardStep + 1);
+                                    else handleCreateSubmit(false); // False = Submit for Approval
+                                }}>
+                                    {wizardStep === 4 ? 'Submit for Approval' : 'Next Step'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* RIGHT PANEL: SUMMARY & STEPS */}
+                    <div className="p-4 bg-light d-none d-md-flex flex-column" style={{ flex: '1', borderLeft: '1px solid #e0e0e0' }}>
+                        <h6 className="fw-bold mb-3">Steps Required to Launch</h6>
+                        <div className="steps-tracker">
+                            {steps.map((s, idx) => {
+                                const isCompleted = wizardStep > s.id;
+                                const isActive = wizardStep === s.id;
+                                return (
+                                    <div key={s.id} className={`d-flex align-items-center mb-3 ${isActive ? 'text-primary' : isCompleted ? 'text-success' : 'text-muted'}`}>
+                                        <div
+                                            className={`rounded-circle d-flex align-items-center justify-content-center me-2 ${isActive ? 'bg-primary text-white' : isCompleted ? 'bg-success text-white' : 'bg-white border'}`}
+                                            style={{ width: '24px', height: '24px', fontSize: '12px' }}
+                                        >
+                                            {isCompleted ? <FiCheck /> : s.id}
+                                        </div>
+                                        <small className={`fw-bold ${isActive ? '' : 'fw-normal'}`}>{s.label}</small>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="mt-auto bg-white p-3 rounded shadow-sm border">
+                            <div className="text-center mb-2">
+                                <span className="badge bg-warning text-dark">DRAFT MODE</span>
+                            </div>
+                            <small className="text-muted d-block text-center mb-2">
+                                You can save your progress at any time.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     return (
-        <>
-            <FilterBar
-                filters={filters}
-                onFilterChange={setFilters}
-                statusOptions={['Active', 'Paused', 'Completed']}
-            />
-            <div className="table-responsive bg-white rounded shadow-sm border">
-                <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
-                    <h5 className="mb-0">Campaigns</h5>
-                    <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)}><FiPlus /> New Campaign</button>
+        <div className="campaigns-container">
+            {/* Using a wrapper div to ensure valid JSX return structure */}
+            {/* FILTERS & HEADER */}
+            <div className="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    {/* Basic Filter UI if FilterBar not available/complex, or usage here */}
+                    <div className="btn-group">
+                        {['Active', 'Pending Approval', 'Draft', 'Completed'].map(status => (
+                            <button
+                                key={status}
+                                className={`btn btn-sm ${filters.status === status ? 'btn-dark' : 'btn-outline-secondary'}`}
+                                onClick={() => setFilters({ ...filters, status: filters.status === status ? null : status })}
+                            >
+                                {status}
+                            </button>
+                        ))}
+                    </div>
                 </div>
+                {!isManager && (
+                    <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+                        <FiPlus className="me-2" /> Create Campaign
+                    </button>
+                )}
+            </div>
+
+            <div className="table-responsive bg-white rounded shadow-sm border">
                 <table className="table table-hover align-middle mb-0">
                     <thead className="table-light">
                         <tr>
                             <th className="ps-4">Campaign Name</th>
                             <th>Channel</th>
-                            <th>Timeline</th>
-                            <th>Budget</th>
-                            <th>Conversions</th>
+                            {isManager && <th>Created By</th>}
                             <th>Status</th>
+                            {!isManager && <th>Budget</th>}
                             <th className="text-end pe-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {campaigns.map(c => {
-                            const conversionRate = ((c.conversions / (c.clicks || 1)) * 100).toFixed(1);
-                            return (
-                                <tr key={c.id}>
-                                    <td className="ps-4">
-                                        <div className="fw-bold text-dark">{c.name}</div>
-                                        <div className="small text-muted">ID: #{c.id}</div>
-                                    </td>
-                                    <td><span className="badge bg-light text-dark border">{c.type}</span></td>
+                        {displayedCampaigns.length > 0 ? displayedCampaigns.map(c => (
+                            <tr key={c.id}>
+                                <td className="ps-4">
+                                    <div className="fw-bold text-dark">{c.name}</div>
+                                    <small className="text-muted">{c.objective}</small>
+                                </td>
+                                <td><span className="badge bg-light text-dark border">{c.channel}</span></td>
+
+                                {isManager && (
                                     <td>
-                                        <div className="small text-dark">{c.startDate}</div>
-                                        <div className="small text-muted">to {c.endDate}</div>
+                                        <small className="text-muted">
+                                            {c.createdByRole || 'User'} #{c.createdBy || '?'}
+                                        </small>
                                     </td>
-                                    <td>${c.budget.toLocaleString()}</td>
-                                    <td>
-                                        <div className="fw-bold">{c.conversions}</div>
-                                        <div className="small text-muted">{conversionRate}% Rate</div>
-                                    </td>
-                                    <td>
-                                        <span className={`badge ${c.status === 'Active' ? 'bg-success bg-opacity-10 text-success' :
-                                            c.status === 'Paused' ? 'bg-warning bg-opacity-10 text-warning' :
-                                                'bg-secondary bg-opacity-10 text-secondary'
-                                            }`}>{c.status}</span>
-                                    </td>
-                                    <td className="text-end pe-4">
-                                        <div className="d-flex justify-content-end gap-2">
-                                            <button className="btn btn-sm btn-outline-info" title="Analytics" onClick={() => { setSelectedCampaign(c); setShowCampaignAnalyticsModal(true); }}>
-                                                <FiBarChart2 />
-                                            </button>
-                                            <button className="btn btn-sm btn-outline-secondary" title="Edit" onClick={() => { setSelectedCampaign(c); setShowManageCampaignModal(true); }}>
-                                                <FiEdit />
-                                            </button>
-                                            {c.status !== 'Completed' && (
-                                                <button
-                                                    className={`btn btn-sm ${c.status === 'Active' ? 'btn-outline-warning' : 'btn-outline-success'}`}
-                                                    title={c.status === 'Active' ? 'Pause' : 'Resume'}
-                                                    onClick={() => {
-                                                        const newStatus = c.status === 'Active' ? 'Paused' : 'Active';
-                                                        setCampaigns(campaigns.map(camp => camp.id === c.id ? { ...camp, status: newStatus } : camp));
-                                                    }}
-                                                >
-                                                    {c.status === 'Active' ? <FiTrendingDown /> : <FiTrendingUp />}
+                                )}
+
+                                <td>
+                                    <span className={`badge ${c.status === 'Active' ? 'bg-success' :
+                                        c.status === 'Pending Approval' ? 'bg-warning text-dark' :
+                                            c.status === 'Draft' ? 'bg-secondary' :
+                                                'bg-light text-dark border'
+                                        }`}>
+                                        {c.status}
+                                    </span>
+                                </td>
+
+                                {!isManager && <td>${(c.budget || 0).toLocaleString()}</td>}
+
+                                <td className="text-end pe-4">
+                                    <div className="d-flex justify-content-end gap-2">
+                                        {isManager ? (
+                                            <>
+                                                {c.status === 'Pending Approval' && (
+                                                    <button className="btn btn-sm btn-outline-success" onClick={() => handleStatusChange(c.id, 'Active')} title="Approve">
+                                                        <FiCheck />
+                                                    </button>
+                                                )}
+                                                {c.status === 'Active' && (
+                                                    <button className="btn btn-sm btn-outline-warning" onClick={() => handleStatusChange(c.id, 'Paused')} title="Pause">
+                                                        <FiPause />
+                                                    </button>
+                                                )}
+                                                <button className="btn btn-sm btn-outline-secondary" onClick={() => handleStatusChange(c.id, 'Archived')} title="Archive">
+                                                    <FiArchive />
                                                 </button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            );
-                        })}
+                                            </>
+                                        ) : (
+                                            <>
+                                                {c.status === 'Draft' && (
+                                                    <button className="btn btn-sm btn-outline-primary" title="Edit">
+                                                        <FiEdit />
+                                                    </button>
+                                                )}
+                                                <button className="btn btn-sm btn-outline-info" title="View">
+                                                    <FiEye />
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </td>
+                            </tr>
+                        )) : (
+                            <tr>
+                                <td colSpan={6} className="text-center py-5 text-muted">
+                                    No campaigns found.
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>
 
-            {/* CREATE CAMPAIGN MODAL */}
-            {showCreateModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-                    <div className="bg-white rounded-lg p-6 w-full max-w-2xl" style={{ background: '#fff', borderRadius: 12, padding: 24, width: '100%', maxWidth: 500 }}>
-                        <h4 className="mb-4" style={{ marginTop: 0 }}>Create New Campaign</h4>
-                        <form onSubmit={(e) => {
-                            e.preventDefault();
-                            const formData = new FormData(e.target);
-                            const newCampaign = {
-                                id: campaigns.length + 1,
-                                name: formData.get('name'),
-                                type: formData.get('type'),
-                                status: 'Active',
-                                startDate: formData.get('startDate'),
-                                endDate: formData.get('endDate'),
-                                budget: parseFloat(formData.get('budget')),
-                                sent: 0,
-                                clicks: 0,
-                                conversions: 0,
-                                revenue: '$0',
-                                leads: 0
-                            };
-                            setCampaigns([...campaigns, newCampaign]);
-                            setShowCreateModal(false);
-                        }}>
-                            <div className="mb-3">
-                                <label className="form-label">Campaign Name</label>
-                                <input type="text" name="name" className="form-control" required />
-                            </div>
-                            <div className="mb-3">
-                                <label className="form-label">Channel</label>
-                                <select name="type" className="form-select">
-                                    <option value="Email">Email Marketing</option>
-                                    <option value="Social">Social Media Ad</option>
-                                    <option value="SMS">SMS Campaign</option>
-                                    <option value="Affiliate">Affiliate Program</option>
-                                </select>
-                            </div>
-                            <div className="row">
-                                <div className="col-md-6 mb-3">
-                                    <label className="form-label">Start Date</label>
-                                    <input type="date" name="startDate" className="form-control" required />
-                                </div>
-                                <div className="col-md-6 mb-3">
-                                    <label className="form-label">End Date</label>
-                                    <input type="date" name="endDate" className="form-control" required />
-                                </div>
-                            </div>
-                            <div className="mb-3">
-                                <label className="form-label">Budget ($)</label>
-                                <input type="number" name="budget" className="form-control" required />
-                            </div>
-                            <div className="d-flex justify-content-end gap-2 mt-4">
-                                <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                                <button type="submit" className="btn btn-primary">Create Campaign</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* MANAGE CAMPAIGN MODAL (Edit) */}
-            {showManageCampaignModal && selectedCampaign && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-                    <div className="bg-white rounded-lg p-6 w-full max-w-lg" style={{ background: '#fff', borderRadius: 12, padding: 24, width: '100%', maxWidth: 500 }}>
-                        <h4 className="mb-4" style={{ marginTop: 0 }}>Edit Campaign</h4>
-                        <form onSubmit={(e) => {
-                            e.preventDefault();
-                            const formData = new FormData(e.target);
-                            const updatedCampaigns = campaigns.map(c => c.id === selectedCampaign.id ? {
-                                ...c,
-                                name: formData.get('name'),
-                                status: formData.get('status'),
-                                budget: parseFloat(formData.get('budget')),
-                                endDate: formData.get('endDate')
-                            } : c);
-                            setCampaigns(updatedCampaigns);
-                            setShowManageCampaignModal(false);
-                        }}>
-                            <div className="mb-3">
-                                <label className="form-label">Campaign Name</label>
-                                <input type="text" name="name" className="form-control" defaultValue={selectedCampaign.name} />
-                            </div>
-                            <div className="row">
-                                <div className="col-md-6 mb-3">
-                                    <label className="form-label">End Date</label>
-                                    <input type="date" name="endDate" className="form-control" defaultValue={selectedCampaign.endDate} />
-                                </div>
-                                <div className="col-md-6 mb-3">
-                                    <label className="form-label">Budget ($)</label>
-                                    <input type="number" name="budget" className="form-control" defaultValue={selectedCampaign.budget} />
-                                </div>
-                            </div>
-                            <div className="mb-3">
-                                <label className="form-label">Status</label>
-                                <select name="status" className="form-select" defaultValue={selectedCampaign.status}>
-                                    <option value="Active">Active</option>
-                                    <option value="Paused">Paused</option>
-                                    <option value="Completed">Completed</option>
-                                </select>
-                            </div>
-                            <div className="d-flex justify-content-end gap-2 mt-4">
-                                <button type="button" className="btn btn-secondary" onClick={() => setShowManageCampaignModal(false)}>Cancel</button>
-                                <button type="submit" className="btn btn-primary">Save Changes</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* CAMPAIGN ANALYTICS MODAL */}
-            {showCampaignAnalyticsModal && selectedCampaign && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-                    <div className="bg-white rounded-lg p-6 w-full max-w-4xl" style={{ background: '#fff', borderRadius: 12, padding: 24, width: '100%', maxWidth: 900, maxHeight: '90vh', overflowY: 'auto' }}>
-                        <div className="d-flex justify-content-between align-items-center mb-4">
-                            <div>
-                                <h4 className="mb-1" style={{ marginTop: 0 }}>Analytics: {selectedCampaign.name}</h4>
-                                <div className="small text-muted">{selectedCampaign.startDate} - {selectedCampaign.endDate}</div>
-                            </div>
-                            <button className="btn-close" onClick={() => setShowCampaignAnalyticsModal(false)}></button>
-                        </div>
-
-                        <div className="row g-3 mb-4">
-                            <div className="col-md-3">
-                                <div className="p-3 bg-light rounded text-center">
-                                    <div className="small text-muted">Budget</div>
-                                    <div className="fw-bold">${selectedCampaign.budget}</div>
-                                </div>
-                            </div>
-                            <div className="col-md-3">
-                                <div className="p-3 bg-light rounded text-center">
-                                    <div className="small text-muted">Spend</div>
-                                    <div className="fw-bold text-danger">${Math.round(selectedCampaign.budget * 0.8)}</div>
-                                </div>
-                            </div>
-                            <div className="col-md-3">
-                                <div className="p-3 bg-light rounded text-center">
-                                    <div className="small text-muted">Leads</div>
-                                    <div className="fw-bold text-primary">{selectedCampaign.leads || 0}</div>
-                                </div>
-                            </div>
-                            <div className="col-md-3">
-                                <div className="p-3 bg-light rounded text-center">
-                                    <div className="small text-muted">ROI</div>
-                                    <div className="fw-bold text-success">245%</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div style={{ width: '100%', height: 250 }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={[
-                                    { name: 'Sent', value: selectedCampaign.sent },
-                                    { name: 'Clicks', value: selectedCampaign.clicks },
-                                    { name: 'Leads', value: selectedCampaign.leads || 0 },
-                                    { name: 'Conv.', value: selectedCampaign.conversions }
-                                ]}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                    <XAxis dataKey="name" />
-                                    <YAxis />
-                                    <Tooltip />
-                                    <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-
-                        {/* REVENUE ATTRIBUTION TABLE */}
-                        <div className="mt-5">
-                            <h5 className="mb-3">Revenue Attribution</h5>
-                            <div className="table-responsive border rounded">
-                                <table className="table table-sm table-hover mb-0">
-                                    <thead className="table-light">
-                                        <tr>
-                                            <th>Order ID</th>
-                                            <th>Product</th>
-                                            <th className="text-end">Value</th>
-                                            <th className="text-end">Discount</th>
-                                            <th className="text-end fw-bold">Net Revenue</th>
-                                            <th className="text-end">Commission</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {revenueData.map((item, idx) => (
-                                            <tr key={idx}>
-                                                <td className="small">{item.orderId}</td>
-                                                <td className="small">{item.product}</td>
-                                                <td className="text-end small">${item.value}</td>
-                                                <td className="text-end small text-danger">-${item.discount}</td>
-                                                <td className="text-end fw-bold text-success">${item.netRevenue}</td>
-                                                <td className="text-end small text-muted">-${item.commission}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                    <tfoot className="table-light fw-bold">
-                                        <tr>
-                                            <td colSpan="4" className="text-end">Total</td>
-                                            <td className="text-end text-success">${revenueData.reduce((acc, curr) => acc + curr.netRevenue, 0)}</td>
-                                            <td className="text-end text-muted">-${revenueData.reduce((acc, curr) => acc + curr.commission, 0)}</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div className="d-flex justify-content-end gap-2 mt-4">
-                            <button className="btn btn-secondary" onClick={() => setShowCampaignAnalyticsModal(false)}>Close</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
+            {/* Render Wizard */}
+            {showCreateModal && renderWizard()}
+        </div>
     );
 };
 

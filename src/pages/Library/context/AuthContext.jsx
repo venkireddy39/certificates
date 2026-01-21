@@ -15,7 +15,20 @@ const ROLE_PERMISSIONS = {
         'MANAGE_MEMBERS', 'VIEW_MEMBERS',
         'ISSUE_BOOKS', 'VIEW_ISSUES', 'RETURN_BOOKS',
         'VIEW_REPORTS',
-        'SYSTEM_SETTINGS'
+        'SYSTEM_SETTINGS',
+        'MANAGE_MARKETING_STRATEGY' // Added for Manager View
+    ],
+    MARKETING_MANAGER: [
+        'VIEW_MARKETING_DASHBOARD',
+        'MANAGE_CAMPAIGNS_APPROVAL',
+        'VIEW_GLOBAL_ANALYTICS',
+        'CONFIGURE_MARKETING_SETTINGS'
+    ],
+    MARKETING_EXECUTIVE: [
+        'VIEW_MARKETING_WORKSPACE',
+        'CREATE_CAMPAIGN',
+        'MANAGE_LEADS',
+        'VIEW_MY_PERFORMANCE'
     ],
     // Librarians manage operations
     LIBRARIAN: [
@@ -97,6 +110,20 @@ export const AuthProvider = ({ children }) => {
                 email: 'admin@library.com',
                 role: 'ADMIN',
                 avatar: 'https://ui-avatars.com/api/?name=Sarah+Connor&background=0D8ABC&color=fff'
+            },
+            MARKETING_MANAGER: {
+                id: 'm1',
+                name: 'Jessica Pearson',
+                email: 'jessica@marketing.com',
+                role: 'MARKETING_MANAGER',
+                avatar: 'https://ui-avatars.com/api/?name=Jessica+Pearson&background=8e44ad&color=fff'
+            },
+            MARKETING_EXECUTIVE: {
+                id: 'e1',
+                name: 'Mike Ross',
+                email: 'mike@marketing.com',
+                role: 'MARKETING_EXECUTIVE',
+                avatar: 'https://ui-avatars.com/api/?name=Mike+Ross&background=f39c12&color=fff'
             },
             LIBRARIAN: {
                 id: 'u2',

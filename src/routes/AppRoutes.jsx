@@ -36,6 +36,7 @@ const AppRoutes = () => {
 
         {/* ================= PUBLIC ROUTES ================= */}
         <Route path="/course-overview/:id" element={<CourseOverview />} />
+        <Route path="/share/:shareCode" element={<CourseOverview />} />
         <Route path="/affiliate/join" element={<AffiliateRegister />} />
 
         {/* ================= DASHBOARD ROUTES ================= */}
