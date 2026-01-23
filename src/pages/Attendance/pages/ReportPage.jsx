@@ -1,89 +1,88 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import AttendanceReport from '../components/AttendanceReport';
+import { courseService } from '../../Courses/services/courseService';
+import { batchService } from '../../Batches/services/batchService';
+import { attendanceService } from '../services/attendanceService';
 
-import { MOCK_COURSES, MOCK_BATCHES } from '../data/mockData';
+const ReportPage = ({ batchId: propBatchId }) => {
+    const [selectedCourse, setSelectedCourse] = useState('');
+    const [selectedBatch, setSelectedBatch] = useState(propBatchId || '');
 
-const ReportPage = ({ batchId }) => {
-    const [selectedCourse, setSelectedCourse] = React.useState('');
-    const [selectedBatch, setSelectedBatch] = React.useState('');
+    const [courses, setCourses] = useState([]);
+    const [batches, setBatches] = useState([]);
+    const [history, setHistory] = useState([]);
+    const [loading, setLoading] = useState(false);
 
-    // Pre-select batch if batchId prop is provided
-    React.useEffect(() => {
-        if (batchId) {
-            const batch = MOCK_BATCHES.find(b => b.id === batchId);
-            if (batch) {
-                setSelectedBatch(batchId);
-                setSelectedCourse(batch.courseId);
+    // Initial Load - Courses (if no propBatchId) or Batch Details (if propBatchId)
+    useEffect(() => {
+        const init = async () => {
+            if (propBatchId) {
+                // If embedded, we might just need to load history directly, 
+                // but let's try to get batch details to know course? 
+                // Actually the report might just need history.
+                loadHistory(propBatchId);
+            } else {
+                // Standalone mode - load courses for filter
+                try {
+                    const data = await courseService.getCourses();
+                    setCourses(data);
+                } catch (e) { console.error(e); }
             }
-        }
-    }, [batchId]);
-
-    // Derived state for batches dropdown
-    const availableBatches = useMemo(() => {
-        if (!selectedCourse) return MOCK_BATCHES;
-        return MOCK_BATCHES.filter(b => b.courseId === selectedCourse);
-    }, [selectedCourse]);
-
-    // Mock Data Generation based on Selected Batch
-    const mockBatchHistory = useMemo(() => {
-        if (!selectedBatch) return [];
-
-        const batch = MOCK_BATCHES.find(b => b.id === selectedBatch);
-        const course = MOCK_COURSES.find(c => c.id === batch?.courseId);
-
-        // Generate pseudo-students for this batch
-        const studentCount = 15; // Simulate a class of 15
-        const students = Array.from({ length: studentCount }).map((_, i) => ({
-            id: `ST-${selectedBatch}-${i + 1}`,
-            name: `Student ${i + 1} (${batch?.name})`
-        }));
-
-        // Generate history for LAST 30 DAYS
-        const history = [];
-        const today = new Date();
-
-        // Helper to get random status
-        const getStatus = () => {
-            const rand = Math.random();
-            if (rand > 0.9) return 'ABSENT';
-            if (rand > 0.8) return 'LATE';
-            return 'PRESENT';
         };
+        init();
+    }, [propBatchId]);
 
-        for (let d = 0; d < 30; d++) {
-            const date = new Date(today);
-            date.setDate(date.getDate() - d);
-            // Skip weekends
-            if (date.getDay() === 0 || date.getDay() === 6) continue;
-
-            const dateStr = date.toISOString().split('T')[0];
-
-            students.forEach(student => {
-                const status = getStatus();
-                let minutes = 0;
-                if (status === 'PRESENT') minutes = 60;
-                if (status === 'LATE') minutes = 45;
-
-                history.push({
-                    id: crypto.randomUUID(),
-                    date: dateStr,
-                    courseName: course?.title || 'Unknown Course',
-                    studentName: student.name,
-                    studentId: student.id,
-                    status,
-                    method: Math.random() > 0.5 ? 'QR Scan' : 'Manual',
-                    attendanceInMinutes: minutes
-                });
-            });
+    // When Course Changes (Standalone mode)
+    useEffect(() => {
+        if (!propBatchId && selectedCourse) {
+            // Load batches for this course
+            // Ideally batchService has getBatchesByCourseId, or we filter from all
+            const loadBatches = async () => {
+                try {
+                    const allBatches = await batchService.getAllBatches();
+                    // Filter mainly by courseId
+                    // Note: batch.courseId might be number or string
+                    setBatches(allBatches.filter(b => String(b.courseId) === String(selectedCourse)));
+                } catch (e) { console.error(e); }
+            };
+            loadBatches();
+        } else if (!propBatchId) {
+            setBatches([]);
         }
+    }, [selectedCourse, propBatchId]);
 
-        return history;
-    }, [selectedBatch]);
+    // When Batch Changes (Standalone or via prop selection update?)
+    // Actually if propBatchId is set, selectedBatch is set initally.
+    // If standalone, user selects batch.
+    useEffect(() => {
+        if (!propBatchId && selectedBatch) {
+            loadHistory(selectedBatch);
+        }
+    }, [selectedBatch, propBatchId]);
+
+    const loadHistory = async (id) => {
+        setLoading(true);
+        try {
+            // Real API call
+            // The backend endpoint might logically be different or not ready, 
+            // but we must implement the call as requested.
+            const data = await attendanceService.getAttendanceHistory(id);
+            // Ensure data structure matches what AttendanceReport expects
+            // or map it here if needed.
+            // Assuming data is array of objects.
+            setHistory(data || []);
+        } catch (error) {
+            console.error("Failed to load attendance history", error);
+            setHistory([]);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="fade-in">
-            {/* Batch Selection Controls - Only show if no batchId is provided */}
-            {!batchId && (
+            {/* Batch Selection Controls - Only show if no batchId prop is provided */}
+            {!propBatchId && (
                 <div className="card border-0 shadow-sm mb-4">
                     <div className="card-body">
                         <div className="row g-3">
@@ -94,12 +93,13 @@ const ReportPage = ({ batchId }) => {
                                     value={selectedCourse}
                                     onChange={(e) => {
                                         setSelectedCourse(e.target.value);
-                                        setSelectedBatch(''); // Reset batch on course change
+                                        setSelectedBatch('');
+                                        setHistory([]);
                                     }}
                                 >
                                     <option value="">Select Course</option>
-                                    {MOCK_COURSES.map(c => (
-                                        <option key={c.id} value={c.id}>{c.title}</option>
+                                    {courses.map(c => (
+                                        <option key={c.courseId} value={c.courseId}>{c.courseName}</option>
                                     ))}
                                 </select>
                             </div>
@@ -109,11 +109,11 @@ const ReportPage = ({ batchId }) => {
                                     className="form-select"
                                     value={selectedBatch}
                                     onChange={(e) => setSelectedBatch(e.target.value)}
-                                    disabled={!availableBatches.length}
+                                    disabled={!batches.length}
                                 >
                                     <option value="">Select Batch</option>
-                                    {availableBatches.map(b => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
+                                    {batches.map(b => (
+                                        <option key={b.batchId} value={b.batchId}>{b.batchName}</option>
                                     ))}
                                 </select>
                             </div>
@@ -122,8 +122,15 @@ const ReportPage = ({ batchId }) => {
                 </div>
             )}
 
-            {selectedBatch ? (
-                <AttendanceReport history={mockBatchHistory} />
+            {(selectedBatch || propBatchId) ? (
+                loading ? (
+                    <div className="text-center py-5">
+                        <div className="spinner-border text-primary" role="status"></div>
+                        <p className="mt-2 text-muted">Loading attendance data...</p>
+                    </div>
+                ) : (
+                    <AttendanceReport history={history} />
+                )
             ) : (
                 <div className="text-center py-5 text-muted">
                     <p>Please select a Course and Batch to view the attendance report.</p>

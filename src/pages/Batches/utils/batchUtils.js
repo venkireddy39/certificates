@@ -23,13 +23,11 @@ export const getBatchStatus = (startDate, endDate) => {
 
 export const validateBatchForm = (data) => {
     const errors = [];
-    if (!data.name) errors.push("Batch Name is required");
+    if (!data.batchName) errors.push("Batch Name is required");
     if (!data.courseId) errors.push("Course is required");
     if (!data.startDate) errors.push("Start Date is required");
     if (!data.endDate) errors.push("End Date is required");
-    if (data.pricingType === 'paid' && !data.price) {
-        errors.push("Price is required for paid batches");
-    }
+
 
     if (data.startDate && data.endDate) {
         if (new Date(data.startDate) >= new Date(data.endDate)) {

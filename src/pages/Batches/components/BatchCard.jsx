@@ -9,7 +9,7 @@ import { calculateProgress } from '../utils/batchUtils';
 import { BATCH_STATUS } from '../constants/batchConstants';
 
 const BatchCard = ({ batch, courses = [], onEdit, onDelete, onManageContent }) => {
-    const course = courses.find(c => c.id === batch.courseId);
+    const course = courses.find(c => String(c.courseId) === String(batch.courseId));
 
     const students = batch.students ?? 0;
     const maxStudents = batch.maxStudents ?? 0;
@@ -40,9 +40,9 @@ const BatchCard = ({ batch, courses = [], onEdit, onDelete, onManageContent }) =
             </div>
 
             <div className="card-content">
-                <h3 className="batch-title">{batch.name}</h3>
+                <h3 className="batch-title">{batch.batchName}</h3>
                 <p className="course-linked">
-                    {course?.name || 'Unassigned Course'}
+                    {course?.courseName || 'Unassigned Course'}
                 </p>
 
                 {/* Dates */}
@@ -51,6 +51,11 @@ const BatchCard = ({ batch, courses = [], onEdit, onDelete, onManageContent }) =
                         <FiCalendar className="i-icon" />
                         <span>{batch.startDate} – {batch.endDate}</span>
                     </div>
+                    {batch.trainerName && (
+                        <div className="info-item">
+                            <span>Trainer: {batch.trainerName}</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Capacity */}

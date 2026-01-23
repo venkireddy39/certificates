@@ -7,7 +7,28 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://192.168.1.23:5151',
+        target: 'http://192.168.1.23:5151', // Gateway / Other Modules
+        changeOrigin: true,
+        secure: false,
+      },
+      // User Management Module (Remote)
+      '/admin': {
+        target: 'http://192.168.1.22:8081',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/student': {
+        target: 'http://192.168.1.22:8081',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/auth': {
+        target: 'http://192.168.1.22:8081',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/users': {
+        target: 'http://192.168.1.22:8081',
         changeOrigin: true,
         secure: false,
       },

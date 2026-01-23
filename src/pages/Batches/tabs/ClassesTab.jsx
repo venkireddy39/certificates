@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     FiCalendar,
@@ -11,62 +11,46 @@ import {
     FiTrash2,
     FiEdit3
 } from 'react-icons/fi';
+import { sessionService } from '../services/sessionService';
+import SessionContentModal from '../components/SessionContentModal';
 import '../styles/BatchBuilder.css';
-
-/* ---------------- MOCK DATA ---------------- */
-
-const INITIAL_CLASSES = [
-    {
-        id: 101,
-        title: 'Introduction to React Hooks',
-        date: '2026-01-05',
-        startTime: '10:00',
-        endTime: '12:00',
-        instructor: 'Sarah Smith'
-    },
-    {
-        id: 102,
-        title: 'Advanced Component Patterns',
-        date: '2026-01-08',
-        startTime: '09:00',
-        endTime: '11:00',
-        instructor: 'Sarah Smith'
-    },
-    {
-        id: 103,
-        title: 'Performance Optimization',
-        date: '2026-01-12',
-        startTime: '10:00',
-        endTime: '12:00',
-        instructor: 'Sarah Smith'
-    }
-];
 
 /* ---------------- HELPERS ---------------- */
 
-const getStatus = (date, startTime, endTime) => {
-    const now = new Date();
-    const start = new Date(`${date}T${startTime}`);
-    const end = new Date(`${date}T${endTime}`);
+const getStatus = (session) => {
+    // If backend provides status, use it
+    if (session.status) return session.status;
 
-    if (now >= start && now <= end) return 'Ongoing';
+    // Fallback logic
+    const now = new Date();
+    const start = new Date(`${session.startDate}T${session.startTime}`);
+    const end = new Date(start.getTime() + (session.durationMinutes || 60) * 60000);
+
+    if (now >= start && now <= end) return 'Running'; // Updated from 'Ongoing' based on entity comment (Upcoming / Running / Completed)
     if (now > end) return 'Completed';
     return 'Upcoming';
 };
 
 const getStatusColor = (status) => {
-    if (status === 'Ongoing') return '#22c55e';
+    if (status === 'Running' || status === 'Ongoing') return '#22c55e';
     if (status === 'Upcoming') return '#3b82f6';
     return '#64748b';
 };
 
 /* ---------------- CARD COMPONENT ---------------- */
 
-const ClassCard = ({ session, onDelete, onEdit }) => {
-    const status = getStatus(session.date, session.startTime, session.endTime);
+const ClassCard = ({ session, onDelete, onEdit, onViewContent }) => {
+    const status = getStatus(session);
+    // Calculated end time for display
+    const getEndTime = () => {
+        if (!session.startDate || !session.startTime) return '';
+        const start = new Date(`2000-01-01T${session.startTime}`); // Dummy date
+        const end = new Date(start.getTime() + (session.durationMinutes || 60) * 60000);
+        return end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    };
 
     return (
-        <div className={`class-card ${status === 'Ongoing' ? 'highlighted' : ''}`}>
+        <div className={`class-card ${status.includes('Run') ? 'highlighted' : ''}`}>
             <div
                 className="class-status-stripe"
                 style={{ backgroundColor: getStatusColor(status) }}
@@ -74,7 +58,7 @@ const ClassCard = ({ session, onDelete, onEdit }) => {
 
             <div className="class-content">
                 <div className="class-header">
-                    <h4 className="class-title">{session.title}</h4>
+                    <h4 className="class-title">{session.sessionName}</h4>
 
                     <div className="card-actions">
                         {status === 'Upcoming' && (
@@ -89,7 +73,7 @@ const ClassCard = ({ session, onDelete, onEdit }) => {
                         <button
                             className="btn-icon-plain"
                             title="Delete class"
-                            onClick={() => onDelete(session.id)}
+                            onClick={() => onDelete(session.sessionId)}
                         >
                             <FiTrash2 />
                         </button>
@@ -98,30 +82,33 @@ const ClassCard = ({ session, onDelete, onEdit }) => {
 
                 <div className="class-meta">
                     <div className="meta-item">
-                        <FiCalendar /> {session.date}
+                        <FiCalendar /> {session.startDate}
                     </div>
                     <div className="meta-item">
-                        <FiClock /> {session.startTime} - {session.endTime}
+                        <FiClock /> {session.startTime} - {getEndTime()} ({session.durationMinutes}m)
                     </div>
                 </div>
 
                 <div className="class-footer">
                     <div className="instructor-info">
                         <div className="avatar-mini">
-                            {session.instructor.charAt(0)}
+                            T
                         </div>
-                        <span>{session.instructor}</span>
+                        <span>Trainer</span>
                     </div>
 
-                    {status === 'Ongoing' && (
-                        <button className="btn-join">
+                    {(status === 'Running' || status === 'Ongoing') && (
+                        <button className="btn-join" onClick={() => session.meetingLink && window.open(session.meetingLink, '_blank')}>
                             <FiVideo /> Join Now
                         </button>
                     )}
 
                     {status === 'Completed' && (
-                        <button className="btn-view-recording">
-                            <FiPlayCircle /> Watch Recording
+                        <button
+                            className="btn-view-recording"
+                            onClick={() => onViewContent && onViewContent(session)}
+                        >
+                            <FiPlayCircle /> Class Content
                         </button>
                     )}
                 </div>
@@ -134,33 +121,61 @@ const ClassCard = ({ session, onDelete, onEdit }) => {
 
 const ClassesTab = ({ batchId }) => {
     const navigate = useNavigate();
-    const [classes, setClasses] = useState(INITIAL_CLASSES);
+    const [classes, setClasses] = useState([]);
     const [filter, setFilter] = useState('upcoming');
+    const [loading, setLoading] = useState(true);
+    const [activeContentSession, setActiveContentSession] = useState(null);
+
+    useEffect(() => {
+        loadSessions();
+    }, [batchId]);
+
+    const loadSessions = async () => {
+        setLoading(true);
+        try {
+            const data = await sessionService.getSessionsByBatchId(batchId);
+            // Sort by date/time?
+            data.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+            setClasses(data);
+        } catch (error) {
+            console.error("Failed to load sessions", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     /* -------- ACTIONS -------- */
-    const handleDeleteClass = (id) => {
+    const handleDeleteClass = async (id) => {
         const ok = window.confirm('Delete this class?');
         if (!ok) return;
-
-        setClasses(prev => prev.filter(c => c.id !== id));
+        try {
+            await sessionService.deleteSession(id);
+            setClasses(prev => prev.filter(c => c.sessionId !== id));
+        } catch (error) {
+            alert("Failed to delete session");
+        }
     };
 
     const handleEditClass = (session) => {
-        // Navigate to Create Class page with edit mode
-        // passing session data if needed, or just ID
-        navigate(`/batches/${batchId}/create-class?edit=${session.id}`, { state: { session } });
+        navigate(`/batches/${batchId}/create-class?edit=${session.sessionId}`, { state: { session } });
+    };
+
+    const handleViewContent = (session) => {
+        setActiveContentSession(session);
     };
 
     /* -------- FILTERED DATA -------- */
     const upcoming = classes.filter(
-        c => getStatus(c.date, c.startTime, c.endTime) === 'Upcoming'
+        c => getStatus(c) === 'Upcoming'
     );
     const ongoing = classes.filter(
-        c => getStatus(c.date, c.startTime, c.endTime) === 'Ongoing'
+        c => getStatus(c) === 'Running' || getStatus(c) === 'Ongoing'
     );
     const completed = classes.filter(
-        c => getStatus(c.date, c.startTime, c.endTime) === 'Completed'
+        c => getStatus(c) === 'Completed'
     );
+
+    if (loading) return <div>Loading sessions...</div>;
 
     return (
         <div className="classes-tab-container">
@@ -206,7 +221,7 @@ const ClassesTab = ({ batchId }) => {
                     <div className="classes-grid">
                         {ongoing.length ? ongoing.map(c => (
                             <ClassCard
-                                key={c.id}
+                                key={c.sessionId}
                                 session={c}
                                 onDelete={handleDeleteClass}
                             />
@@ -227,7 +242,7 @@ const ClassesTab = ({ batchId }) => {
                     <div className="classes-grid">
                         {upcoming.length ? upcoming.map(c => (
                             <ClassCard
-                                key={c.id}
+                                key={c.sessionId}
                                 session={c}
                                 onDelete={handleDeleteClass}
                                 onEdit={handleEditClass}
@@ -249,15 +264,23 @@ const ClassesTab = ({ batchId }) => {
                     <div className="classes-grid">
                         {completed.length ? completed.map(c => (
                             <ClassCard
-                                key={c.id}
+                                key={c.sessionId}
                                 session={c}
                                 onDelete={handleDeleteClass}
+                                onViewContent={handleViewContent}
                             />
                         )) : (
                             <div className="empty-section">No completed classes.</div>
                         )}
                     </div>
                 </section>
+            )}
+
+            {activeContentSession && (
+                <SessionContentModal
+                    session={activeContentSession}
+                    onClose={() => setActiveContentSession(null)}
+                />
             )}
         </div>
     );

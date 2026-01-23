@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authService } from '../../../services/authService';
 
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
@@ -16,7 +17,12 @@ const ROLE_PERMISSIONS = {
         'ISSUE_BOOKS', 'VIEW_ISSUES', 'RETURN_BOOKS',
         'VIEW_REPORTS',
         'SYSTEM_SETTINGS',
-        'MANAGE_MARKETING_STRATEGY' // Added for Manager View
+        'MANAGE_MARKETING_STRATEGY', // Added for Manager View
+        'BATCH_CREATE', 'BATCH_VIEW', 'BATCH_UPDATE', 'BATCH_DELETE', // Batch Management
+        'SESSION_CREATE', 'SESSION_VIEW', 'SESSION_UPDATE', 'SESSION_DELETE', // Session Management
+        'COURSE_BATCH_STATS_VIEW', // Stats Management
+        'STUDENT_BATCH_CREATE', 'STUDENT_BATCH_UPDATE', 'STUDENT_BATCH_DELETE', 'STUDENT_BATCH_VIEW', // Student Enrollment
+        'STUDENT_BATCH_TRANSFER_CREATE', 'STUDENT_BATCH_TRANSFER_VIEW' // Transfers
     ],
     MARKETING_MANAGER: [
         'VIEW_MARKETING_DASHBOARD',
@@ -65,97 +71,49 @@ export const AuthProvider = ({ children }) => {
 
     /* ---------- RESTORE SESSION ---------- */
     useEffect(() => {
-        try {
-            const saved = localStorage.getItem('auth_user');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                // Allow login if role exists in map
-                if (!ROLE_PERMISSIONS[parsed.role]) {
-                    localStorage.removeItem('auth_user');
-                    setUser(null);
-                } else {
-                    setUser(parsed);
-                }
-            } else {
-                // AUTO-LOGIN DEFAULT ADMIN (Demo Mode)
-                const defaultAdmin = {
-                    id: 'u1',
-                    name: 'Sarah Connor',
-                    email: 'admin@library.com',
-                    role: 'ADMIN',
-                    avatar: 'https://ui-avatars.com/api/?name=Sarah+Connor&background=0D8ABC&color=fff'
-                };
-                setUser(defaultAdmin);
-                localStorage.setItem('auth_user', JSON.stringify(defaultAdmin));
+        const token = localStorage.getItem('authToken');
+        const savedUser = localStorage.getItem('auth_user');
+
+        if (token && savedUser) {
+            try {
+                setUser(JSON.parse(savedUser));
+            } catch (e) {
+                console.error("Failed to parse user", e);
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('auth_user');
             }
-        } catch (e) {
-            console.error("Failed to parse auth user", e);
-            localStorage.removeItem('auth_user');
-        } finally {
-            setLoading(false);
         }
+        setLoading(false);
     }, []);
 
     /* ---------- LOGIN ---------- */
-    const login = async (role = 'ADMIN') => {
+    const login = async (email, password) => {
         setLoading(true);
+        try {
+            const data = await authService.login(email, password);
 
-        // Simulate API latency
-        await new Promise(resolve => setTimeout(resolve, 500));
+            // Handle different response structures
+            const token = data.token || data.jwt || (typeof data === 'string' ? data : null);
 
-        const mockUsers = {
-            ADMIN: {
-                id: 'u1',
-                name: 'Sarah Connor',
-                email: 'admin@library.com',
-                role: 'ADMIN',
-                avatar: 'https://ui-avatars.com/api/?name=Sarah+Connor&background=0D8ABC&color=fff'
-            },
-            MARKETING_MANAGER: {
-                id: 'm1',
-                name: 'Jessica Pearson',
-                email: 'jessica@marketing.com',
-                role: 'MARKETING_MANAGER',
-                avatar: 'https://ui-avatars.com/api/?name=Jessica+Pearson&background=8e44ad&color=fff'
-            },
-            MARKETING_EXECUTIVE: {
-                id: 'e1',
-                name: 'Mike Ross',
-                email: 'mike@marketing.com',
-                role: 'MARKETING_EXECUTIVE',
-                avatar: 'https://ui-avatars.com/api/?name=Mike+Ross&background=f39c12&color=fff'
-            },
-            LIBRARIAN: {
-                id: 'u2',
-                name: 'John Wick',
-                email: 'librarian@library.com',
-                role: 'LIBRARIAN',
-                avatar: 'https://ui-avatars.com/api/?name=John+Wick&background=eb4034&color=fff'
-            },
-            STUDENT: {
-                id: 'u3',
-                memberId: 'MEM-003',
-                name: 'Peter Parker',
-                email: 'peter@student.edu',
-                role: 'STUDENT',
-                category: 'UG_ENGINEERING',
-                status: 'ACTIVE',
-                avatar: 'https://ui-avatars.com/api/?name=Peter+Parker&background=random'
-            }
-        };
+            if (!token) throw new Error("No token received");
 
-        // Fallback or specific selection
-        const loggedUser = mockUsers[role] || mockUsers['STUDENT'];
+            const userData = {
+                email: email,
+                role: 'ADMIN', // Defaulting to Admin as requested for this view
+                ...data.user // If backend sends user details
+            };
 
-        if (!loggedUser) {
-            console.error("Login failed: Invalid role", role);
+            localStorage.setItem('authToken', token);
+            localStorage.setItem('auth_user', JSON.stringify(userData));
+
+            setUser(userData);
+            return userData;
+        } catch (error) {
+            console.error("Login Error", error);
+            throw error;
+        } finally {
             setLoading(false);
-            return;
         }
-
-        setUser(loggedUser);
-        localStorage.setItem('auth_user', JSON.stringify(loggedUser));
-        setLoading(false);
     };
 
     /* ---------- LOGOUT ---------- */

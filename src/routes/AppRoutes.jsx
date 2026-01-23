@@ -28,6 +28,7 @@ const CreateFee = lazy(() => import('../pages/FeeManagement/CreateFee'));
 const LibraryApp = lazy(() => import('../pages/Library/App'));
 const AffiliateRegister = lazy(() => import('../pages/Affiliates/AffiliateRegister'));
 const AffiliatePortal = lazy(() => import('../pages/Affiliates/AffiliatePortal'));
+const LoginPage = lazy(() => import('../pages/Login/LoginPage'));
 
 const AppRoutes = () => {
   return (
@@ -35,6 +36,7 @@ const AppRoutes = () => {
       <Routes>
 
         {/* ================= PUBLIC ROUTES ================= */}
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/course-overview/:id" element={<CourseOverview />} />
         <Route path="/share/:shareCode" element={<CourseOverview />} />
         <Route path="/affiliate/join" element={<AffiliateRegister />} />

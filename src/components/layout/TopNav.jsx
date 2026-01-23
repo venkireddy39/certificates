@@ -78,6 +78,17 @@ const TopNav = () => {
                                     AD
                                 </div>
                             </div>
+                            <button
+                                className="btn btn-light rounded-circle p-2 text-danger border-0 hover-bg-danger-subtle"
+                                onClick={() => {
+                                    localStorage.removeItem('authToken');
+                                    localStorage.removeItem('auth_user');
+                                    window.location.href = '/login';
+                                }}
+                                title="Sign Out"
+                            >
+                                <i className="bi bi-box-arrow-right"></i>
+                            </button>
                         </div>
 
                     </div>

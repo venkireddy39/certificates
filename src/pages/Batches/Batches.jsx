@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FiPlus, FiSearch, FiFilter } from "react-icons/fi";
 import { useNavigate } from 'react-router-dom';
 
@@ -8,17 +8,46 @@ import BatchModal from './components/BatchModal';
 import BatchStats from './components/BatchStats';
 import BatchesEmptyState from './components/BatchesEmptyState';
 import { BATCH_TABS } from './constants/batchConstants';
-import { MOCK_COURSES } from '../../data/mockCourses';
-import { MOCK_USERS } from '../../data/mockUsers';
+import { courseService } from '../Courses/services/courseService';
+// UPDATED IMPORTS
+import { batchService } from './services/batchService';
+import { enrollmentService } from './services/enrollmentService';
 
 import './styles/batches.css';
 
 const Batches = () => {
     const navigate = useNavigate();
 
-    // TEMP: replace with API / store later
-    const courses = MOCK_COURSES;
-    const instructors = useMemo(() => MOCK_USERS.filter(u => u.role === 'Instructor' || u.role === 'Admin'), []);
+    const [courses, setCourses] = useState([]);
+    const [allUsers, setAllUsers] = useState([]);
+    const [loadingData, setLoadingData] = useState(true);
+
+    useEffect(() => {
+        const loadData = async () => {
+            setLoadingData(true);
+            try {
+                // Use enrollmentService for users
+                const [coursesData, usersData] = await Promise.all([
+                    courseService.getCourses(),
+                    enrollmentService.getAllUsers()
+                ]);
+                setCourses(coursesData);
+                setAllUsers(usersData);
+            } catch (error) {
+                console.error("Failed to load dependency data", error);
+            } finally {
+                setLoadingData(false);
+            }
+        };
+        loadData();
+    }, []);
+
+    // Filter instructors from all users if role exists, otherwise fallback or show all
+    const instructors = useMemo(() => {
+        return allUsers.filter(u =>
+            !u.role || u.role === 'Instructor' || u.role === 'Admin' || u.role === 'INSTRUCTOR' || u.role === 'ADMIN'
+        );
+    }, [allUsers]);
 
     const {
         batches,
@@ -39,8 +68,13 @@ const Batches = () => {
         courseFilter,
         setCourseFilter,
         instructorFilter,
-        setInstructorFilter
+        setInstructorFilter,
+        loading: loadingBatches
     } = useBatches(courses);
+
+    if (loadingData && loadingBatches) {
+        return <div className="p-4">Loading Batches...</div>;
+    }
 
     return (
         <>
@@ -83,19 +117,19 @@ const Batches = () => {
                             onChange={(e) => setCourseFilter(e.target.value)}
                         >
                             <option value="All">All Courses</option>
-                            {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            {courses.map(c => <option key={c.courseId} value={c.courseId}>{c.courseName}</option>)}
                         </select>
                     </div>
 
-                    {/* Instructor Filter */}
+                    {/* Instructor Filter - using Trainer Name for filtering as per new hook? */}
                     <div className="filter-select-wrapper">
                         <select
                             className="filter-select"
                             value={instructorFilter}
                             onChange={(e) => setInstructorFilter(e.target.value)}
                         >
-                            <option value="All">All Instructors</option>
-                            {instructors.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                            <option value="All">All Trainers</option>
+                            {instructors.map(i => <option key={i.id || i.userId} value={i.name}>{i.name}</option>)}
                         </select>
                     </div>
 

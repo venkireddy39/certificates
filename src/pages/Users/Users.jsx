@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { FiPlus } from 'react-icons/fi';
 import './Users.css';
 
+// Services
+import { enrollmentService } from '../Batches/services/enrollmentService';
+import { batchService } from '../Batches/services/batchService';
+import { userService } from './services/userService';
+
 // Sub-modules
 import UserList from './tabs/UserList';
-import InstructorRequests from './tabs/InstructorRequests';
 import UserActivityLogs from './tabs/UserActivityLogs';
 import AddUserModal from './components/AddUserModal';
 
@@ -12,31 +17,103 @@ const Users = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [requestCount] = useState(2);
   const [editingUser, setEditingUser] = useState(null);
 
-  const [users, setUsers] = useState([
-    { id: 1, name: "John Doe", email: "john@example.com", role: "Student", status: "Active", joined: "2024-01-15" },
-    { id: 2, name: "Sarah Smith", email: "sarah@example.com", role: "Instructor", status: "Active", joined: "2024-02-01" },
-    { id: 3, name: "Michael Brown", email: "mike@example.com", role: "Admin", status: "Active", joined: "2023-11-20" },
-    { id: 4, name: "Emma Wilson", email: "emma@example.com", role: "Student", status: "Inactive", joined: "2024-03-10" },
-    { id: 5, name: "Robert Fox", email: "robert@parent.com", role: "Parent", status: "Active", joined: "2024-04-05" },
-    { id: 6, name: "Jenny Cooper", email: "jenny@affiliate.com", role: "Affiliate", status: "Active", joined: "2024-04-12" },
-  ]);
+  const [users, setUsers] = useState([]);
+  const [allBatchesList, setAllBatchesList] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleDeleteUser = (id) => {
-    if (window.confirm("Are you sure you want to delete this user?")) {
-      setUsers(prev => prev.filter(u => u.id !== id));
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    setLoading(true);
+    try {
+      // Fetch users from new userService, keep batch/enrollments for enrichment
+      const [data, enrollments, batches] = await Promise.all([
+        userService.getAllUsers(),
+        enrollmentService.getAllEnrollments(),
+        batchService.getAllBatches()
+      ]);
+
+      const usersList = Array.isArray(data) ? data : [];
+
+      // Enrich users with batch info
+      const enrichedUsers = usersList.map(u => {
+        // Backend User entity has userId, frontend often uses id. Standardize to id.
+        const uId = u.userId || u.id;
+
+        // Construct display name if missing
+        let displayName = u.name;
+        if (!displayName && (u.firstName || u.lastName)) {
+          displayName = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+        }
+
+        const normalizedUser = { ...u, id: uId, name: displayName || 'Unknown' };
+
+        // Map backend 'enabled' to frontend 'status' if needed
+        if (typeof u.enabled !== 'undefined') {
+          normalizedUser.status = u.enabled ? 'Active' : 'Inactive';
+        }
+
+        // Map backend 'roleName' to frontend 'role'
+        if (u.roleName) {
+          const roleMap = {
+            'ROLE_STUDENT': 'Student',
+            'ROLE_INSTRUCTOR': 'Instructor',
+            'ROLE_PARENT': 'Parent',
+            'ROLE_ADMIN': 'Admin',
+            'ROLE_SUPER_ADMIN': 'Super Admin'
+          };
+          normalizedUser.role = roleMap[u.roleName] || u.roleName;
+        }
+
+        const userEnrollments = Array.isArray(enrollments) ? enrollments.filter(e => String(e.studentId) === String(uId)) : [];
+        const userBatchInfos = userEnrollments.map(e => {
+          const b = Array.isArray(batches) ? batches.find(bat => String(bat.batchId) === String(e.batchId)) : null;
+          return b ? { id: b.batchId, name: b.batchName } : null;
+        }).filter(Boolean);
+
+        return { ...normalizedUser, batches: userBatchInfos };
+      });
+
+      setUsers(enrichedUsers);
+      setAllBatchesList(Array.isArray(batches) ? batches : []);
+    } catch (error) {
+      console.error("Failed to load users", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleToggleStatus = (id) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === id) {
-        return { ...u, status: u.status === 'Active' ? 'Inactive' : 'Active' };
+  const handleDeleteUser = async (id) => {
+    if (window.confirm("Are you sure you want to delete this user?")) {
+      try {
+        await userService.deleteUser(id);
+        setUsers(prev => prev.filter(u => u.id !== id));
+      } catch (error) {
+        alert("Failed to delete user: " + error.message);
       }
-      return u;
-    }));
+    }
+  };
+
+  const handleToggleStatus = async (id) => {
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+
+    try {
+      await userService.toggleStatus(id, user.status);
+      // Optimistic update
+      setUsers(prev => prev.map(u => {
+        if (u.id === id) {
+          return { ...u, status: u.status === 'Active' ? 'Inactive' : 'Active' };
+        }
+        return u;
+      }));
+    } catch (error) {
+      alert("Failed to update status: " + error.message);
+    }
   };
 
   const handleEditUser = (user) => {
@@ -44,22 +121,22 @@ const Users = () => {
     setIsModalOpen(true);
   };
 
-  const handleSaveUser = (userData) => {
-    if (editingUser) {
-      // Update existing
-      setUsers(prev => prev.map(u => u.id === userData.id ? { ...u, ...userData } : u));
-    } else {
-      // Create new
-      const newUser = {
-        ...userData,
-        id: Date.now(),
-        status: userData.status || 'Active', // Default status
-        joined: new Date().toISOString().split('T')[0]
-      };
-      setUsers(prev => [...prev, newUser]);
+  const handleSaveUser = async (userData) => {
+    try {
+      if (editingUser) {
+        // TODO: Implement update in userService if needed (PATCH /users/{id})
+        alert("Edit functionality requires backend update endpoint implementation.");
+      } else {
+        // Create new via API
+        await userService.createUser(userData);
+        alert("User created successfully!");
+        loadUsers(); // Reload to get new ID and data
+      }
+      setEditingUser(null);
+      setIsModalOpen(false);
+    } catch (error) {
+      alert("Error saving user: " + error.message);
     }
-    setEditingUser(null);
-    setIsModalOpen(false);
   };
 
   const openAddModal = () => {
@@ -85,10 +162,9 @@ const Users = () => {
           All Users <span className="u-badge">{users.length}</span>
         </button>
         <button className={`u-tab ${activeTab === 'instructors' ? 'active' : ''}`} onClick={() => setActiveTab('instructors')}>
-          Instructors <span className="u-badge">{users.filter(u => u.role === 'Instructor').length}</span>
-        </button>
-        <button className={`u-tab ${activeTab === 'approvals' ? 'active' : ''}`} onClick={() => setActiveTab('approvals')}>
-          Instructor Requests <span className="u-badge warning">{requestCount}</span>
+          Instructors <span className="u-badge">{users.filter(u =>
+            (u.role === 'Instructor' || u.roleName === 'ROLE_INSTRUCTOR')
+          ).length}</span>
         </button>
         <button className={`u-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
           Activity Logs
@@ -104,6 +180,7 @@ const Users = () => {
             onDelete={handleDeleteUser}
             onToggleStatus={handleToggleStatus}
             onEdit={handleEditUser}
+            batches={allBatchesList}
           />
         )}
         {activeTab === 'instructors' && (
@@ -114,9 +191,9 @@ const Users = () => {
             onToggleStatus={handleToggleStatus}
             onEdit={handleEditUser}
             hideRoleFilter={true}
+            batches={allBatchesList}
           />
         )}
-        {activeTab === 'approvals' && <InstructorRequests />}
         {activeTab === 'logs' && <UserActivityLogs />}
       </div>
 

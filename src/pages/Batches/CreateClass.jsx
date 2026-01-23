@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { FiArrowLeft, FiUploadCloud, FiInbox } from 'react-icons/fi';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { FiArrowLeft, FiUploadCloud, FiInbox, FiRefreshCw } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import { sessionService } from './services/sessionService';
 import './styles/CreateClass.css';
 
-// Reusing existing card styles/components structure for consistency,
-// but simplifying for this standalone view as requested.
-
 const CreateClass = () => {
+    const { id: batchId } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -16,12 +15,12 @@ const CreateClass = () => {
     const [dateTime, setDateTime] = useState('');
     const [hours, setHours] = useState(1);
     const [minutes, setMinutes] = useState(0);
-    const [description, setDescription] = useState('');
-    const [batchLimit, setBatchLimit] = useState(100);
+    const [sessionType, setSessionType] = useState('Online');
+    const [meetingLink, setMeetingLink] = useState('');
 
-    // List state (Mocking session storage / local state for this view)
+    // List state (Real Data)
     const [sessions, setSessions] = useState([]);
-    const [filter, setFilter] = useState('all');
+    const [loading, setLoading] = useState(false);
 
     // Edit State
     const [isEditing, setIsEditing] = useState(false);
@@ -29,105 +28,101 @@ const CreateClass = () => {
 
     /* ------------------ LOAD CLASSES ------------------ */
     useEffect(() => {
-        loadSessions();
-    }, []);
-
-    useEffect(() => {
-        const params = new URLSearchParams(location.search);
-        const f = params.get('filter');
-        if (f && ['UPCOMING', 'ONGOING', 'COMPLETED', 'all'].includes(f)) {
-            setFilter(f);
+        if (batchId) {
+            loadSessions();
         }
-    }, [location.search]);
+    }, [batchId]);
 
-    const loadSessions = () => {
-        // In a real app, this would fetch from API based on batch ID or similar.
-        // Doing a simple mock load here or reading from sessionStorage as per your code.
-        const now = new Date();
-        const data = Object.keys(sessionStorage)
-            .filter(k => k.startsWith('class-session-'))
-            .map(k => {
-                try {
-                    const s = JSON.parse(sessionStorage.getItem(k));
-                    if (!s?.dateTime) return null;
+    // Check for edit mode query param
+    useEffect(() => {
+        const state = location.state?.session;
+        if (state) {
+            handleEdit(state);
+        }
+    }, [location.state]);
 
-                    const start = new Date(s.dateTime);
-                    const end = new Date(start.getTime() + s.duration * 60000);
-
-                    let status = 'UPCOMING';
-                    if (now >= start && now <= end) status = 'ONGOING';
-                    else if (now > end) status = 'COMPLETED';
-
-                    // Update status if changed (optional side effect)
-                    if (s.status !== status) {
-                        s.status = status;
-                        // Avoid writing back during render in strict mode ideally, but ok for demo
-                    }
-                    return { ...s, status };
-                } catch (e) {
-                    return null;
-                }
-            })
-            .filter(Boolean)
-            .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
-
-        setSessions(data);
+    const loadSessions = async () => {
+        setLoading(true);
+        try {
+            const data = await sessionService.getSessionsByBatchId(batchId);
+            // Sort by date desc
+            data.sort((a, b) => new Date(b.startDate + 'T' + b.startTime) - new Date(a.startDate + 'T' + a.startTime));
+            setSessions(data);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     /* ------------------ CREATE / EDIT CLASS ------------------ */
-    const handleCreate = (e) => {
+    const handleCreate = async (e) => {
         e.preventDefault();
 
-        if (!title.trim()) {
-            alert('Class title required');
+        if (!title.trim() || !dateTime) {
+            alert('Title and Date/Time are required');
             return;
         }
 
-        const totalMinutes = (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0) || 60;
-        const now = new Date();
-        const start = dateTime ? new Date(dateTime) : new Date(now.getTime() + 10 * 60000);
-        const end = new Date(start.getTime() + totalMinutes * 60000);
+        const dateObj = new Date(dateTime);
+        const startDate = dateObj.toISOString().split('T')[0];
+        // Send HH:MM:00 for LocalTime compatibility
+        const startTime = dateObj.toTimeString().split(' ')[0];
+        const durationMinutes = (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0) || 60;
 
-        let status = 'UPCOMING';
-        if (now >= start && now <= end) status = 'ONGOING';
-        else if (now > end) status = 'COMPLETED';
+        const days = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
         const sessionData = {
-            id: isEditing ? editId : Date.now().toString(),
-            title,
-            dateTime: start.toISOString(),
-            duration: totalMinutes,
-            description,
-            batchLimit,
-            status,
-            instructor: "You (Admin)" // Mock
+            batchId: Number(batchId),
+            sessionName: title,
+            startDate,
+            startTime,
+            durationMinutes,
+            days, // "Monday", etc.
+            sessionType,
+            meetingLink,
+            status: isEditing ? undefined : "Upcoming"
         };
 
-        // Persist
-        sessionStorage.setItem(`class-session-${sessionData.id}`, JSON.stringify(sessionData));
+        try {
+            if (isEditing) {
+                // Keep existing ID and potentially status
+                await sessionService.updateSession(editId, sessionData);
+            } else {
+                await sessionService.createSession(sessionData);
+            }
 
-        // Reset form
-        resetForm();
+            resetForm();
+            loadSessions();
+            // Clear navigation state if we were editing
+            if (isEditing) {
+                navigate(location.pathname, { replace: true, state: {} });
+            }
 
-        // Refresh list
-        loadSessions();
+        } catch (err) {
+            console.error("Save failed", err);
+            alert("Failed to save session");
+        }
     };
 
     const handleEdit = (session) => {
         setIsEditing(true);
-        setEditId(session.id);
-        setTitle(session.title);
-        // Format dateTime for input[type="datetime-local"] (YYYY-MM-DDTHH:mm)
-        const dt = new Date(session.dateTime);
-        dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
-        setDateTime(dt.toISOString().slice(0, 16));
+        setEditId(session.sessionId);
+        setTitle(session.sessionName);
 
-        const h = Math.floor(session.duration / 60);
-        const m = session.duration % 60;
+        // Reconstruct datetime for input
+        // session.startDate = "YYYY-MM-DD", session.startTime = "HH:MM"
+        // input type datetime-local needs "YYYY-MM-DDTHH:MM"
+        if (session.startDate && session.startTime) {
+            setDateTime(`${session.startDate}T${session.startTime}`);
+        }
+
+        const h = Math.floor((session.durationMinutes || 60) / 60);
+        const m = (session.durationMinutes || 60) % 60;
         setHours(h);
         setMinutes(m);
-        setDescription(session.description || '');
-        setBatchLimit(session.batchLimit || 100);
+        setSessionType(session.sessionType || 'Online');
+        setMeetingLink(session.meetingLink || '');
     };
 
     const resetForm = () => {
@@ -137,17 +132,15 @@ const CreateClass = () => {
         setDateTime('');
         setHours(1);
         setMinutes(0);
-        setDescription('');
-        setBatchLimit(100);
+        setSessionType('Online');
+        setMeetingLink('');
     };
-
-    const visible = filter === 'all' ? sessions : sessions.filter(s => s.status === filter);
 
     // Simple Card Component for Preview
     const PreviewCard = ({ session }) => {
         const getColor = (s) => {
-            if (s === 'ONGOING') return '#22c55e';
-            if (s === 'UPCOMING') return '#3b82f6';
+            if (s === 'Running' || s === 'Ongoing') return '#22c55e';
+            if (s === 'Upcoming') return '#3b82f6';
             return '#64748b';
         };
 
@@ -161,7 +154,7 @@ const CreateClass = () => {
                 marginBottom: '10px'
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <h4 style={{ margin: 0, fontSize: '16px' }}>{session.title}</h4>
+                    <h4 style={{ margin: 0, fontSize: '16px' }}>{session.sessionName}</h4>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{
                             fontSize: '11px',
@@ -170,8 +163,8 @@ const CreateClass = () => {
                             background: '#f1f5f9',
                             color: getColor(session.status),
                             fontWeight: 'bold'
-                        }}>{session.status}</span>
-                        {session.status === 'UPCOMING' && (
+                        }}>{session.status || 'Upcoming'}</span>
+                        {session.status === 'Upcoming' && (
                             <button
                                 onClick={() => handleEdit(session)}
                                 style={{
@@ -189,10 +182,12 @@ const CreateClass = () => {
                     </div>
                 </div>
                 <div style={{ fontSize: '13px', color: '#64748b' }}>
-                    {new Date(session.dateTime).toLocaleString()} • {session.duration} mins
+                    {session.startDate} {session.startTime} • {session.durationMinutes} mins
                 </div>
-                {session.description && (
-                    <p style={{ fontSize: '13px', color: '#334155', marginTop: '8px' }}>{session.description}</p>
+                {session.meetingLink && (
+                    <a href={session.meetingLink} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#3b82f6', display: 'block', marginTop: '4px' }}>
+                        Join Link
+                    </a>
                 )}
             </div>
         );
@@ -233,12 +228,33 @@ const CreateClass = () => {
                             />
                         </label>
 
+                        <div className="form-row-split" style={{ display: 'flex', gap: '1rem' }}>
+                            <label style={{ flex: 1 }}>
+                                Start Date & Time *
+                                <input
+                                    type="datetime-local"
+                                    value={dateTime}
+                                    onChange={e => setDateTime(e.target.value)}
+                                />
+                            </label>
+
+                            <label style={{ flex: 1 }}>
+                                Session Type
+                                <select value={sessionType} onChange={e => setSessionType(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '8px' }}>
+                                    <option value="Online">Online</option>
+                                    <option value="Offline">Offline</option>
+                                    <option value="Hybrid">Hybrid</option>
+                                </select>
+                            </label>
+                        </div>
+
                         <label>
-                            Start Date & Time *
+                            Meeting Link (if Online/Hybrid)
                             <input
-                                type="datetime-local"
-                                value={dateTime}
-                                onChange={e => setDateTime(e.target.value)}
+                                type="url"
+                                value={meetingLink}
+                                onChange={e => setMeetingLink(e.target.value)}
+                                placeholder="https://zoom.us/..."
                             />
                         </label>
 
@@ -261,25 +277,6 @@ const CreateClass = () => {
                             <span>Minutes</span>
                         </div>
 
-                        <label>
-                            Description
-                            <textarea
-                                value={description}
-                                onChange={e => setDescription(e.target.value)}
-                                placeholder="What will be covered in this session?"
-                            />
-                        </label>
-
-                        <label>
-                            Student Limit
-                            <input
-                                type="number"
-                                min="1"
-                                value={batchLimit}
-                                onChange={e => setBatchLimit(e.target.value)}
-                            />
-                        </label>
-
                         <button type="submit" className="btn primary">
                             <FiUploadCloud /> {isEditing ? 'Update Class' : 'Schedule Class'}
                         </button>
@@ -289,17 +286,17 @@ const CreateClass = () => {
                 {/* Right Column: Preview List */}
                 <div className="list-column">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-lg">Your Sessions</h3>
-                        {/* Adding rudimentary filter toggles if needed, or just showing all sorted */}
+                        <h3 className="font-bold text-lg">Existing Sessions</h3>
+                        <button onClick={loadSessions} className="btn-icon-plain"><FiRefreshCw /></button>
                     </div>
 
                     <div className="class-list">
                         <AnimatePresence mode='popLayout'>
-                            {visible.length > 0 ? (
+                            {sessions.length > 0 ? (
                                 <div className="class-grid">
-                                    {visible.map(s => (
+                                    {sessions.map(s => (
                                         <motion.div
-                                            key={s.id}
+                                            key={s.sessionId}
                                             layout
                                             initial={{ opacity: 0, y: 20 }}
                                             animate={{ opacity: 1, y: 0 }}

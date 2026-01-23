@@ -3,25 +3,33 @@ import { FiSearch, FiEdit2, FiTrash2, FiUserX } from "react-icons/fi";
 import { BsToggleOn, BsToggleOff } from "react-icons/bs";
 import { USER_STATUS } from "../hooks/useUsers";
 
-const UserList = ({ users, onDelete, onToggleStatus, onEdit, hideRoleFilter }) => {
+const UserList = ({ users, onDelete, onToggleStatus, onEdit, hideRoleFilter, batches = [] }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
+  const [batchFilter, setBatchFilter] = useState("All");
 
   // UI-only filtering
   const filteredUsers = useMemo(() => {
     const term = searchTerm.toLowerCase();
 
     return users.filter((user) => {
+      // Create user details string for search
+      const roleStr = user.role ? String(user.role).toLowerCase() : "";
+
       const matchesSearch =
-        user.name.toLowerCase().includes(term) ||
-        user.email.toLowerCase().includes(term) ||
-        user.role.toLowerCase().includes(term);
+        (user.name || "").toLowerCase().includes(term) ||
+        (user.email || "").toLowerCase().includes(term) ||
+        roleStr.includes(term);
 
-      const matchesRole = roleFilter === "All" || user.role === roleFilter;
+      const matchesRole = roleFilter === "All" || String(user.role) === roleFilter;
 
-      return matchesSearch && matchesRole;
+      // Batch Filter
+      const userBatchIds = user.batches ? user.batches.map(b => String(b.id)) : [];
+      const matchesBatch = batchFilter === "All" || userBatchIds.includes(String(batchFilter));
+
+      return matchesSearch && matchesRole && matchesBatch;
     });
-  }, [users, searchTerm, roleFilter]);
+  }, [users, searchTerm, roleFilter, batchFilter]);
 
   return (
     <>
@@ -35,6 +43,21 @@ const UserList = ({ users, onDelete, onToggleStatus, onEdit, hideRoleFilter }) =
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+
+        {/* Batch Filter */}
+        {batches && batches.length > 0 && (
+          <select
+            className="role-filter-select"
+            style={{ marginLeft: '10px', minWidth: '150px' }}
+            value={batchFilter}
+            onChange={(e) => setBatchFilter(e.target.value)}
+          >
+            <option value="All">All Batches</option>
+            {batches.map(b => (
+              <option key={b.batchId} value={b.batchId}>{b.batchName}</option>
+            ))}
+          </select>
+        )}
 
         {!hideRoleFilter && (
           <select
@@ -60,6 +83,7 @@ const UserList = ({ users, onDelete, onToggleStatus, onEdit, hideRoleFilter }) =
               <th>Contact Info</th>
               <th>Role</th>
               <th>Status</th>
+              <th>Batch</th>
               <th>Joined Date</th>
               <th style={{ textAlign: "right" }}>Actions</th>
             </tr>
@@ -68,7 +92,7 @@ const UserList = ({ users, onDelete, onToggleStatus, onEdit, hideRoleFilter }) =
           <tbody>
             {filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan="6">
+                <td colSpan="7">
                   <div className="empty-state-list">
                     <div className="empty-icon">
                       <FiUserX />
@@ -88,7 +112,7 @@ const UserList = ({ users, onDelete, onToggleStatus, onEdit, hideRoleFilter }) =
                       </div>
                       <div>
                         <div className="u-name">{user.name}</div>
-                        <div className="u-id">ID: #{user.id}</div>
+                        <div className="u-id">ID: #{user.id || user.userId}</div>
                       </div>
                     </div>
                   </td>
@@ -96,19 +120,33 @@ const UserList = ({ users, onDelete, onToggleStatus, onEdit, hideRoleFilter }) =
                   <td>{user.email}</td>
 
                   <td>
-                    <span className={`role-badge ${user.role.toLowerCase()}`}>
+                    <span className={`role-badge ${String(user.role || "").toLowerCase()}`}>
                       {user.role}
                     </span>
                   </td>
 
                   <td>
-                    <div className={`status-indicator ${user.status.toLowerCase()}`}>
+                    <div className={`status-indicator ${(user.status || "active").toLowerCase()}`}>
                       <span className="status-dot"></span>
-                      {user.status}
+                      {user.status || "Active"}
                     </div>
                   </td>
 
-                  <td>{user.joined}</td>
+                  <td>
+                    {user.batches && user.batches.length > 0 ? (
+                      <div className="d-flex flex-wrap gap-1">
+                        {user.batches.map(b => (
+                          <span key={b.id} className="badge bg-light text-dark border" style={{ fontSize: '0.7rem' }}>
+                            {b.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted small">-</span>
+                    )}
+                  </td>
+
+                  <td>{user.joined || "-"}</td>
 
                   <td style={{ textAlign: "right" }}>
                     <button className="icon-btn" title="Edit" onClick={() => onEdit(user)}>

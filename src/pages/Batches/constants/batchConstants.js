@@ -6,20 +6,13 @@ export const BATCH_STATUS = {
 };
 
 export const INITIAL_BATCH_FORM = {
-    name: "",
-    courseId: "", // Linked Course
-    courseName: "", // For display/denormalization
+    batchName: "",
+    courseId: "",
+    trainerName: "",
     startDate: "",
     endDate: "",
-    price: "",
-    classesPerWeek: "",
-    mode: "Online",
-    validity: "",
-    status: "Upcoming",
-    pricingType: "paid", // 'free' | 'paid'
-    price: "",
     maxStudents: "",
-    instructorId: ""
+    status: "Upcoming"
 };
 
 export const BATCH_TABS = {

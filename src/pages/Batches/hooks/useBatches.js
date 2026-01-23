@@ -1,44 +1,17 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
     INITIAL_BATCH_FORM,
     BATCH_STATUS,
     BATCH_TABS
 } from '../constants/batchConstants';
 import { getBatchStatus, validateBatchForm } from '../utils/batchUtils';
-
-// Temporary mock data (remove when backend is ready)
-// Temporary mock data (remove when backend is ready)
-export const INITIAL_BATCHES = [
-    {
-        id: 1,
-        name: "React Morning Batch A",
-        courseId: "C-101",
-        startDate: "2024-01-01",
-        endDate: "2024-03-01",
-        price: 5000,
-        classesPerWeek: "3",
-        mode: "Online",
-        validity: "6 Months",
-        maxStudents: 60,
-        students: 42,
-        instructorId: 2 // Sarah Smith
-    },
-    {
-        id: 2,
-        name: "Python Weekend Special",
-        courseId: "C-102",
-        startDate: "2025-06-01",
-        endDate: "2025-08-01",
-        price: 8000,
-        classesPerWeek: "2",
-        mode: "Offline",
-        validity: "1 Year",
-        instructorId: 2 // Sarah Smith
-    }
-];
+import { batchService } from '../services/batchService';
 
 export const useBatches = (courses = []) => {
-    const [batches, setBatches] = useState(INITIAL_BATCHES);
+    const [batches, setBatches] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
     const [currentTab, setCurrentTab] = useState(BATCH_TABS.ALL);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -52,11 +25,40 @@ export const useBatches = (courses = []) => {
     const [editId, setEditId] = useState(null);
     const [formData, setFormData] = useState(INITIAL_BATCH_FORM);
 
+    useEffect(() => {
+        fetchBatches();
+    }, []);
+
+    const fetchBatches = async () => {
+        setLoading(true);
+        try {
+            const data = await batchService.getAllBatches();
+            setBatches(data);
+            setError(null);
+        } catch (err) {
+            console.error("Failed to fetch batches:", err);
+            setError("Failed to load batches.");
+            // Keep empty array or persist previous state?
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Derived batches with status
     const enrichedBatches = useMemo(() => {
         return batches.map(b => ({
             ...b,
-            status: getBatchStatus(b.startDate, b.endDate)
+            // Assuming backend might not populate status dynamically or we want to ensure frontend logic overrides:
+            // "status" field exists in entity, but let's double check if we need to calculate it.
+            // core entity has status, we can use it or recalculate if needed.
+            // Let's rely on entity status if present, else calculate.
+            // Derive status from dates dynamically for UI consistency
+            // ignoring potentially stale status from backend unless dates are missing
+            status: getBatchStatus(b.startDate, b.endDate),
+            // Map entity fields to UI if needed, usually we keep them same if possible.
+            // UI expects 'id', entity has 'batchId'. Let's normalize.
+            id: b.batchId,
+            name: b.batchName
         }));
     }, [batches]);
 
@@ -71,20 +73,22 @@ export const useBatches = (courses = []) => {
 
         // Dropdown Filters
         if (courseFilter !== 'All') {
-            result = result.filter(b => b.courseId === courseFilter);
+            result = result.filter(b => String(b.courseId) === String(courseFilter));
         }
         if (instructorFilter !== 'All') {
-            result = result.filter(b => String(b.instructorId) === String(instructorFilter));
+            // Try to match trainerName if possible
+            result = result.filter(b => b.trainerName === instructorFilter);
         }
 
         // Search
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase();
             result = result.filter(b => {
-                const course = courses.find(c => c.id === b.courseId);
+                const course = courses.find(c => String(c.courseId) === String(b.courseId));
                 return (
-                    b.name.toLowerCase().includes(q) ||
-                    course?.name.toLowerCase().includes(q)
+                    (b.batchName && b.batchName.toLowerCase().includes(q)) ||
+                    (b.trainerName && b.trainerName.toLowerCase().includes(q)) ||
+                    (course?.courseName && course.courseName.toLowerCase().includes(q))
                 );
             });
         }
@@ -109,8 +113,16 @@ export const useBatches = (courses = []) => {
     const openModal = (batch = null) => {
         if (batch) {
             setIsEdit(true);
-            setEditId(batch.id);
-            setFormData({ ...batch });
+            setEditId(batch.batchId); // Use entity ID
+            setFormData({
+                batchName: batch.batchName,
+                courseId: batch.courseId,
+                trainerName: batch.trainerName,
+                startDate: batch.startDate,
+                endDate: batch.endDate,
+                maxStudents: batch.maxStudents,
+                status: batch.status
+            });
         } else {
             setIsEdit(false);
             setEditId(null);
@@ -124,37 +136,42 @@ export const useBatches = (courses = []) => {
         setFormData(INITIAL_BATCH_FORM);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const errors = validateBatchForm(formData);
         if (errors.length) {
             alert(errors.join('\n'));
             return;
         }
 
-        const batchData = {
+        const batchPayload = {
             ...formData,
-            price: formData.price ? Number(formData.price) : 0,
             maxStudents: formData.maxStudents ? Number(formData.maxStudents) : 0,
-            instructorId: formData.instructorId ? Number(formData.instructorId) : null
+            courseId: Number(formData.courseId) // Ensure ID is number
         };
 
-        if (isEdit) {
-            setBatches(prev =>
-                prev.map(b => b.id === editId ? { ...batchData, id: editId } : b)
-            );
-        } else {
-            setBatches(prev => [
-                ...prev,
-                { ...batchData, id: Date.now(), students: 0 }
-            ]);
+        try {
+            if (isEdit) {
+                await batchService.updateBatch(editId, batchPayload);
+            } else {
+                await batchService.createBatch(batchPayload);
+            }
+            await fetchBatches(); // Refresh
+            closeModal();
+        } catch (err) {
+            console.error("Save failed", err);
+            alert("Failed to save batch. " + err.message);
         }
-
-        closeModal();
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (window.confirm('Delete this batch?')) {
-            setBatches(prev => prev.filter(b => b.id !== id));
+            try {
+                await batchService.deleteBatch(id);
+                setBatches(prev => prev.filter(b => b.batchId !== id));
+            } catch (err) {
+                console.error("Delete failed", err);
+                alert("Failed to delete batch.");
+            }
         }
     };
 
@@ -170,6 +187,8 @@ export const useBatches = (courses = []) => {
         setCourseFilter,
         instructorFilter,
         setInstructorFilter,
+        loading,
+        error,
 
         // Modal
         showModal,

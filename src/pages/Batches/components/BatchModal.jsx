@@ -42,8 +42,8 @@ const BatchModal = ({
                             >
                                 <option value="">Select a course</option>
                                 {courses.map(course => (
-                                    <option key={course.id} value={course.id}>
-                                        {course.name}
+                                    <option key={course.courseId} value={course.courseId}>
+                                        {course.courseName}
                                     </option>
                                 ))}
                             </select>
@@ -60,25 +60,25 @@ const BatchModal = ({
                             <input
                                 type="text"
                                 className="form-input"
-                                name="name"
-                                value={formData.name}
+                                name="batchName"
+                                value={formData.batchName}
                                 onChange={handleInputChange}
                                 placeholder="e.g. React Morning Batch A"
                             />
                         </div>
 
-                        {/* Instructor */}
+                        {/* Trainer */}
                         <div className="form-field full-width">
-                            <label>Assigned Instructor</label>
+                            <label>Assigned Trainer</label>
                             <select
                                 className="form-select"
-                                name="instructorId"
-                                value={formData.instructorId}
+                                name="trainerName"
+                                value={formData.trainerName}
                                 onChange={handleInputChange}
                             >
-                                <option value="">Select an instructor</option>
+                                <option value="">Select a trainer</option>
                                 {instructors.map(inst => (
-                                    <option key={inst.id} value={inst.id}>
+                                    <option key={inst.id} value={inst.name}>
                                         {inst.name} ({inst.role})
                                     </option>
                                 ))}
@@ -110,101 +110,18 @@ const BatchModal = ({
                             </div>
                         </div>
 
-                        {/* Class Frequency & Mode */}
-                        <div className="form-row-split">
-                            <div className="form-field">
-                                <label>Classes / Week</label>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    name="classesPerWeek"
-                                    value={formData.classesPerWeek || ''}
-                                    onChange={handleInputChange}
-                                />
-                            </div>
-
-                            <div className="form-field">
-                                <label>Mode</label>
-                                <select
-                                    className="form-select"
-                                    name="mode"
-                                    value={formData.mode || 'Online'}
-                                    onChange={handleInputChange}
-                                >
-                                    <option value="Online">Online</option>
-                                    <option value="Offline">Offline</option>
-                                    <option value="Both">Hybrid</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Validity & Batch Limit */}
-                        <div className="form-row-split">
-                            <div className="form-field">
-                                <label>Batch Limit (Max Students)</label>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    name="maxStudents"
-                                    value={formData.maxStudents || ''}
-                                    onChange={handleInputChange}
-                                    placeholder="e.g. 50"
-                                />
-                            </div>
-
-                            <div className="form-field">
-                                <label>Access Validity</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    name="validity"
-                                    value={formData.validity || ''}
-                                    onChange={handleInputChange}
-                                    placeholder="e.g. 6 Months"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Pricing */}
+                        {/* Max Students */}
                         <div className="form-field full-width">
-                            <label>Pricing</label>
-                            <div className="pricing-options">
-                                <label className={`pricing-radio-card ${formData.pricingType === 'free' ? 'active' : ''}`}>
-                                    <input
-                                        type="radio"
-                                        name="pricingType"
-                                        value="free"
-                                        checked={formData.pricingType === 'free'}
-                                        onChange={handleInputChange}
-                                    />
-                                    Free
-                                </label>
-
-                                <label className={`pricing-radio-card ${formData.pricingType === 'paid' ? 'active' : ''}`}>
-                                    <input
-                                        type="radio"
-                                        name="pricingType"
-                                        value="paid"
-                                        checked={formData.pricingType === 'paid'}
-                                        onChange={handleInputChange}
-                                    />
-                                    Paid
-                                </label>
-                            </div>
+                            <label>Batch Limit (Max Students)</label>
+                            <input
+                                type="number"
+                                className="form-input"
+                                name="maxStudents"
+                                value={formData.maxStudents || ''}
+                                onChange={handleInputChange}
+                                placeholder="e.g. 50"
+                            />
                         </div>
-
-                        {formData.pricingType === 'paid' && (
-                            <div className="form-field full-width">
-                                <label>Price (₹) <span className="req">*</span></label>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    name="price"
-                                    value={formData.price || ''}
-                                    onChange={handleInputChange}
-                                />
-                            </div>
-                        )}
 
                     </div>
                 </div>

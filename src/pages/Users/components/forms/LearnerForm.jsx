@@ -3,13 +3,30 @@ import React, { useState } from 'react';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 const LearnerForm = ({ onSubmit, onCancel, initialValues }) => {
+    // Helper to handle name splitting if only full name is provided
+    const splitName = (fullName) => {
+        if (!fullName) return { first: '', last: '' };
+        const parts = fullName.split(' ');
+        const first = parts[0];
+        const last = parts.slice(1).join(' ');
+        return { first, last };
+    };
+
+    const initialNames = initialValues?.firstName
+        ? { first: initialValues.firstName, last: initialValues.lastName }
+        : splitName(initialValues?.name);
+
     const [formData, setFormData] = useState({
-        name: initialValues?.name || '',
+        firstName: initialNames.first || '',
+        lastName: initialNames.last || '',
         email: initialValues?.email || '',
-        mobile: initialValues?.mobile || '',
-        password: initialValues?.password || '', // Usually blank on edit, but consistent for now
+        mobile: initialValues?.mobile || initialValues?.phone || '',
+        password: initialValues?.password || '',
+        dob: initialValues?.dob || '',
+        gender: initialValues?.gender || '',
         notify: false
     });
+
     const [showPassword, setShowPassword] = useState(false);
 
     const handleChange = (e) => {
@@ -22,24 +39,46 @@ const LearnerForm = ({ onSubmit, onCancel, initialValues }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onSubmit({ ...formData, role: 'Learner' });
+        const payload = {
+            ...formData,
+            // Construct full name for backward compatibility
+            name: `${formData.firstName} ${formData.lastName}`.trim(),
+            // Map mobile to phone if needed by backend, or keep both
+            phone: formData.mobile,
+            role: 'Learner' // Maps to Student
+        };
+        onSubmit(payload);
     };
 
     return (
         <form onSubmit={handleSubmit} className="user-form-scroll">
-            <h3 className="form-subtitle">Enter details to create learner account manually</h3>
+            <h3 className="form-subtitle">Enter details to create learner account</h3>
 
-            <div className="form-group">
-                <label>Name <span className="req">*</span></label>
-                <input
-                    type="text"
-                    name="name"
-                    className="form-control"
-                    placeholder="Enter learner name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                />
+            <div className="form-row" style={{ display: 'flex', gap: '15px' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                    <label>First Name <span className="req">*</span></label>
+                    <input
+                        type="text"
+                        name="firstName"
+                        className="form-control"
+                        placeholder="First Name"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        required
+                    />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                    <label>Last Name <span className="req">*</span></label>
+                    <input
+                        type="text"
+                        name="lastName"
+                        className="form-control"
+                        placeholder="Last Name"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        required
+                    />
+                </div>
             </div>
 
             <div className="form-group">
@@ -67,6 +106,33 @@ const LearnerForm = ({ onSubmit, onCancel, initialValues }) => {
                         onChange={handleChange}
                         required
                     />
+                </div>
+            </div>
+
+            <div className="form-row" style={{ display: 'flex', gap: '15px' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                    <label>Date of Birth</label>
+                    <input
+                        type="date"
+                        name="dob"
+                        className="form-control"
+                        value={formData.dob}
+                        onChange={handleChange}
+                    />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                    <label>Gender</label>
+                    <select
+                        name="gender"
+                        className="form-control"
+                        value={formData.gender}
+                        onChange={handleChange}
+                    >
+                        <option value="">Select Gender</option>
+                        <option value="MALE">Male</option>
+                        <option value="FEMALE">Female</option>
+                        <option value="OTHER">Other</option>
+                    </select>
                 </div>
             </div>
 
