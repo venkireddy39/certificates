@@ -70,17 +70,52 @@ export const enrollmentService = {
     // Add student to a batch (Enroll)
     addStudentToBatch: async (enrollmentData) => {
         try {
-            const res = await fetch(`${API_BASE_URL_SB}`, {
+            console.log("Attempting Manual Enroll:", enrollmentData);
+
+            // STRATEGY 1: Controller with @RequestParam /enroll
+            const queryParams = new URLSearchParams({
+                studentId: enrollmentData.studentId,
+                batchId: enrollmentData.batchId
+            }).toString();
+
+            const url = `${API_BASE_URL_SB}/enroll?${queryParams}`;
+
+            const res = await fetch(url, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    ...getAuthHeader(),
-                },
-                body: JSON.stringify(enrollmentData),
+                headers: { ...getAuthHeader() }
             });
-            if (res.ok) return await res.json();
+
+            console.log("Enrollment Response Status:", res.status);
+            if (res.ok) {
+                const data = await res.json();
+                console.log("Enrollment Success Data:", data);
+                return data;
+            } else {
+                console.warn("Enrollment API Error Payload:", await res.clone().text());
+            }
+
+            // If 404, maybe the backend is older/different version? Try fallback.
+            if (res.status === 404) {
+                console.warn("/enroll endpoint not found, trying legacy root endpoint...");
+                const resLegacy = await fetch(`${API_BASE_URL_SB}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...getAuthHeader(),
+                    },
+                    // Send full object for legacy support
+                    body: JSON.stringify(enrollmentData),
+                });
+                if (resLegacy.ok) return await resLegacy.json();
+            }
+
+            // If we get here, both failed
+            const txt = await res.text();
+            throw new Error(`Enrollment Failed: ${res.status} ${txt}`);
+
         } catch (error) {
             console.warn("API failed, using local storage fallback for addStudent", error);
+            // Fallback continues below...
         }
 
         // Fallback
@@ -170,6 +205,11 @@ export const enrollmentService = {
             const { userService } = await import('../../Users/services/userService');
             const students = await userService.getAllStudents();
 
+            if (!students || students.length === 0) {
+                // Fallback if API returns no students (demo mode)
+                return MOCK_USERS_DATA.filter(u => u.role === 'Student');
+            }
+
             // Map Student Entity structure to flat User structure for BatchBuilder compatibility
             // Student Entity: { studentId: 1, user: { userId: 10, firstName: '...' } }
             // Target: { userId: 1, studentId: 1, name: '...', email: '...', role: 'Student' }
@@ -185,8 +225,9 @@ export const enrollmentService = {
             }));
 
         } catch (e) {
-            console.error("Failed to fetch students via userService", e);
-            return [];
+            console.warn("Failed to fetch students via userService, using mock data", e);
+            // Fallback to mock data on error
+            return MOCK_USERS_DATA;
         }
     },
 

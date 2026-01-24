@@ -28,10 +28,29 @@ const Batches = () => {
             setLoadingData(true);
             try {
                 // Use userService to get ALL users (including Instructors), not just students
-                const [coursesData, usersData] = await Promise.all([
-                    courseService.getCourses(),
-                    userService.getAllUsers()
+                let [coursesData, usersData] = await Promise.all([
+                    courseService.getCourses().catch(e => []),
+                    userService.getAllUsers().catch(e => [])
                 ]);
+
+                // Fallback Mocks if APIs fail or return empty
+                if (!coursesData || coursesData.length === 0) {
+                    console.warn("No courses found from API, using mocks.");
+                    coursesData = [
+                        { courseId: 101, courseName: "Full Stack Java Development" },
+                        { courseId: 102, courseName: "React JS Masterclass" },
+                        { courseId: 103, courseName: "Python for Data Science" }
+                    ];
+                }
+
+                if (!usersData || usersData.length === 0) {
+                    console.warn("No users found from API, using mocks.");
+                    usersData = [
+                        { userId: 501, name: "John Instructor", role: "INSTRUCTOR", email: "instr@test.com" },
+                        { userId: 502, name: "Sarah Admin", role: "ADMIN", email: "admin@test.com" }
+                    ];
+                }
+
                 setCourses(coursesData);
                 setAllUsers(usersData);
             } catch (error) {

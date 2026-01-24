@@ -176,18 +176,22 @@ const LiveView = () => {
                                     Let's MOVE OfflineMarker out of here to above the table card.
                                 */}
 
-                                <button
-                                    className="btn btn-outline-success btn-sm"
-                                    onClick={() => handleMarkAll('PRESENT')}
-                                >
-                                    Mark All Present
-                                </button>
-                                <button
-                                    className="btn btn-outline-danger btn-sm"
-                                    onClick={() => handleMarkAll('ABSENT')}
-                                >
-                                    Mark All Absent
-                                </button>
+                                <div className="d-flex gap-2" style={{ minWidth: 'fit-content' }}>
+                                    <button
+                                        className="btn btn-outline-success btn-sm text-nowrap d-flex align-items-center gap-1"
+                                        onClick={() => handleMarkAll('PRESENT')}
+                                        title="Mark all eligible offline students as Present"
+                                    >
+                                        <i className="bi bi-check-all"></i> Mark All Present
+                                    </button>
+                                    <button
+                                        className="btn btn-outline-danger btn-sm text-nowrap d-flex align-items-center gap-1"
+                                        onClick={() => handleMarkAll('ABSENT')}
+                                        title="Mark all eligible offline students as Absent"
+                                    >
+                                        <i className="bi bi-x-circle"></i> Mark All Absent
+                                    </button>
+                                </div>
                             </div>
                         </div>
 

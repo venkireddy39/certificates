@@ -98,8 +98,8 @@ const AttendanceTable = ({
                                 </td>
 
                                 {/* Status */}
-                                <td>
-                                    <div className="status-options d-flex gap-2 flex-wrap" title={isOnline ? "Auto-managed for online participants" : ""}>
+                                <td style={{ position: 'relative' }}>
+                                    <div className={`status-options d-flex gap-2 flex-wrap ${isOnline ? 'opacity-25' : ''}`}>
                                         {STATUS_ACTIONS.map(action => (
                                             <button
                                                 key={action.key}
@@ -107,7 +107,7 @@ const AttendanceTable = ({
                                                 className={`btn btn-sm ${student.status === action.key
                                                     ? `btn-${action.className === 'present' ? 'success' : action.className === 'absent' ? 'danger' : action.className === 'late' ? 'warning' : 'secondary'}`
                                                     : 'btn-outline-light text-dark border'
-                                                    } ${isOnline ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    }`}
                                                 style={{ minWidth: '90px' }}
                                                 onClick={() =>
                                                     !isOnline && isEditable &&
@@ -122,6 +122,25 @@ const AttendanceTable = ({
                                             </button>
                                         ))}
                                     </div>
+
+                                    {/* Auto-managed Overlay */}
+                                    {isOnline && (
+                                        <div
+                                            className="d-flex align-items-center justify-content-center text-muted small fw-bold"
+                                            style={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: '100%',
+                                                height: '100%',
+                                                backgroundColor: 'rgba(240, 242, 245, 0.6)',
+                                                zIndex: 10,
+                                                backdropFilter: 'blur(1px)'
+                                            }}
+                                        >
+                                            <FiLock className="me-2" /> Auto-managed (Online Session)
+                                        </div>
+                                    )}
 
                                     {/* Late minutes input */}
                                     {!isOnline && isEditable && student.status === ATTENDANCE_STATUS.LATE && (

@@ -89,6 +89,9 @@ const ExamDashboard = () => {
             <Link to="/exams/question-bank" className="btn btn-white text-dark shadow-sm fw-medium d-flex align-items-center gap-2">
               <i className="bi bi-collection"></i> <span className="d-none d-sm-inline">Question Bank</span>
             </Link>
+            <Link to="/exams/simulation/preview" className="btn btn-warning text-dark shadow-sm fw-medium d-flex align-items-center gap-2">
+              <i className="bi bi-play-circle"></i> <span className="d-none d-sm-inline">Try Mock Sim</span>
+            </Link>
             <Link to="/exams/create-exam" className="btn btn-primary shadow-sm fw-medium d-flex align-items-center gap-2">
               <FaPlus size={12} /> <span>Create Exam</span>
             </Link>

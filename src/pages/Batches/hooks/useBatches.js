@@ -143,11 +143,19 @@ export const useBatches = (courses = []) => {
             return;
         }
 
+        const courseIdNum = Number(formData.courseId);
+        if (!courseIdNum || isNaN(courseIdNum)) {
+            alert("Please select a valid course.");
+            return;
+        }
+
         const batchPayload = {
             ...formData,
             maxStudents: formData.maxStudents ? Number(formData.maxStudents) : 0,
-            courseId: Number(formData.courseId) // Ensure ID is number
+            courseId: courseIdNum
         };
+
+        console.log("Submitting Batch Payload:", batchPayload);
 
         try {
             if (isEdit) {
@@ -157,9 +165,11 @@ export const useBatches = (courses = []) => {
             }
             await fetchBatches(); // Refresh
             closeModal();
+            // Optional: Success Toast could be added here
         } catch (err) {
             console.error("Save failed", err);
-            alert("Failed to save batch. " + err.message);
+            // Show the actual error message from backend
+            alert(`Failed to save batch: ${err.message}`);
         }
     };
 

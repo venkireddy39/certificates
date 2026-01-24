@@ -35,7 +35,7 @@ export const EnrollmentChart = ({ data }) => (
                     contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                 />
                 <Legend />
-                <Bar dataKey="students" fill="#4F46E5" radius={[4, 4, 0, 0]} name="Students" />
+                <Bar dataKey="students" fill="#2563eb" radius={[4, 4, 0, 0]} name="Students" barSize={32} />
             </BarChart>
         </ResponsiveContainer>
     </ChartWrapper>

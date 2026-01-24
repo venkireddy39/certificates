@@ -6,6 +6,9 @@ export const statsData = {
     totalStudents: 1250,
     newStudents: 45,
     totalSignups: 340,
+    activeClasses: 12, // New
+    attendanceStatus: "92%", // New
+    totalCourses: 45, // New
 };
 
 export const monthlyEnrollmentData = [

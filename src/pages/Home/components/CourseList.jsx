@@ -1,20 +1,23 @@
 import React from 'react';
 import { toast, ToastContainer } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
 import 'react-toastify/dist/ReactToastify.css';
 
 const CourseList = ({ courses }) => {
+    const navigate = useNavigate();
+
     const handleViewAll = () => {
-        toast.info("Viewing full course catalog...");
+        navigate('/courses');
     };
 
     const handleMoreOptions = (courseTitle) => {
-        toast.info(`Options for ${courseTitle}`);
+        navigate('/courses');
     };
 
     return (
         <div className="content-card">
             <div className="card-header">
-                <h3 className="card-title">Popular Courses</h3>
+                <h3 className="card-title">Active Courses</h3>
                 <button className="view-all-btn" onClick={handleViewAll}>All Courses</button>
             </div>
             <div className="course-list">

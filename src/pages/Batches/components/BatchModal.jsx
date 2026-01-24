@@ -78,7 +78,7 @@ const BatchModal = ({
                             >
                                 <option value="">Select an instructor</option>
                                 {instructors.map(inst => (
-                                    <option key={inst.id} value={inst.name}>
+                                    <option key={inst.id || inst.userId} value={inst.name}>
                                         {inst.name} ({inst.role})
                                     </option>
                                 ))}

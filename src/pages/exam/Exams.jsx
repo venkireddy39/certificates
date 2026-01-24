@@ -12,6 +12,7 @@ import ExamSettings from "./settings/ExamSettings";
 import ExamPaperView from "./preview/ExamPaperView";
 import LearnerExamView from "./learner/LearnerExamView";
 import StudentExamDashboard from "./student/StudentExamDashboard";
+import SectionBasedExamPreview from "./preview/SectionBasedExamPreview";
 
 const Exams = () => {
     return (
@@ -33,6 +34,9 @@ const Exams = () => {
             {/* Learner/Student View (Standalone) */}
             <Route path="student/dashboard" element={<StudentExamDashboard />} />
             <Route path="student/attempt/:id" element={<LearnerExamView />} />
+
+            {/* New Simulation Preview (Standalone) */}
+            <Route path="simulation/preview" element={<SectionBasedExamPreview />} />
         </Routes>
     );
 };

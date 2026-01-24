@@ -4,6 +4,16 @@ import { toast } from 'react-toastify';
 
 const RecentActivity = ({ students, payments }) => {
     const [activeTab, setActiveTab] = useState('students');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+
+    const currentData = activeTab === 'students' ? students : payments;
+    const totalItems = currentData.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = currentData.slice(indexOfFirstItem, indexOfLastItem);
 
     const handleAction = (action) => {
         toast.info(`${action} feature coming soon!`);
@@ -12,6 +22,12 @@ const RecentActivity = ({ students, payments }) => {
     const handleMoreAction = (name) => {
         toast.info(`Options for ${name}`);
     }
+
+    const handlePageChange = (pageNumber) => {
+        if (pageNumber >= 1 && pageNumber <= totalPages) {
+            setCurrentPage(pageNumber);
+        }
+    };
 
     return (
         <div className="recent-activity-container">
@@ -24,13 +40,13 @@ const RecentActivity = ({ students, payments }) => {
                     <div className="tabs-pill">
                         <button
                             className={`tab-pill-btn ${activeTab === 'students' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('students')}
+                            onClick={() => { setActiveTab('students'); setCurrentPage(1); }}
                         >
                             New Students
                         </button>
                         <button
                             className={`tab-pill-btn ${activeTab === 'payments' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('payments')}
+                            onClick={() => { setActiveTab('payments'); setCurrentPage(1); }}
                         >
                             Transactions
                         </button>
@@ -54,7 +70,7 @@ const RecentActivity = ({ students, payments }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {students.map((student) => (
+                            {currentItems.map((student) => (
                                 <tr key={student.id}>
                                     <td>
                                         <div className="user-profile-cell">
@@ -82,7 +98,7 @@ const RecentActivity = ({ students, payments }) => {
                                                     className="progress-bar-fill"
                                                     style={{
                                                         width: `${student.progress}%`,
-                                                        backgroundColor: student.progress === 100 ? '#10B981' :
+                                                        backgroundColor: student.progress === 100 ? '#10b981' :
                                                             student.progress > 50 ? '#3B82F6' : '#F59E0B'
                                                     }}
                                                 ></div>
@@ -117,7 +133,7 @@ const RecentActivity = ({ students, payments }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {payments.map((payment) => (
+                            {currentItems.map((payment) => (
                                 <tr key={payment.id}>
                                     <td>
                                         <div className="user-profile-cell">
@@ -152,12 +168,29 @@ const RecentActivity = ({ students, payments }) => {
                 )}
             </div>
             <div className="table-footer">
-                <p>Showing <strong>5</strong> of <strong>25</strong> results</p>
+                <p>Showing <strong>{currentItems.length}</strong> of <strong>{totalItems}</strong> results</p>
                 <div className="pagination">
-                    <button disabled>Prev</button>
-                    <button className="active">1</button>
-                    <button onClick={() => handleAction('Page 2')}>2</button>
-                    <button onClick={() => handleAction('Next Page')}>Next</button>
+                    <button
+                        disabled={currentPage === 1}
+                        onClick={() => handlePageChange(currentPage - 1)}
+                    >
+                        Prev
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <button
+                            key={page}
+                            className={currentPage === page ? 'active' : ''}
+                            onClick={() => handlePageChange(page)}
+                        >
+                            {page}
+                        </button>
+                    ))}
+                    <button
+                        disabled={currentPage === totalPages}
+                        onClick={() => handlePageChange(currentPage + 1)}
+                    >
+                        Next
+                    </button>
                 </div>
             </div>
         </div>

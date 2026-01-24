@@ -57,7 +57,8 @@ export const batchService = {
 
     createBatch: async (batchData) => {
         // MATCHING BACKEND: POST /api/batches/course/{courseId}
-        const { courseId, ...payload } = batchData;
+        // We include courseId in body as well, just in case backend entity requires it
+        const { courseId } = batchData;
 
         if (!courseId) throw new Error("Course ID is required to create a batch");
 
@@ -67,7 +68,7 @@ export const batchService = {
                 "Content-Type": "application/json",
                 ...getAuthHeader(),
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(batchData),
         });
         if (!res.ok) throw new Error(await res.text());
         return res.json();

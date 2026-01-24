@@ -48,9 +48,19 @@ export const userService = {
             case 'Learner':
             case 'Student':
                 endpoint = "/students";
+
+                let sFName = userData.firstName;
+                let sLName = userData.lastName;
+
+                if (!sFName && userData.name) {
+                    const split = splitName(userData.name);
+                    sFName = split.firstName;
+                    sLName = split.lastName;
+                }
+
                 body = {
-                    firstName: userData.firstName,
-                    lastName: userData.lastName,
+                    firstName: sFName,
+                    lastName: sLName,
                     email: userData.email,
                     password: userData.password,
                     phone: userData.phone || userData.mobile,

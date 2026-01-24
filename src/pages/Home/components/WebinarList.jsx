@@ -1,11 +1,14 @@
 import React from 'react';
 import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
 import 'react-toastify/dist/ReactToastify.css';
 import { CalendarPlus } from 'lucide-react';
 
 const WebinarList = ({ webinars }) => {
+    const navigate = useNavigate();
+
     const handleViewAll = () => {
-        toast.info("Viewing all webinars...");
+        navigate('/webinar');
     };
 
     const handleRegister = (webinarTitle) => {
@@ -15,7 +18,7 @@ const WebinarList = ({ webinars }) => {
     return (
         <div className="content-card">
             <div className="card-header">
-                <h3 className="card-title">Upcoming Webinars</h3>
+                <h3 className="card-title">Live Webinars</h3>
                 <button className="view-all-btn" onClick={handleViewAll}>View All</button>
             </div>
             <div className="course-list"> {/* Reusing course-list class for consistent styling */}

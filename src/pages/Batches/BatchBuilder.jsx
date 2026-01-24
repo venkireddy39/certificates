@@ -72,8 +72,10 @@ const BatchBuilder = () => {
                 const userProfile = normalizedUsers.find(u => String(u.studentId) === String(s.studentId));
                 return {
                     ...s,
-                    // Use found user's ID, or fallback to studentId if not found
-                    displayId: userProfile ? (userProfile.userId || userProfile.id) : s.studentId
+                    // Show the actual Student ID stored in the batch enrollment
+                    displayId: s.studentId,
+                    // We can also store userId for linking if needed
+                    userId: userProfile?.userId
                 };
             });
 
@@ -100,10 +102,13 @@ const BatchBuilder = () => {
     // Filter available students (Students who are NOT already enrolled)
     const availableStudents = allUsers.filter(u => {
         const isEnrolled = enrolledStudents.some(e => String(e.studentId) === String(u.userId || u.id || u.user_id));
-        const term = searchQuery.toLowerCase();
+        const term = searchQuery.toLowerCase().trim();
+        const displayId = u.studentId || u.userId || u.id; // Correct ID reference
 
-        const matchesSearch = (u.name || '').toLowerCase().includes(term) ||
-            (u.email || '').toLowerCase().includes(term);
+        const matchesSearch =
+            (u.name || '').toLowerCase().includes(term) ||
+            (u.email || '').toLowerCase().includes(term) ||
+            (displayId && String(displayId).includes(term));
 
         return !isEnrolled && matchesSearch;
     });
@@ -112,9 +117,12 @@ const BatchBuilder = () => {
         try {
             const promises = selectedPotentialStudents.map(userIdKey => {
                 const student = allUsers.find(u => (u.userId || u.id) === userIdKey);
+                // Ensure we use the specific Student ID if available, otherwise User ID
+                const actualStudentId = student?.studentId || userIdKey;
+
                 return enrollmentService.addStudentToBatch({
                     batchId: Number(id),
-                    studentId: student?.studentId || userIdKey,
+                    studentId: Number(actualStudentId), // Ensure Number
                     studentName: student?.firstName ? `${student.firstName} ${student.lastName || ''}`.trim() : (student?.name || 'Unknown'),
                     courseId: batchDetails.courseId
                 });
@@ -316,11 +324,53 @@ const BatchBuilder = () => {
                             <button className="btn-close" onClick={() => setIsAddModalOpen(false)}><FiX /></button>
                         </div>
                         <div className="modal-body">
+
+                            {/* Direct Add by ID */}
+                            <div className="p-3 bg-light rounded mb-4 border">
+                                <label className="form-label small fw-bold text-muted">DIRECT ENROLL BY ID (Manual Link)</label>
+                                <div className="d-flex gap-2">
+                                    <input
+                                        type="number"
+                                        className="form-control"
+                                        placeholder="Enter Generated Student ID"
+                                        id="manualStudentIdInput"
+                                    />
+                                    <button
+                                        className="btn btn-dark text-nowrap"
+                                        onClick={async () => {
+                                            const input = document.getElementById('manualStudentIdInput');
+                                            const val = input.value;
+                                            if (!val) return;
+
+                                            try {
+                                                await enrollmentService.addStudentToBatch({
+                                                    batchId: Number(id),
+                                                    studentId: Number(val)
+                                                });
+                                                const updated = await enrollmentService.getStudentsByBatch(id);
+                                                setEnrolledStudents(updated);
+                                                input.value = '';
+                                                alert(`Successfully linked Student ID #${val}`);
+                                            } catch (e) {
+                                                alert("Failed: " + e.message);
+                                            }
+                                        }}
+                                    >
+                                        <FiPlus /> Link ID
+                                    </button>
+                                </div>
+                                <small className="text-muted" style={{ fontSize: '0.7rem' }}>
+                                    Use this if the student exists in the Admin DB but isn't showing in the list below yet.
+                                </small>
+                            </div>
+
+                            <hr className="my-4" style={{ opacity: 0.1 }} />
+
                             <div className="search-bar mb-3">
                                 <FiSearch className="search-icon" />
                                 <input
                                     type="text"
-                                    placeholder="Search students by name or email..."
+                                    placeholder="Search by Name, Email or Student ID..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
@@ -340,11 +390,16 @@ const BatchBuilder = () => {
                                         />
                                         <div className="ms-3">
                                             <div className="fw-bold">{user.name || user.username}</div>
-                                            <small className="text-muted">{user.email}</small>
+                                            <div className="d-flex flex-column">
+                                                <small className="text-muted">{user.email}</small>
+                                                <small className="text-secondary" style={{ fontSize: '0.75rem' }}>
+                                                    ID: {user.studentId || user.userId || user.id}
+                                                </small>
+                                            </div>
                                         </div>
                                     </div>
                                 )) : (
-                                    <div className="text-center p-4 text-muted">No available students found.</div>
+                                    <div className="text-center p-4 text-muted">No available students found matching "{searchQuery}".</div>
                                 )}
                             </div>
                         </div>
