@@ -10,6 +10,7 @@ const QuestionForm = ({ type, onAdd }) => {
   // Coding Specific State
   const [codeLanguage, setCodeLanguage] = useState("javascript");
   const [starterCode, setStarterCode] = useState("// Write your solution here...");
+  const [testCases, setTestCases] = useState([]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -36,6 +37,7 @@ const QuestionForm = ({ type, onAdd }) => {
     } else if (type === "coding") {
       payload.language = codeLanguage;
       payload.starterCode = starterCode;
+      payload.testCases = testCases;
     }
 
     onAdd(payload);
@@ -47,6 +49,7 @@ const QuestionForm = ({ type, onAdd }) => {
     setMarks(type === 'coding' ? 10 : 5);
     setImage(null);
     setStarterCode("// Write your solution here...");
+    setTestCases([]);
   };
 
   return (
@@ -188,6 +191,61 @@ const QuestionForm = ({ type, onAdd }) => {
               spellCheck="false"
             ></textarea>
             <div className="form-text small">This code will be presented to the student as a starting point.</div>
+          </div>
+
+          {/* Test Cases Section */}
+          <div className="mb-3">
+            <label className="form-label text-muted small fw-bold text-uppercase ls-1 d-flex justify-content-between align-items-center">
+              Test Cases
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-primary py-0"
+                onClick={() => setTestCases([...testCases, { input: "", output: "" }])}
+              >
+                <i className="bi bi-plus"></i> Add Case
+              </button>
+            </label>
+            <div className="vstack gap-2">
+              {testCases.map((tc, idx) => (
+                <div key={idx} className="d-flex gap-2">
+                  <div className="flex-grow-1">
+                    <input
+                      className="form-control form-control-sm font-monospace bg-light"
+                      placeholder="Input (e.g. 5, 10)"
+                      value={tc.input}
+                      onChange={(e) => {
+                        const copy = [...testCases];
+                        copy[idx].input = e.target.value;
+                        setTestCases(copy);
+                      }}
+                    />
+                  </div>
+                  <div className="flex-grow-1">
+                    <input
+                      className="form-control form-control-sm font-monospace bg-light"
+                      placeholder="Expected Output (e.g. 15)"
+                      value={tc.output}
+                      onChange={(e) => {
+                        const copy = [...testCases];
+                        copy[idx].output = e.target.value;
+                        setTestCases(copy);
+                      }}
+                    />
+                  </div>
+                  <button
+                    className="btn btn-outline-danger btn-sm"
+                    onClick={() => setTestCases(testCases.filter((_, i) => i !== idx))}
+                  >
+                    <i className="bi bi-trash"></i>
+                  </button>
+                </div>
+              ))}
+              {testCases.length === 0 && (
+                <div className="text-muted small fst-italic text-center py-2 border border-dashed rounded">
+                  No test cases added.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

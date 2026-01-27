@@ -14,6 +14,139 @@ const ExamPaperView = () => {
     const [executionStatus, setExecutionStatus] = useState({});
     const [consoleOutput, setConsoleOutput] = useState({});
 
+    // View Mode State: 'single' (Question by Question) or 'all' (Scrollable List)
+    const [viewMode, setViewMode] = useState('single');
+    const [currentQIndex, setCurrentQIndex] = useState(0);
+
+    // --- Component: Question Card (Refactored for reuse) ---
+    const QuestionCard = ({ q, index, isCodingTheme, answers, handleAnswerChange, executionStatus, consoleOutput, handleRunCode, submitted }) => (
+        <div className={`card border-0 shadow-sm overflow-hidden ${isCodingTheme ? 'bg-dark text-white border-secondary' : ''}`} style={{ borderRadius: '15px' }}>
+            <div className={`card-header border-0 py-3 px-4 ${isCodingTheme ? 'bg-secondary bg-opacity-25' : 'bg-light'}`}>
+                <div className="d-flex justify-content-between align-items-center">
+                    <span className={`badge ${isCodingTheme ? 'bg-primary' : 'bg-dark'}`}>Q{index + 1}</span>
+                    <span className={`fw-bold small ${isCodingTheme ? 'text-info' : 'text-muted'}`}>{q.marks} Marks</span>
+                </div>
+            </div>
+
+            <div className="card-body p-4">
+                <h5 className="fw-bold mb-4" style={{ lineHeight: '1.6' }}>{q.question}</h5>
+
+                {q.image && (
+                    <div className="mb-4 text-center bg-light rounded p-3">
+                        <img src={q.image} alt="Question Reference" className="img-fluid rounded shadow-sm" style={{ maxHeight: '300px' }} />
+                    </div>
+                )}
+
+                {/* --- RENDER BASED ON TYPE --- */}
+
+                {/* 1. QUIZ (MCQ) */}
+                {q.type === 'quiz' && (
+                    <div className="vstack gap-2">
+                        {q.options.map((opt, optIndex) => (
+                            <label key={optIndex} className={`d-flex align-items-center p-3 rounded border transition-all cursor-pointer ${answers[index] === optIndex ? (isCodingTheme ? 'border-primary bg-primary bg-opacity-10' : 'border-primary bg-blue-50') : (isCodingTheme ? 'border-secondary' : 'border-light hover-bg-light')
+                                }`}>
+                                <input
+                                    type="radio"
+                                    name={`q-${index}`}
+                                    className="form-check-input me-3"
+                                    checked={answers[index] === optIndex}
+                                    onChange={() => handleAnswerChange(index, optIndex)}
+                                    disabled={submitted}
+                                />
+                                <span className={isCodingTheme ? 'text-light' : 'text-dark'}>{opt}</span>
+                            </label>
+                        ))}
+                    </div>
+                )}
+
+                {/* 2. CODING */}
+                {q.type === 'coding' && (
+                    <div className="d-flex flex-column gap-3">
+                        <div className="d-flex justify-content-between align-items-center">
+                            <span className="badge bg-secondary">{q.language || 'Code'}</span>
+                            <div className="d-flex gap-2">
+                                <button
+                                    className="btn btn-sm btn-outline-secondary"
+                                    onClick={() => handleAnswerChange(index, q.starterCode || '')}
+                                    disabled={executionStatus[index] === 'running' || submitted}
+                                >
+                                    <i className="bi bi-arrow-counterclockwise me-1"></i> Reset
+                                </button>
+                                <button
+                                    className="btn btn-sm btn-success fw-bold"
+                                    onClick={() => handleRunCode(index, answers[index])}
+                                    disabled={executionStatus[index] === 'running' || submitted}
+                                >
+                                    {executionStatus[index] === 'running' ? (
+                                        <><span className="spinner-border spinner-border-sm me-1"></span>Running...</>
+                                    ) : (
+                                        <><i className="bi bi-play-fill me-1"></i>Run Code</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
+                        <textarea
+                            className={`form-control font-monospace border-0 p-3 ${isCodingTheme ? 'bg-black text-white' : 'bg-dark text-white'}`}
+                            rows="10"
+                            value={answers[index]}
+                            onChange={(e) => handleAnswerChange(index, e.target.value)}
+                            disabled={submitted}
+                            spellCheck="false"
+                            style={{ fontSize: '14px', lineHeight: '1.5', tabSize: 4 }}
+                        ></textarea>
+
+                        {/* Console Output Simulation */}
+                        {(executionStatus[index] || consoleOutput[index]) && (
+                            <div className={`rounded p-3 mt-0 ${executionStatus[index] === 'error' ? 'bg-danger bg-opacity-10 border border-danger text-danger' : 'bg-black bg-opacity-50 border border-secondary text-info'}`} style={{ fontFamily: "monospace", fontSize: "0.85rem", whiteSpace: "pre-wrap" }}>
+                                <div className="mb-1 opacity-50 x-small text-uppercase ls-1">Console Output</div>
+                                {consoleOutput[index]}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* 3. SHORT / LONG ANSWER */}
+                {(q.type === 'short' || q.type === 'long') && (
+                    <textarea
+                        className={`form-control ${isCodingTheme ? 'bg-black text-white border-secondary' : 'bg-light border-0'}`}
+                        rows={q.type === 'short' ? 3 : 6}
+                        placeholder="Type your answer here..."
+                        value={answers[index]}
+                        onChange={(e) => handleAnswerChange(index, e.target.value)}
+                        disabled={submitted}
+                    ></textarea>
+                )}
+
+                {/* 4. ABACUS */}
+                {q.type === 'abacus' && (
+                    <div className="row align-items-center g-3">
+                        <div className="col-auto">
+                            <label className="col-form-label fw-bold">Answer:</label>
+                        </div>
+                        <div className="col-auto">
+                            <input
+                                type="number"
+                                className={`form-control fs-4 fw-bold text-center ${isCodingTheme ? 'bg-secondary text-white border-0' : 'bg-light border-primary'}`}
+                                style={{ width: '150px' }}
+                                placeholder="0"
+                                value={answers[index]}
+                                onChange={(e) => handleAnswerChange(index, e.target.value)}
+                                disabled={submitted}
+                            />
+                        </div>
+                        <div className="col-auto">
+                            <button className="btn btn-outline-secondary btn-sm disabled opacity-50" title="Virtual Numpad (Coming Soon)">
+                                <i className="bi bi-grid-3x3 me-1"></i> Virtual Keypad
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+            </div>
+        </div>
+    );
+
     // Timer Logic
     useEffect(() => {
         if (exam && !submitted && timeLeft > 0) {
@@ -164,136 +297,79 @@ const ExamPaperView = () => {
                     </div>
                 )}
 
-                {/* Questions List */}
-                <div className="vstack gap-4">
-                    {exam.questions.map((q, index) => (
-                        <div key={index} className={`card border-0 shadow-sm overflow-hidden ${isCodingTheme ? 'bg-dark text-white border-secondary' : ''}`} style={{ borderRadius: '15px' }}>
-                            <div className={`card-header border-0 py-3 px-4 ${isCodingTheme ? 'bg-secondary bg-opacity-25' : 'bg-light'}`}>
-                                <div className="d-flex justify-content-between align-items-center">
-                                    <span className={`badge ${isCodingTheme ? 'bg-primary' : 'bg-dark'}`}>Q{index + 1}</span>
-                                    <span className={`fw-bold small ${isCodingTheme ? 'text-info' : 'text-muted'}`}>{q.marks} Marks</span>
-                                </div>
-                            </div>
-
-                            <div className="card-body p-4">
-                                <h5 className="fw-bold mb-4" style={{ lineHeight: '1.6' }}>{q.question}</h5>
-
-                                {q.image && (
-                                    <div className="mb-4 text-center bg-light rounded p-3">
-                                        <img src={q.image} alt="Question Reference" className="img-fluid rounded shadow-sm" style={{ maxHeight: '300px' }} />
-                                    </div>
-                                )}
-
-                                {/* --- RENDER BASED ON TYPE --- */}
-
-                                {/* 1. QUIZ (MCQ) */}
-                                {q.type === 'quiz' && (
-                                    <div className="vstack gap-2">
-                                        {q.options.map((opt, optIndex) => (
-                                            <label key={optIndex} className={`d-flex align-items-center p-3 rounded border transition-all cursor-pointer ${answers[index] === optIndex ? (isCodingTheme ? 'border-primary bg-primary bg-opacity-10' : 'border-primary bg-blue-50') : (isCodingTheme ? 'border-secondary' : 'border-light hover-bg-light')
-                                                }`}>
-                                                <input
-                                                    type="radio"
-                                                    name={`q-${index}`}
-                                                    className="form-check-input me-3"
-                                                    checked={answers[index] === optIndex}
-                                                    onChange={() => handleAnswerChange(index, optIndex)}
-                                                    disabled={submitted}
-                                                />
-                                                <span className={isCodingTheme ? 'text-light' : 'text-dark'}>{opt}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* 2. CODING */}
-                                {q.type === 'coding' && (
-                                    <div className="d-flex flex-column gap-3">
-                                        <div className="d-flex justify-content-between align-items-center">
-                                            <span className="badge bg-secondary">{q.language || 'Code'}</span>
-                                            <div className="d-flex gap-2">
-                                                <button
-                                                    className="btn btn-sm btn-outline-secondary"
-                                                    onClick={() => handleAnswerChange(index, q.starterCode || '')}
-                                                    disabled={executionStatus[index] === 'running' || submitted}
-                                                >
-                                                    <i className="bi bi-arrow-counterclockwise me-1"></i> Reset
-                                                </button>
-                                                <button
-                                                    className="btn btn-sm btn-success fw-bold"
-                                                    onClick={() => handleRunCode(index, answers[index])}
-                                                    disabled={executionStatus[index] === 'running' || submitted}
-                                                >
-                                                    {executionStatus[index] === 'running' ? (
-                                                        <><span className="spinner-border spinner-border-sm me-1"></span>Running...</>
-                                                    ) : (
-                                                        <><i className="bi bi-play-fill me-1"></i>Run Code</>
-                                                    )}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <textarea
-                                            className={`form-control font-monospace border-0 p-3 ${isCodingTheme ? 'bg-black text-white' : 'bg-dark text-white'}`}
-                                            rows="10"
-                                            value={answers[index]}
-                                            onChange={(e) => handleAnswerChange(index, e.target.value)}
-                                            disabled={submitted}
-                                            spellCheck="false"
-                                            style={{ fontSize: '14px', lineHeight: '1.5', tabSize: 4 }}
-                                        ></textarea>
-
-                                        {/* Console Output Simulation */}
-                                        {(executionStatus[index] || consoleOutput[index]) && (
-                                            <div className={`rounded p-3 mt-0 ${executionStatus[index] === 'error' ? 'bg-danger bg-opacity-10 border border-danger text-danger' : 'bg-black bg-opacity-50 border border-secondary text-info'}`} style={{ fontFamily: "monospace", fontSize: "0.85rem", whiteSpace: "pre-wrap" }}>
-                                                <div className="mb-1 opacity-50 x-small text-uppercase ls-1">Console Output</div>
-                                                {consoleOutput[index]}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* 3. SHORT / LONG ANSWER */}
-                                {(q.type === 'short' || q.type === 'long') && (
-                                    <textarea
-                                        className={`form-control ${isCodingTheme ? 'bg-black text-white border-secondary' : 'bg-light border-0'}`}
-                                        rows={q.type === 'short' ? 3 : 6}
-                                        placeholder="Type your answer here..."
-                                        value={answers[index]}
-                                        onChange={(e) => handleAnswerChange(index, e.target.value)}
-                                        disabled={submitted}
-                                    ></textarea>
-                                )}
-
-                                {/* 4. ABACUS */}
-                                {q.type === 'abacus' && (
-                                    <div className="row align-items-center g-3">
-                                        <div className="col-auto">
-                                            <label className="col-form-label fw-bold">Answer:</label>
-                                        </div>
-                                        <div className="col-auto">
-                                            <input
-                                                type="number"
-                                                className={`form-control fs-4 fw-bold text-center ${isCodingTheme ? 'bg-secondary text-white border-0' : 'bg-light border-primary'}`}
-                                                style={{ width: '150px' }}
-                                                placeholder="0"
-                                                value={answers[index]}
-                                                onChange={(e) => handleAnswerChange(index, e.target.value)}
-                                                disabled={submitted}
-                                            />
-                                        </div>
-                                        <div className="col-auto">
-                                            <button className="btn btn-outline-secondary btn-sm disabled opacity-50" title="Virtual Numpad (Coming Soon)">
-                                                <i className="bi bi-grid-3x3 me-1"></i> Virtual Keypad
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                            </div>
-                        </div>
-                    ))}
+                {/* View Mode Toggle */}
+                <div className="d-flex justify-content-end mb-3">
+                    <div className="btn-group">
+                        <button
+                            className={`btn ${viewMode === 'single' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                            onClick={() => setViewMode('single')}
+                        >
+                            <i className="bi bi-file-earmark-play me-1"></i> Question View
+                        </button>
+                        <button
+                            className={`btn ${viewMode === 'all' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                            onClick={() => setViewMode('all')}
+                        >
+                            <i className="bi bi-list-task me-1"></i> Full Paper View
+                        </button>
+                    </div>
                 </div>
+
+                {/* Questions List */}
+                {viewMode === 'all' ? (
+                    <div className="vstack gap-4">
+                        {exam.questions.map((q, index) => (
+                            <QuestionCard
+                                key={index}
+                                q={q}
+                                index={index}
+                                isCodingTheme={isCodingTheme}
+                                answers={answers}
+                                handleAnswerChange={handleAnswerChange}
+                                executionStatus={executionStatus}
+                                consoleOutput={consoleOutput}
+                                handleRunCode={handleRunCode}
+                                submitted={submitted}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    // Single Question View
+                    <div className="d-flex flex-column gap-3">
+                        <QuestionCard
+                            q={exam.questions[currentQIndex]}
+                            index={currentQIndex}
+                            isCodingTheme={isCodingTheme}
+                            answers={answers}
+                            handleAnswerChange={handleAnswerChange}
+                            executionStatus={executionStatus}
+                            consoleOutput={consoleOutput}
+                            handleRunCode={handleRunCode}
+                            submitted={submitted}
+                        />
+
+                        <div className="d-flex justify-content-between mt-3">
+                            <button
+                                className="btn btn-outline-secondary px-4"
+                                disabled={currentQIndex === 0}
+                                onClick={() => setCurrentQIndex(prev => prev - 1)}
+                            >
+                                <i className="bi bi-arrow-left me-2"></i> Previous
+                            </button>
+
+                            {currentQIndex < exam.questions.length - 1 ? (
+                                <button
+                                    className="btn btn-primary px-4"
+                                    onClick={() => setCurrentQIndex(prev => prev + 1)}
+                                >
+                                    Next <i className="bi bi-arrow-right ms-2"></i>
+                                </button>
+                            ) : (
+                                <div></div> /* Spacer */
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* Submit Action */}
                 {!submitted && (

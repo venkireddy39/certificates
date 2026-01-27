@@ -13,6 +13,7 @@ import ExamPaperView from "./preview/ExamPaperView";
 import LearnerExamView from "./learner/LearnerExamView";
 import StudentExamDashboard from "./student/StudentExamDashboard";
 import SectionBasedExamPreview from "./preview/SectionBasedExamPreview";
+import MNCExamView from "./learner/MNCExamView";
 
 const Exams = () => {
     return (
@@ -37,6 +38,7 @@ const Exams = () => {
 
             {/* New Simulation Preview (Standalone) */}
             <Route path="simulation/preview" element={<SectionBasedExamPreview />} />
+            <Route path="simulation/mnc-preview" element={<MNCExamView />} />
         </Routes>
     );
 };

@@ -32,7 +32,7 @@ const Tab = ({ to, children }) => (
         to={to}
         className={({ isActive }) =>
             `btn btn-sm rounded-pill px-3 fw-medium ${isActive
-                ? 'btn-primary shadow-sm'
+                ? 'btn-secondary shadow-sm'
                 : 'btn-light text-secondary hover-shadow'
             }`
         }

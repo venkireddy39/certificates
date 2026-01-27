@@ -28,7 +28,7 @@ export default defineConfig({
         secure: false,
       },
       '/users': {
-        target: 'http://192.168.1.22:8082',
+        target: 'http://192.168.1.22:8081',
         changeOrigin: true,
         secure: false,
       },

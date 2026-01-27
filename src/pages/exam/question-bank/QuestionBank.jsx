@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaEye } from "react-icons/fa";
-import { ToastContainer } from "react-toastify";
+import { FaEye, FaTrash } from "react-icons/fa";
+import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { FolderX } from "lucide-react";
 
@@ -18,6 +18,15 @@ const QuestionBank = () => {
   const loadExams = () => {
     const savedExams = JSON.parse(localStorage.getItem("exams")) || [];
     setQuestions(savedExams);
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this exam? This action cannot be undone.")) {
+      const updatedExams = questions.filter(exam => exam.id !== id);
+      setQuestions(updatedExams);
+      localStorage.setItem("exams", JSON.stringify(updatedExams));
+      toast.success("Exam deleted successfully");
+    }
   };
 
   // Filter exams based on type
@@ -116,13 +125,22 @@ const QuestionBank = () => {
                         </span>
                       </td>
                       <td className="text-end pe-4">
-                        <Link
-                          to={`/exams/view-paper/${exam.id}`}
-                          className="btn btn-sm btn-light text-primary"
-                          title="Preview Exam"
-                        >
-                          <FaEye />
-                        </Link>
+                        <div className="d-flex justify-content-end gap-2">
+                          <Link
+                            to={`/exams/view-paper/${exam.id}`}
+                            className="btn btn-sm btn-light text-primary"
+                            title="Preview Exam"
+                          >
+                            <FaEye />
+                          </Link>
+                          <button
+                            className="btn btn-sm btn-light text-danger"
+                            title="Delete Exam"
+                            onClick={() => handleDelete(exam.id)}
+                          >
+                            <FaTrash />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -142,12 +160,20 @@ const QuestionBank = () => {
                 <div key={i} className="card border-0 shadow-sm p-3 bg-light rounded-4">
                   <div className="d-flex justify-content-between mb-2">
                     <h6 className="fw-bold mb-0 text-dark">{exam.title}</h6>
-                    <Link
-                      to={`/exams/view-paper/${exam.id}`}
-                      className="btn btn-sm btn-light text-primary border shadow-sm"
-                    >
-                      <FaEye />
-                    </Link>
+                    <div className="d-flex gap-2">
+                      <Link
+                        to={`/exams/view-paper/${exam.id}`}
+                        className="btn btn-sm btn-light text-primary border shadow-sm"
+                      >
+                        <FaEye />
+                      </Link>
+                      <button
+                        className="btn btn-sm btn-light text-danger border shadow-sm"
+                        onClick={() => handleDelete(exam.id)}
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
                   </div>
                   <div className="text-muted small mb-2">{exam.course}</div>
                   <div>

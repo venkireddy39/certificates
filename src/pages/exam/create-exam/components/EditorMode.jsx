@@ -1,15 +1,29 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import MixedQuestionManager from './MixedQuestionManager';
 import QuestionForm from '../../components/QuestionForm';
 import { toast } from 'react-toastify';
 
 const EditorMode = ({ examData, setExamData, onSave, onPreview, onBack }) => {
+    const navigate = useNavigate();
     const [zoom, setZoom] = useState(100);
     const [activeTab, setActiveTab] = useState('add'); // 'add' | 'settings'
 
     const {
         title, course, questions, customAssets, totalMarks, duration, type
     } = examData;
+
+    const handleOnlinePreview = () => {
+        if (questions.length === 0) {
+            toast.warn("Please add some questions first.");
+            return;
+        }
+        // Open in new tab? No, router is SPA.
+        // It's better to navigate in same tab usually, or open new window.
+        // Since SPA, simple navigate.
+        navigate('/exams/simulation/mnc-preview', { state: { examData } });
+    };
+
 
     const paperStyle = {
         width: customAssets.orientation === 'landscape' ? '1123px' : '794px',
@@ -46,28 +60,31 @@ const EditorMode = ({ examData, setExamData, onSave, onPreview, onBack }) => {
     return (
         <div className="d-flex flex-column h-100" style={{ height: 'calc(100vh - 100px)' }}>
             {/* Toolbar */}
-            <div className="bg-white border-bottom px-4 py-2 d-flex justify-content-between align-items-center shadow-sm" style={{ zIndex: 10 }}>
+            <div className="bg-primary border-bottom px-4 py-3 d-flex justify-content-between align-items-center" style={{ zIndex: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
                 <div className="d-flex align-items-center gap-3">
-                    <button className="btn btn-light btn-sm" onClick={onBack}>
+                    <button className="btn btn-light btn-sm shadow-sm" onClick={onBack} style={{ fontWeight: 600 }}>
                         <i className="bi bi-nut me-1"></i> Settings
                     </button>
-                    <div className="vr h-50"></div>
-                    <h6 className="mb-0 fw-bold">{title} <span className="text-muted fw-normal ms-2">| {course}</span></h6>
+                    <div className="vr" style={{ height: '24px', opacity: 0.3, background: '#fff' }}></div>
+                    <div>
+                        <h6 className="mb-0 fw-bold text-white">{title} <span className="fw-normal ms-2" style={{ opacity: 0.8 }}>| {course}</span></h6>
+                        <small className="text-white" style={{ fontSize: '0.75rem', opacity: 0.7 }}><i className="bi bi-clock-history me-1"></i>Last saved: Just now</small>
+                    </div>
                 </div>
 
                 <div className="d-flex align-items-center gap-3">
                     {/* Zoom Control */}
-                    <div className="d-flex align-items-center bg-light rounded px-2 py-1">
-                        <button className="btn btn-link btn-sm p-0 text-secondary" onClick={() => setZoom(z => Math.max(50, z - 10))}><i className="bi bi-dash"></i></button>
-                        <span className="mx-2 small fw-bold" style={{ minWidth: '40px', textAlign: 'center' }}>{zoom}%</span>
-                        <button className="btn btn-link btn-sm p-0 text-secondary" onClick={() => setZoom(z => Math.min(150, z + 10))}><i className="bi bi-plus"></i></button>
+                    <div className="d-flex align-items-center bg-white bg-opacity-25 rounded px-3 py-1" style={{ backdropFilter: 'blur(10px)' }}>
+                        <button className="btn btn-link btn-sm p-0 text-white" onClick={() => setZoom(z => Math.max(50, z - 10))}><i className="bi bi-dash"></i></button>
+                        <span className="mx-2 small fw-bold text-white" style={{ minWidth: '40px', textAlign: 'center' }}>{zoom}%</span>
+                        <button className="btn btn-link btn-sm p-0 text-white" onClick={() => setZoom(z => Math.min(150, z + 10))}><i className="bi bi-plus"></i></button>
                     </div>
 
-                    <button className="btn btn-outline-dark btn-sm" onClick={onPreview}>
+                    <button className="btn btn-light btn-sm shadow-sm fw-medium" onClick={handleOnlinePreview}>
                         <i className="bi bi-eye me-1"></i> Preview
                     </button>
-                    <button className="btn btn-success btn-sm fw-bold" onClick={onSave}>
-                        <i className="bi bi-save me-1"></i> Save & Publish
+                    <button className="btn btn-success btn-sm shadow-sm fw-bold" onClick={onSave}>
+                        <i className="bi bi-floppy me-1"></i> Save & Publish
                     </button>
                 </div>
             </div>

@@ -314,13 +314,13 @@ const OfflineSync = () => {
                 <h4 className="fw-bold m-0 px-2">Batch Attendance Manager</h4>
                 <div className="btn-group">
                     <button
-                        className={`btn btn-sm ${activeTab === 'ENTRY' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                        className={`btn btn-sm ${activeTab === 'ENTRY' ? 'btn-secondary' : 'btn-outline-secondary'}`}
                         onClick={() => setActiveTab('ENTRY')}
                     >
                         Manual Entry
                     </button>
                     <button
-                        className={`btn btn-sm ${activeTab === 'QUEUE' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                        className={`btn btn-sm ${activeTab === 'QUEUE' ? 'btn-secondary' : 'btn-outline-secondary'}`}
                         onClick={() => setActiveTab('QUEUE')}
                     >
                         Sync Queue ({queue.length})
@@ -382,7 +382,7 @@ const OfflineSync = () => {
                                         />
                                         <label
                                             htmlFor="csv-upload"
-                                            className={`btn btn-outline-primary w-100 ${!selectedSessionId ? 'disabled' : ''}`}
+                                            className={`btn btn-outline-secondary w-100 ${!selectedSessionId ? 'disabled' : ''}`}
                                         >
                                             <FiUpload className="me-2" /> Upload CSV
                                         </label>
@@ -582,7 +582,7 @@ const OfflineSync = () => {
                             <button className="btn btn-outline-danger btn-sm me-2" onClick={handleClearQueue}>
                                 <FiTrash2 /> Clear
                             </button>
-                            <button className="btn btn-primary btn-sm" onClick={handleSync}>
+                            <button className="btn btn-secondary btn-sm" onClick={handleSync}>
                                 <FiRefreshCw /> Sync Now
                             </button>
                         </div>
