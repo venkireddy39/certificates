@@ -72,10 +72,10 @@ const BatchBuilder = () => {
                 const userProfile = normalizedUsers.find(u => String(u.studentId) === String(s.studentId));
                 return {
                     ...s,
-                    // Show the actual Student ID stored in the batch enrollment
-                    displayId: s.studentId,
+                    // Show the actual Student ID - try multiple possible fields
+                    displayId: s.studentId || s.student?.studentId || s.student?.userId || s.userId || 'N/A',
                     // We can also store userId for linking if needed
-                    userId: userProfile?.userId
+                    userId: userProfile?.userId || s.student?.userId
                 };
             });
 
@@ -114,6 +114,17 @@ const BatchBuilder = () => {
     });
 
     const handleAddStudents = async () => {
+        // Check batch capacity
+        const currentEnrollment = enrolledStudents.length;
+        const maxStudents = batchDetails?.maxStudents || batchDetails?.capacity;
+        const selectedCount = selectedPotentialStudents.length;
+
+        if (maxStudents && (currentEnrollment + selectedCount) > maxStudents) {
+            const available = maxStudents - currentEnrollment;
+            alert(`Batch capacity exceeded! Maximum capacity: ${maxStudents}\nCurrent enrollment: ${currentEnrollment}\nAttempting to add: ${selectedCount}\nAvailable spots: ${available}\n\nPlease select ${available} or fewer students.`);
+            return;
+        }
+
         try {
             const promises = selectedPotentialStudents.map(userIdKey => {
                 const student = allUsers.find(u => (u.userId || u.id) === userIdKey);
@@ -124,6 +135,7 @@ const BatchBuilder = () => {
                     batchId: Number(id),
                     studentId: Number(actualStudentId), // Ensure Number
                     studentName: student?.firstName ? `${student.firstName} ${student.lastName || ''}`.trim() : (student?.name || 'Unknown'),
+                    studentEmail: student?.email, // Added required field
                     courseId: batchDetails.courseId
                 });
             });
@@ -236,8 +248,23 @@ const BatchBuilder = () => {
                             <div>
                                 <h3>Member Management</h3>
                                 <p className="text-muted">Manage students, faculty, and staff access</p>
+                                {batchDetails?.maxStudents && (
+                                    <p className="text-sm mt-1">
+                                        <span className={enrolledStudents.length >= batchDetails.maxStudents ? 'text-danger fw-bold' : 'text-secondary'}>
+                                            Enrollment: {enrolledStudents.length} / {batchDetails.maxStudents}
+                                        </span>
+                                        {enrolledStudents.length >= batchDetails.maxStudents && (
+                                            <span className="badge bg-danger ms-2">FULL</span>
+                                        )}
+                                    </p>
+                                )}
                             </div>
-                            <button className="btn-primary-add" onClick={() => setIsAddModalOpen(true)}>
+                            <button
+                                className="btn-primary-add"
+                                onClick={() => setIsAddModalOpen(true)}
+                                disabled={batchDetails?.maxStudents && enrolledStudents.length >= batchDetails.maxStudents}
+                                title={batchDetails?.maxStudents && enrolledStudents.length >= batchDetails.maxStudents ? 'Batch is full' : 'Add new members'}
+                            >
                                 <FiPlus /> Add Member
                             </button>
                         </div>
@@ -321,6 +348,11 @@ const BatchBuilder = () => {
                     <div className="modal-content-large">
                         <div className="modal-header">
                             <h3>Add Students to Batch</h3>
+                            {batchDetails?.maxStudents && (
+                                <span className="badge bg-info ms-2">
+                                    Available Spots: {Math.max(0, batchDetails.maxStudents - enrolledStudents.length)}
+                                </span>
+                            )}
                             <button className="btn-close" onClick={() => setIsAddModalOpen(false)}><FiX /></button>
                         </div>
                         <div className="modal-body">
@@ -341,6 +373,13 @@ const BatchBuilder = () => {
                                             const input = document.getElementById('manualStudentIdInput');
                                             const val = input.value;
                                             if (!val) return;
+
+                                            // Check capacity before manual enrollment
+                                            const maxStudents = batchDetails?.maxStudents || batchDetails?.capacity;
+                                            if (maxStudents && enrolledStudents.length >= maxStudents) {
+                                                alert(`Cannot add student: Batch is at maximum capacity (${maxStudents}/${maxStudents})`);
+                                                return;
+                                            }
 
                                             try {
                                                 await enrollmentService.addStudentToBatch({

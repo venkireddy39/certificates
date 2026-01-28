@@ -72,17 +72,16 @@ export const enrollmentService = {
         try {
             console.log("Attempting Manual Enroll:", enrollmentData);
 
-            // STRATEGY 1: Controller with @RequestParam /enroll
-            const queryParams = new URLSearchParams({
-                studentId: enrollmentData.studentId,
-                batchId: enrollmentData.batchId
-            }).toString();
-
-            const url = `${API_BASE_URL_SB}/enroll?${queryParams}`;
+            // Controller expects @RequestBody StudentBatch
+            const url = `${API_BASE_URL_SB}/enroll`;
 
             const res = await fetch(url, {
                 method: "POST",
-                headers: { ...getAuthHeader() }
+                headers: {
+                    "Content-Type": "application/json",
+                    ...getAuthHeader()
+                },
+                body: JSON.stringify(enrollmentData)
             });
 
             console.log("Enrollment Response Status:", res.status);
@@ -177,24 +176,33 @@ export const enrollmentService = {
     // ================= TRANSFERS =================
 
     transferStudent: async (transferData) => {
+        // transferData: { studentBatchId, studentId, studentName, studentEmail, courseId, sourceBatchId, targetBatchId }
         try {
-            const res = await fetch(`${API_BASE_URL_TRANSFER}`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    ...getAuthHeader(),
-                },
-                body: JSON.stringify(transferData),
-            });
-            if (res.ok) return await res.json();
-        } catch (error) {
-            console.warn("API failed, using local storage fallback for transfer", error);
-        }
+            console.log("Initiating Transfer:", transferData);
 
-        // Fallback Logic: Just return success, assuming explicit add/remove will handle the move.
-        // If we wanted to log, we'd add to a mock log table, but for now we skip.
-        console.log("Mock Transfer Logged:", transferData);
-        return { success: true, mock: true };
+            // 1. Unenroll from Source Batch (DELETE /api/student-batches/{id})
+            if (transferData.studentBatchId) {
+                await enrollmentService.removeStudentFromBatch(transferData.studentBatchId);
+            } else {
+                console.warn("No studentBatchId provided for transfer, skipping unenroll step (potential duplicate)");
+            }
+
+            // 2. Enroll in Target Batch (POST /api/student-batches/enroll)
+            const enrollPayload = {
+                studentId: transferData.studentId,
+                studentName: transferData.studentName,
+                studentEmail: transferData.studentEmail,
+                courseId: transferData.courseId,
+                batchId: transferData.targetBatchId
+            };
+
+            const result = await enrollmentService.addStudentToBatch(enrollPayload);
+            return result;
+
+        } catch (error) {
+            console.error("Transfer Failed:", error);
+            throw error;
+        }
     },
 
     // ================= USERS =================

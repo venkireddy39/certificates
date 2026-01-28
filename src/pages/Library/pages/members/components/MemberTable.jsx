@@ -4,7 +4,7 @@ import { ROLES, STATUS } from '../../../utils/constants';
 
 const roleBadge = (role) => {
     if (role === ROLES.ADMIN) return 'bg-danger';
-    if (role === ROLES.LIBRARIAN) return 'bg-warning text-dark';
+    if (role === ROLES.INSTRUCTOR) return 'bg-warning text-dark';
     return 'bg-info';
 };
 
@@ -26,8 +26,8 @@ const MemberTable = ({ members, loading, onEdit, onDelete }) => (
                     <tr><td colSpan="6" className="text-center">Loading...</td></tr>
                 ) : members.length === 0 ? (
                     <tr><td colSpan="6" className="text-center text-muted">No members found</td></tr>
-                ) : members.map(m => (
-                    <tr key={m.id}>
+                ) : members.map((m, index) => (
+                    <tr key={m.id || m.memberId || index}>
                         <td>
                             <div className="d-flex align-items-center">
                                 <div className="rounded-circle bg-light me-3 p-2">
@@ -57,21 +57,24 @@ const MemberTable = ({ members, loading, onEdit, onDelete }) => (
                             )}
                         </td>
 
-                        <td>{m.booksIssued || 0}</td>
+                        <td>{m.issuedBooks || 0}</td>
 
                         <td className="text-end">
                             <button
                                 className="btn btn-sm btn-outline-secondary me-1"
-                                onClick={() => onEdit(m)}
+                                onClick={() => onEdit && onEdit(m)}
+                                disabled={!onEdit}
+                                title={!onEdit ? "Managed in User Management" : "Edit member"}
                             >
                                 <Edit size={14} />
                             </button>
                             <button
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={() => onDelete(m.id)}
-                                disabled={m.role === ROLES.ADMIN}
+                                className={`btn btn-sm ${m.status === STATUS.ACTIVE ? 'btn-outline-danger' : 'btn-outline-success'}`}
+                                onClick={() => onDelete && onDelete(m.id, m.status)}
+                                disabled={!onDelete || m.role === ROLES.ADMIN}
+                                title={m.status === STATUS.ACTIVE ? "Block Member" : "Unblock Member"}
                             >
-                                <Trash2 size={14} />
+                                {m.status === STATUS.ACTIVE ? <Ban size={14} /> : <CheckCircle size={14} />}
                             </button>
                         </td>
                     </tr>

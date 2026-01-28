@@ -30,7 +30,9 @@ const Dashboard = () => {
         totalResources: 0,
         activeIssues: 0,
         overdue: 0,
-        digitalAccess: 0
+        digitalAccess: 0,
+        activeMembers: 0,
+        totalMembers: 0
     });
     const [trendData, setTrendData] = useState([]);
     const [recentActivity, setRecentActivity] = useState([]);
@@ -138,11 +140,11 @@ const Dashboard = () => {
                 <div className="col-xl-3 col-md-6 fade-in" style={{ animationDelay: '0.4s' }}>
                     <StatsCard
                         title="Active Members"
-                        value="2,845"
+                        value={stats.activeMembers || 0}
                         icon={Users}
-                        trend={8.2}
+                        trend={0}
                         color="success"
-                        subValue="154 new joined"
+                        subValue={`Total: ${stats.totalMembers || 0}`}
                     />
                 </div>
             </div>

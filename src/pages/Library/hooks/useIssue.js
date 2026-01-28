@@ -23,7 +23,7 @@ export const useIssue = () => {
         if (!query) return;
         setLoading(true);
         try {
-            // Mock: fetching all and filtering. Real API would search.
+            // Fetch and filter members by search query
             const all = await MemberService.getAllMembers();
             const filtered = all.filter(m =>
                 m.name.toLowerCase().includes(query.toLowerCase()) ||

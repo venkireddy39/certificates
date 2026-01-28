@@ -37,10 +37,9 @@ const StudentDashboard = () => {
         e.preventDefault();
         setSubmitLoading(true);
         try {
-            // Mock API call
             await ReservationService.createReservation({
                 userId: user.id,
-                resourceId: selectedItem || 'mock-book-id',
+                resourceId: selectedItem,
                 status: 'PENDING',
                 reservationDate: new Date().toISOString()
             });
@@ -58,8 +57,7 @@ const StudentDashboard = () => {
         e.preventDefault();
         setSubmitLoading(true);
         try {
-            // Mock API call (IssueService or specialized)
-            // Just simulating success for verified requirement
+            // Simulating digital access request
             await new Promise(r => setTimeout(r, 800));
             alert('Digital Access request submitted. Check your email for the link.');
             setShowAccessModal(false);

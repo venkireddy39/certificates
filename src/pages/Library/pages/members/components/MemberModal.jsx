@@ -75,7 +75,7 @@ const MemberModal = ({ member, onClose, onSave, isNew }) => {
                             </div>
                         </div>
 
-                        <div className="row g-2">
+                        <div className="row g-2 mb-3">
                             <div className="col-md-6">
                                 <select
                                     className="form-select"
@@ -91,6 +91,17 @@ const MemberModal = ({ member, onClose, onSave, isNew }) => {
                             </div>
 
                             <div className="col-md-6">
+                                <input
+                                    className="form-control"
+                                    placeholder="Department"
+                                    value={form.department || ''}
+                                    onChange={e => handleChange('department', e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="row g-2">
+                            <div className="col-md-12">
                                 <select
                                     className="form-select"
                                     value={form.status}

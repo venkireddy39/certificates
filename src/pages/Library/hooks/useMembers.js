@@ -56,9 +56,27 @@ export const useMembers = (toast) => {
         }
     };
 
+    const toggleMemberStatus = async (id, currentStatus) => {
+        try {
+            await MemberService.toggleMemberStatus(id, currentStatus);
+            setMembers(prev =>
+                prev.map(m =>
+                    m.id === id
+                        ? { ...m, status: currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }
+                        : m
+                )
+            );
+            return true;
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to change member status');
+            return false;
+        }
+    };
+
     useEffect(() => {
         loadMembers();
     }, [loadMembers]);
 
-    return { members, loading, createMember, updateMember, deleteMember, refresh: loadMembers };
+    return { members, loading, createMember, updateMember, deleteMember, toggleMemberStatus, refresh: loadMembers };
 };

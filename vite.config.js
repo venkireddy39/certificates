@@ -6,12 +6,16 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      '/api/student-batches': {
+        target: 'http://localhost:9191', // Local Transport backend for student batches
+        changeOrigin: true,
+        secure: false,
+      },
       '/api': {
         target: 'http://192.168.1.20:5151', // Gateway / Other Modules
         changeOrigin: true,
         secure: false,
       },
-      // User Management Module (Remote)
       '/admin': {
         target: 'http://192.168.1.22:8081',
         changeOrigin: true,
@@ -41,6 +45,11 @@ export default defineConfig({
             delete proxyRes.headers['x-frame-options'];
           });
         }
+      },
+      '/library': {
+        target: 'http://localhost:9191', // Library backend on local laptop
+        changeOrigin: true,
+        secure: false,
       }
     }
   }
