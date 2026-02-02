@@ -60,10 +60,12 @@ export const AuthProvider = ({ children }) => {
     console.log("AuthProvider: Current State", { user, loading });
 
     /* ---------- RESTORE SESSION ---------- */
+    /* ---------- RESTORE SESSION ---------- */
     useEffect(() => {
-        // Try autologin from generated token (Dev Helper)
-        try {
-            import('../../../generated_token.json').then(module => {
+        const initAuth = async () => {
+            // 1. Try autologin from generated token (Dev Helper) - Async
+            try {
+                const module = await import('../../../generated_token.json');
                 const devToken = module.default;
                 if (devToken && devToken.token) {
                     const current = localStorage.getItem(AUTH_TOKEN_KEY);
@@ -72,27 +74,48 @@ export const AuthProvider = ({ children }) => {
                         localStorage.setItem(AUTH_TOKEN_KEY, devToken.token);
                         const dummyUser = { email: "admin@gmail.com", role: "ADMIN", name: "Dev Admin", userId: 1 };
                         localStorage.setItem('auth_user', JSON.stringify(dummyUser));
-                        setUser(dummyUser);
                     }
                 }
-            }).catch(err => console.log("No dev token found"));
-        } catch (e) {
-            // Ignore
-        }
-
-        const token = localStorage.getItem(AUTH_TOKEN_KEY);
-        const savedUser = localStorage.getItem('auth_user');
-
-        if (token && savedUser) {
-            try {
-                setUser(JSON.parse(savedUser));
             } catch (e) {
-                console.error("AuthContext: Failed to restore session", e);
-                localStorage.removeItem(AUTH_TOKEN_KEY);
-                localStorage.removeItem('auth_user');
+                // Ignore if generated_token.json doesn't exist (prod/normal dev)
             }
-        }
-        setLoading(false);
+
+            // 2. Check LocalStorage (Step 2 of User Plan)
+            const token = localStorage.getItem(AUTH_TOKEN_KEY);
+            const savedUser = localStorage.getItem('auth_user');
+
+            if (token) {
+                // If we have a token, we are effectively authenticated.
+                // We try to restore the user object to get roles.
+                if (savedUser) {
+                    try {
+                        setUser(JSON.parse(savedUser));
+                    } catch (e) {
+                        console.error("AuthContext: Failed to parse saved user", e);
+                        // Don't auto-logout immediately just because of bad user data if token is valid?
+                        // Actually, without user data, the app might crash on role checks.
+                        // Better to clear if corrupted.
+                        localStorage.removeItem(AUTH_TOKEN_KEY);
+                        localStorage.removeItem('auth_user');
+                    }
+                } else {
+                    // Fallback: If we have a token but no user data, 
+                    // we could try to decode the token or fetch /me.
+                    // For this specific 'refresh = logout' fix, let's at least NOT clear the token immediately
+                    // unless we are sure it's dead.
+                    // But since the rest of the app relies on `user` for permissions, we might need a fallback user?
+                    // Or we let the user be null but the token exists? 
+                    // Existing logic relies on `user` != null to be logged in.
+
+                    // If we just saved token as per step 1, we also saved auth_user.
+                    // So this case (token yes, user no) shouldn't happen if Step 1 works.
+                }
+            }
+
+            setLoading(false); // Step 4: Finish check before rendering
+        };
+
+        initAuth();
     }, []);
 
     /* ---------- LOGIN ---------- */
@@ -104,9 +127,11 @@ export const AuthProvider = ({ children }) => {
 
             if (!token) throw new Error("No token received");
 
+            const derivedRole = data.user?.role || (email.toLowerCase().includes('student') ? 'STUDENT' : 'ADMIN');
+
             const userData = {
                 email: email,
-                role: data.user?.role || 'ADMIN',
+                role: derivedRole,
                 ...data.user
             };
 
@@ -141,17 +166,26 @@ export const AuthProvider = ({ children }) => {
     };
 
     /* ---------- DEV LOGIN (MOCK) ---------- */
-    const devLogin = () => {
-        const mockUser = {
+    /* ---------- DEV LOGIN (MOCK) ---------- */
+    const devLogin = (role = 'ADMIN') => {
+        const mockUser = role === 'STUDENT' ? {
+            email: "student@gmail.com",
+            role: "STUDENT",
+            firstName: "John",
+            lastName: "Student",
+            userId: 2
+        } : {
             email: "admin@gmail.com",
             role: "ADMIN",
             firstName: "Dev",
             lastName: "Admin",
             userId: 1
         };
+
         localStorage.setItem(AUTH_TOKEN_KEY, "dev-mock-token");
         localStorage.setItem('auth_user', JSON.stringify(mockUser));
         setUser(mockUser);
+        return mockUser;
     };
 
     return (

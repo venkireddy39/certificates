@@ -126,13 +126,9 @@ const SessionReport = ({ sessionId }) => {
         return <div className="p-5 text-center text-muted">Loading report...</div>;
     }
 
-    if (stats.total === 0) {
-        return (
-            <div className="p-5 text-center text-muted">
-                No attendance data available for this session.
-            </div>
-        );
-    }
+    // REMOVED early return: Allow rendering even if attendance is zero, 
+    // because mergedRecords will show everyone as ABSENT initially, which is useful info.
+    // The chart will just be empty or show 100% absent.
 
     /* ---------------- DOWNLOAD ---------------- */
 
@@ -172,7 +168,20 @@ const SessionReport = ({ sessionId }) => {
                                     className="btn btn-success btn-sm d-flex align-items-center gap-2 px-3 shadow-sm"
                                     onClick={async () => {
                                         try {
-                                            await attendanceService.saveAttendance(sessionId, sessionRecords);
+                                            // Pre-process records to append Late Minutes to remarks if needed
+                                            const finalizedRecords = sessionRecords.map(r => {
+                                                let finalRemarks = r.remarks || "";
+                                                if (r.status === 'LATE' && r.lateMinutes) {
+                                                    // Simple format: "Original Remark [Late: 15m]"
+                                                    // Avoid duplicating if already present
+                                                    if (!finalRemarks.includes('[Late:')) {
+                                                        finalRemarks = `${finalRemarks} [Late: ${r.lateMinutes}m]`.trim();
+                                                    }
+                                                }
+                                                return { ...r, remarks: finalRemarks };
+                                            });
+
+                                            await attendanceService.saveAttendance(sessionId, finalizedRecords);
                                             setIsEditMode(false);
                                             alert("Records updated successfully!");
                                         } catch (e) { alert("Save failed."); }
@@ -310,7 +319,8 @@ const SessionReport = ({ sessionId }) => {
                                     name: r.name || r.studentName || `Student ${r.studentId}`,
                                     status: r.status,
                                     remarks: r.remarks || '',
-                                    source: r.source || 'OFFLINE'
+                                    source: r.source || 'OFFLINE',
+                                    lateMinutes: r.lateMinutes || 0 // Pass existing late minutes
                                 }))}
                                 onStatusChange={(id, status) => {
                                     setSessionRecords(prev => prev.map(r =>
@@ -320,6 +330,11 @@ const SessionReport = ({ sessionId }) => {
                                 onRemarkChange={(id, remarks) => {
                                     setSessionRecords(prev => prev.map(r =>
                                         String(r.studentId) === String(id) ? { ...r, remarks } : r
+                                    ));
+                                }}
+                                onLateMinutesChange={(id, minutes) => {
+                                    setSessionRecords(prev => prev.map(r =>
+                                        String(r.studentId) === String(id) ? { ...r, lateMinutes: minutes } : r
                                     ));
                                 }}
                                 isEditable={isEditMode}

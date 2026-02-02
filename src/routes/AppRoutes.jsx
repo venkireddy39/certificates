@@ -28,7 +28,12 @@ const CreateFee = lazy(() => import('../pages/FeeManagement/CreateFee'));
 const LibraryApp = lazy(() => import('../pages/Library/App'));
 const AffiliateRegister = lazy(() => import('../pages/Affiliates/AffiliateRegister'));
 const AffiliatePortal = lazy(() => import('../pages/Affiliates/AffiliatePortal'));
+const StudentDashboard = lazy(() => import('../pages/Student/StudentDashboard'));
 const LoginPage = lazy(() => import('../pages/Login/LoginPage'));
+const StudentCourses = lazy(() => import('../pages/Student/StudentCourses'));
+const StudentBatches = lazy(() => import('../pages/Student/StudentBatches'));
+const StudentAttendance = lazy(() => import('../pages/Student/StudentAttendance'));
+const StudentLibrary = lazy(() => import('../pages/Student/StudentLibrary'));
 
 const AppRoutes = () => {
   return (
@@ -49,6 +54,22 @@ const AppRoutes = () => {
 
           {/* ✅ REAL DASHBOARD ROUTE */}
           <Route path="/dashboard" element={<Home />} />
+
+          {/* ===== STUDENT ROUTES ===== */}
+          <Route path="/student">
+            <Route index element={<Navigate to="/student/dashboard" replace />} />
+            <Route path="dashboard" element={<StudentDashboard />} />
+            <Route path="courses" element={<StudentCourses />} />
+            <Route path="batches" element={<StudentBatches />} />
+            <Route path="attendance" element={<StudentAttendance />} />
+            <Route path="library" element={<StudentLibrary />} />
+            <Route path="exams" element={<div className="p-4"><h2>Exams</h2><p>Coming soon...</p></div>} />
+            <Route path="webinars" element={<div className="p-4"><h2>Webinars</h2><p>Coming soon...</p></div>} />
+            <Route path="transport" element={<div className="p-4"><h2>Transport</h2><p>Coming soon...</p></div>} />
+            <Route path="fees" element={<div className="p-4"><h2>Fee History</h2><p>Coming soon...</p></div>} />
+            <Route path="notifications" element={<div className="p-4"><h2>Notifications</h2><p>Coming soon...</p></div>} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
 
           {/* ... existing routes ... */}
 

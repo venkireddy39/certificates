@@ -161,15 +161,11 @@ export const AttendanceProvider = ({ children }) => {
         localStorage.removeItem('offline_attendance');
     }, []);
 
-    const markAttendance = useCallback((studentId, status = 'PRESENT', source = 'MANUAL', overrideReason = null) => {
+    const markAttendance = useCallback((studentId, status = 'PRESENT', source = 'MANUAL', overrideReason = null, lateMinutes = null, synced = false) => {
         // Session Lock Check
         if (isSessionLocked()) {
             if (source === 'QR' || source === 'STUDENT_SELF') {
                 return { success: false, message: 'Session is LOCKED. Cannot mark attendance.' };
-            }
-            // Admin override check
-            if (source === 'MANUAL' && !overrideReason) {
-                return { success: false, message: 'Session is LOCKED. Admin override reason required.' };
             }
         }
 
@@ -185,26 +181,27 @@ export const AttendanceProvider = ({ children }) => {
             const existingIndex = prev.findIndex(a => a.studentId === studentId);
             const newRecord = {
                 attendanceSessionId: session.id,
-                classId: session.classId, // Include classId in local state record
+                classId: session.classId,
                 studentId,
                 timestamp: new Date().toISOString(),
                 source,
                 mode,
                 status,
-                overrideReason
+                overrideReason,
+                lateMinutes
             };
 
             if (existingIndex >= 0) {
                 const updated = [...prev];
-                // If switching from Offline to Online (e.g. late check-in), allow update
-                // If switching from Online to Offline, we blocked it above (for manual)
-                updated[existingIndex] = { ...updated[existingIndex], ...newRecord };
+                // For updates, we usually want synced=false unless explicitly told (hydration)
+                // If we are hydrating (synced=true), we respect it. 
+                // If it's a manual user edit, synced is false.
+                updated[existingIndex] = { ...updated[existingIndex], ...newRecord, synced: synced };
                 return updated;
             } else {
-                return [newRecord, ...prev];
+                return [{ ...newRecord, synced: synced }, ...prev];
             }
         });
-        return { success: true };
         return { success: true };
     }, [isSessionLocked, attendanceList, getModeFromSource, session.id, session.classId]);
 

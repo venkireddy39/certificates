@@ -23,69 +23,38 @@ export const API_BASE_URL_SB = "/api/student-batches";
 export const enrollmentService = {
     // Get students in a specific batch
     getStudentsByBatch: async (batchId) => {
-        let apiStudents = [];
         try {
-            apiStudents = await apiFetch(`${API_BASE_URL_SB}/batch/${batchId}`, {
+            return await apiFetch(`${API_BASE_URL_SB}/batch/${batchId}`, {
                 headers: { "Cache-Control": "no-cache" }
             });
         } catch (error) {
-            console.warn("API failed, using local storage fallback for getStudents", error);
+            console.error("API failed to get students", error);
+            return [];
         }
-
-        const sb = getStorage(STORAGE_KEYS.STUDENT_BATCHES);
-        const localStudents = sb.filter(r => String(r.batchId) === String(batchId));
-
-        if (apiStudents.length === 0 && localStudents.length > 0) {
-            return localStudents;
-        }
-
-        const apiStudentIds = new Set(apiStudents.map(s => String(s.studentId)));
-        const uniqueLocal = localStudents.filter(s => !apiStudentIds.has(String(s.studentId)));
-
-        return [...apiStudents, ...uniqueLocal];
     },
 
     // Add student to a batch (Enroll)
     addStudentToBatch: async (enrollmentData) => {
-        let response = null;
-        try {
-            response = await apiFetch(`${API_BASE_URL_SB}/enroll`, {
-                method: "POST",
-                body: JSON.stringify(enrollmentData)
-            });
-        } catch (error) {
-            console.warn("API failed, using local storage fallback for addStudent", error);
-        }
-
-        const sb = getStorage(STORAGE_KEYS.STUDENT_BATCHES);
-        const exists = sb.find(r => String(r.batchId) === String(enrollmentData.batchId) && String(r.studentId) === String(enrollmentData.studentId));
-
-        if (!exists) {
-            const newRecord = response || { ...enrollmentData, studentBatchId: Date.now() };
-            sb.push(newRecord);
-            setStorage(STORAGE_KEYS.STUDENT_BATCHES, sb);
-            return newRecord;
-        }
-        return exists;
+        return apiFetch(`${API_BASE_URL_SB}/enroll`, {
+            method: "POST",
+            body: JSON.stringify(enrollmentData)
+        });
     },
 
     // Remove student from batch (Unenroll)
     removeStudentFromBatch: async (studentBatchId) => {
-        try {
-            await apiFetch(`${API_BASE_URL_SB}/${studentBatchId}`, { method: "DELETE" });
-        } catch (error) {
-            console.warn("API remove failed", error);
-        }
-
-        // Always remove from local storage to keep counts in sync
-        let sb = getStorage(STORAGE_KEYS.STUDENT_BATCHES);
-        sb = sb.filter(r => String(r.studentBatchId) !== String(studentBatchId));
-        setStorage(STORAGE_KEYS.STUDENT_BATCHES, sb);
-        return true;
+        return apiFetch(`${API_BASE_URL_SB}/${studentBatchId}`, { method: "DELETE" });
     },
 
     // Get all enrollments
-    getAllEnrollments: async () => getStorage(STORAGE_KEYS.STUDENT_BATCHES),
+    getAllEnrollments: async () => {
+        try {
+            return await apiFetch(API_BASE_URL_SB);
+        } catch (e) {
+            console.warn("API failed to get all enrollments", e);
+            return [];
+        }
+    },
 
     // ================= TRANSFERS =================
 

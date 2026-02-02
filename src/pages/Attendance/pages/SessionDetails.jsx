@@ -146,16 +146,25 @@ const LiveView = () => {
                         // The store exposes `markAsSynced`.
 
                         existingAttendance.forEach(r => {
-                            markAttendance(r.studentId, r.status, r.source || 'MANUAL', r.remarks);
+                            // Extract Late Minutes from remarks if needed (e.g. "Some remark [Late: 15m]")
+                            let lateMins = 0;
+                            let cleanRemarks = r.remarks || "";
+                            if (cleanRemarks.includes('[Late:')) {
+                                const match = cleanRemarks.match(/\[Late:\s*(\d+)m\]/);
+                                if (match) {
+                                    lateMins = parseInt(match[1], 10);
+                                    // Optional: keep remarks as is, or strip the tag. 
+                                    // UI adds the tag back on save, so stripping might be safer to avoid duplication if Edited.
+                                    // For now, let's leave it, as UI logic handles appending.
+                                }
+                            }
+
+
+                            markAttendance(r.studentId, r.status, r.source || 'MANUAL', r.remarks, lateMins, true);
                         });
 
-                        // Queue a microtask to mark them as synced immediately so they don't look like pending changes
-                        setTimeout(() => {
-                            if (isMounted) {
-                                markAsSynced(existingAttendance.map(r => r.studentId));
-                                setPendingChanges(0); // Reset pending counter
-                            }
-                        }, 100);
+                        // Set pending to 0 initially since these are hydrated records
+                        setPendingChanges(0);
                     }
 
                     // Map enrollment data to UI student format
@@ -190,7 +199,8 @@ const LiveView = () => {
         return {
             status: record ? record.status : 'UNMARKED',
             mode: record ? record.mode : 'OFFLINE', // Default to offline unless marked Online
-            remarks: record?.overrideReason || ''
+            remarks: record?.overrideReason || '',
+            lateMinutes: record?.lateMinutes || 0
         };
     };
 
@@ -225,6 +235,13 @@ const LiveView = () => {
         }
     };
 
+    const handleLateMinutesChange = (id, minutes) => {
+        const current = getStudentStatus({ id });
+        // Use existing status (which should be LATE), and update minutes
+        const res = markAttendance(id, current.status, 'MANUAL', current.remarks, minutes);
+        if (res.success) setPendingChanges(prev => prev + 1);
+    };
+
     const {
         triggerBackendSync,
         syncOfflineData,
@@ -238,38 +255,71 @@ const LiveView = () => {
             const unsyncedRecords = attendanceList.filter(r => !r.synced);
 
             if (unsyncedRecords.length > 0) {
-                console.log(`[SessionDetails] Pushing ${unsyncedRecords.length} new marks to queue...`);
+                console.log(`[SessionDetails] Processing ${unsyncedRecords.length} records...`);
 
-                for (const record of unsyncedRecords) {
-                    await attendanceService.saveToOfflineQueue({
-                        sessionId: session.classId || contextInfo.lmsSessionId, // USE ACADEMIC ID (Class ID) not Attendance ID
-                        attendanceSessionId: sessionId, // Pass this for reference/linking if backend supports it
-                        batchId: session.batchId || session.id, // Ensure this isn't sending Attendance ID as batch ID. Use sessionData.batchId if available in closure, or session.batchId
+                const bulkPayload = unsyncedRecords.map(record => {
+                    let finalRemarks = record.remarks || record.overrideReason || "";
+                    if (record.status === 'LATE' && record.lateMinutes) {
+                        if (!finalRemarks.includes('[Late:')) {
+                            finalRemarks = `${finalRemarks} [Late: ${record.lateMinutes}m]`.trim();
+                        }
+                    }
+                    return {
+                        id: record.id, // Important: pass ID if exists to enable UPDATE
                         studentId: record.studentId,
                         status: record.status,
-                        remarks: record.remarks || record.overrideReason || ""
-                    });
+                        remarks: finalRemarks,
+                        source: record.source || 'MANUAL',
+                        attendanceDate: new Date().toISOString().split('T')[0]
+                    };
+                });
+
+                // DIRECT ONLINE SAVE
+                // We use our smart saveAttendance which now handles deduplication/updates correctly
+                let saveSuccess = false;
+                try {
+                    await attendanceService.saveAttendance(sessionId, bulkPayload);
+                    console.log("[SessionDetails] Direct online save successful.");
+                    saveSuccess = true;
+                } catch (err) {
+                    console.error("[SessionDetails] Online save failed, trying offline queue.", err);
                 }
 
-                // Mark them as synced in local store so we don't send them again
+                if (!saveSuccess) {
+                    // FALLBACK: Offline Queue (slow, loop)
+                    for (const record of unsyncedRecords) {
+                        let finalRemarks = bulkPayload.find(p => p.studentId === record.studentId)?.remarks || "";
+                        await attendanceService.saveToOfflineQueue({
+                            sessionId: session.classId || contextInfo.lmsSessionId,
+                            attendanceSessionId: sessionId,
+                            batchId: session.batchId || session.id,
+                            studentId: record.studentId,
+                            status: record.status,
+                            remarks: finalRemarks
+                        });
+                    }
+                    // Force sync attempt
+                    await triggerBackendSync();
+                }
+
+                // Mark as synced locally
                 markAsSynced(unsyncedRecords.map(r => r.studentId));
             } else {
-                console.log("[SessionDetails] No new manual changes to push.");
+                console.log("[SessionDetails] No new changes to save.");
             }
 
-            // Also sync any totally offline records from LocalStorage if they exist
+            // Sync any other pending offline data
             if (getPendingSyncCount() > 0) {
                 await syncOfflineData();
+                await triggerBackendSync();
             }
 
-            // Finally, trigger the backend to promote all queue items to official records
-            await triggerBackendSync();
-
             setPendingChanges(0);
-            alert('Attendance synchronized and finalized successfully!');
+            alert('Attendance saved successfully!');
+
         } catch (error) {
-            console.error("Failed to synchronize attendance", error);
-            alert("Sync failed. Check console for details.");
+            console.error("Failed to save attendance", error);
+            alert("Save failed. Please try again.");
         }
     };
 
@@ -368,20 +418,23 @@ const LiveView = () => {
                         <div className="card-body p-0">
                             <AttendanceTable
                                 students={students.map(s => {
-                                    const { status, remarks, mode } = getStudentStatus(s);
+                                    const { status, remarks, mode, lateMinutes } = getStudentStatus(s);
                                     return {
                                         ...s,
                                         studentId: s.id,
                                         status,
                                         source: mode, // AttendanceTable expects 'source'
-                                        remarks
+                                        remarks,
+                                        lateMinutes
                                     };
                                 })}
                                 onStatusChange={handleManualMark}
                                 onRemarkChange={(id, val) => {
-                                    const res = markAttendance(id, getStudentStatus({ id }).status, 'MANUAL', val);
+                                    const current = getStudentStatus({ id });
+                                    const res = markAttendance(id, current.status, 'MANUAL', val, current.lateMinutes);
                                     if (res.success) setPendingChanges(prev => prev + 1);
                                 }}
+                                onLateMinutesChange={handleLateMinutesChange}
                                 isEditable={true}
                             />
                         </div>

@@ -147,8 +147,22 @@ const BatchBuilder = () => {
             setSelectedPotentialStudents([]);
             setIsAddModalOpen(false);
         } catch (err) {
-            console.error(err);
-            alert("Failed to add students");
+            console.error("Enrollment error:", err);
+
+            // Access failure details if available
+            let errorMsg = err.message || "Failed to add students";
+
+            // If the error object has a JSON structure in the message (as seen in the logs)
+            try {
+                const parsed = JSON.parse(err.message);
+                if (parsed.message) errorMsg = parsed.message;
+            } catch (e) { /* ignore JSON parse error */ }
+
+            if (errorMsg.includes("Batch is full") || errorMsg.includes("capacity")) {
+                alert(`Error: ${errorMsg}\n\nPlease increase the batch capacity or remove existing students.`);
+            } else {
+                alert(`Error adding students: ${errorMsg}`);
+            }
         }
     };
 
@@ -256,9 +270,14 @@ const BatchBuilder = () => {
                             </div>
                             <button
                                 className="btn-primary-add"
-                                onClick={() => setIsAddModalOpen(true)}
-                                disabled={batchDetails?.maxStudents && enrolledStudents.length >= batchDetails.maxStudents}
-                                title={batchDetails?.maxStudents && enrolledStudents.length >= batchDetails.maxStudents ? 'Batch is full' : 'Add new members'}
+                                onClick={() => {
+                                    if (batchDetails?.maxStudents && enrolledStudents.length >= batchDetails.maxStudents) {
+                                        alert("Batch limit exceeded! Please create a new batch.");
+                                        return;
+                                    }
+                                    setIsAddModalOpen(true);
+                                }}
+                                title="Add new members"
                             >
                                 <FiPlus /> Add Member
                             </button>

@@ -15,10 +15,10 @@ const DetailRow = ({ icon: Icon, label, value }) => (
 
 const StatCard = ({ label, value, color, icon: Icon }) => (
     <div className="col-4">
-        <div className={`p-3 rounded-3 bg-${color} bg-opacity-10 h-100 text-center d-flex flex-column justify-content-center align-items-center`}>
-            {Icon && <Icon className={`text-${color} mb-2`} size={24} />}
-            <div className={`h4 fw-bold text-${color} mb-0`}>{value}</div>
-            <div className={`small text-${color} text-opacity-75`}>{label}</div>
+        <div className={`p-2 p-md-3 rounded-3 bg-${color} bg-opacity-10 h-100 text-center d-flex flex-column justify-content-center align-items-center`}>
+            {Icon && <Icon className={`text-${color} mb-1 mb-md-2`} size={20} />}
+            <div className={`h5 h4-md fw-bold text-${color} mb-0`}>{value}</div>
+            <div className={`small text-${color} text-opacity-75`} style={{ fontSize: '0.7rem' }}>{label}</div>
         </div>
     </div>
 );
@@ -27,21 +27,21 @@ const StudentAttendanceProfile = ({ student, studentHistory = [], onClose }) => 
     const modalRef = React.useRef(null);
     const [showHistory, setShowHistory] = React.useState(false);
 
-    // Reset view when student changes
+    // Lock body scroll on mount
     React.useEffect(() => {
-        setShowHistory(false);
-    }, [student?.id]);
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, []);
 
     // Mock stats for the student
     const stats = useMemo(() => {
         if (!student) return { totalClasses: 0, present: 0, absent: 0, percentage: 0 };
-
-        // Calculate stats from history (even if empty)
         const totalClasses = studentHistory.length;
         const present = studentHistory.filter(h => ['PRESENT', 'LATE', 'PARTIAL'].includes(h.status)).length;
         const absent = totalClasses - present;
         const percentage = totalClasses > 0 ? Math.round((present / totalClasses) * 100) : 0;
-
         return { totalClasses, present, absent, percentage };
     }, [student?.id, studentHistory]);
 
@@ -54,17 +54,24 @@ const StudentAttendanceProfile = ({ student, studentHistory = [], onClose }) => 
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
             style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050, backdropFilter: 'blur(2px)' }}>
 
-            <div ref={modalRef} className="card border-0 shadow-lg" style={{ width: showHistory ? '800px' : '500px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
-                <div className="card-header bg-white border-0 d-flex justify-content-between align-items-center py-3 px-4">
-                    <h5 className="mb-0 fw-bold text-primary">
-                        {showHistory ? 'Full Attendance History' : 'Student Overview'}
+            <div ref={modalRef}
+                className="card border-0 shadow-lg d-flex flex-column transition-all"
+                style={{
+                    width: showHistory ? '800px' : '500px',
+                    maxWidth: '95vw',
+                    maxHeight: '90dvh', // Dynamic Viewport Height for mobile
+                    transition: 'width 0.3s ease'
+                }}>
+                <div className="card-header bg-white border-0 d-flex justify-content-between align-items-center py-3 px-3 px-md-4 flex-shrink-0">
+                    <h5 className="mb-0 fw-bold text-primary text-truncate pe-2">
+                        {showHistory ? 'Attendance History' : 'Student Overview'}
                     </h5>
-                    <button className="btn btn-light btn-sm rounded-circle p-2" onClick={onClose}>
+                    <button className="btn btn-light btn-sm rounded-circle p-2 flex-shrink-0" onClick={onClose}>
                         <FiX size={18} />
                     </button>
                 </div>
 
-                <div className="card-body px-4 pt-2 pb-4">
+                <div className="card-body px-4 pt-2 pb-4 overflow-auto flex-grow-1" style={{ minHeight: 0 }}>
                     {/* Profile Header */}
                     <div className="d-flex align-items-center mb-4 pb-4 border-bottom">
                         <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3 fs-3 fw-bold flex-shrink-0"
@@ -174,7 +181,7 @@ const StudentAttendanceProfile = ({ student, studentHistory = [], onClose }) => 
                     )}
                 </div>
 
-                <div className="card-footer bg-light border-top py-3 px-4">
+                <div className="card-footer bg-light border-top py-3 px-4 flex-shrink-0">
                     <div className="d-flex justify-content-between align-items-center w-100">
                         <div className="text-muted small">
                             Status: <strong>{student.isDeleted ? 'Inactive' : 'Active'}</strong>

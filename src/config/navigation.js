@@ -117,3 +117,66 @@ export const navigationConfig = [
         ]
     }
 ];
+
+export const studentNavigationConfig = [
+    {
+        id: 'dashboard',
+        label: 'Dashboard',
+        path: '/student/dashboard',
+        icon: 'bi-speedometer2'
+    },
+    {
+        id: 'courses',
+        label: 'My Courses',
+        path: '/student/courses',
+        icon: 'bi-journal-check'
+    },
+    {
+        id: 'batches',
+        label: 'My Batches',
+        path: '/student/batches',
+        icon: 'bi-people'
+    },
+    {
+        id: 'attendance',
+        label: 'Attendance',
+        path: '/student/attendance',
+        icon: 'bi-calendar-check'
+    },
+    {
+        id: 'exams',
+        label: 'Exams',
+        path: '/student/exams',
+        icon: 'bi-pencil-square'
+    },
+    {
+        id: 'webinars',
+        label: 'Webinars',
+        path: '/student/webinars',
+        icon: 'bi-camera-video'
+    },
+    {
+        id: 'library',
+        label: 'Library',
+        path: '/student/library',
+        icon: 'bi-book'
+    },
+    {
+        id: 'transport',
+        label: 'Transport',
+        path: '/student/transport',
+        icon: 'bi-bus-front'
+    },
+    {
+        id: 'fees',
+        label: 'Fee History',
+        path: '/student/fees',
+        icon: 'bi-receipt'
+    },
+    {
+        id: 'notifications',
+        label: 'Notifications',
+        path: '/student/notifications',
+        icon: 'bi-bell'
+    }
+];

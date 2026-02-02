@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useAttendanceStore } from '../store/attendanceStore';
 import { attendanceService } from '../services/attendanceService';
 import { enrollmentService } from '../../Batches/services/enrollmentService';
-import { FiSave, FiFilter, FiRefreshCw, FiTrash2, FiUpload, FiCalendar, FiClock, FiCheckCircle, FiAlertCircle, FiX, FiAlertTriangle } from 'react-icons/fi';
+import { FiSave, FiFilter, FiRefreshCw, FiTrash2, FiUpload, FiCalendar, FiClock, FiCheckCircle, FiAlertCircle, FiX, FiAlertTriangle, FiDownload } from 'react-icons/fi';
 import AttendanceStats from '../components/AttendanceStats';
 import AttendanceTable from '../components/AttendanceTable';
 
@@ -13,7 +13,7 @@ const OfflineSync = () => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedSessionId, setSelectedSessionId] = useState('');
 
-    const [activeTab, setActiveTab] = useState('ENTRY'); // ENTRY | QUEUE
+    const [activeTab, setActiveTab] = useState('ENTRY'); // ENTRY | QUEUE | HISTORY
 
     // Data State
     const [courses, setCourses] = useState([]);
@@ -25,8 +25,31 @@ const OfflineSync = () => {
     const [attendanceMap, setAttendanceMap] = useState({});
     const [lateMinutesMap, setLateMinutesMap] = useState({});
 
+    const downloadTemplate = () => {
+        const headers = ['studentId', 'status', 'remarks'];
+
+        // Use real student IDs if a batch is selected and students are loaded
+        const rows = students.length > 0
+            ? students.map(s => [s.studentId, 'PRESENT', ''])
+            : [];
+
+        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `attendance_template_${selectedBatch || 'sample'}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     // CSV Preview State
     const [csvPreview, setCsvPreview] = useState(null); // { rows: [], summary: { total, valid, errors, warnings: [] } }
+    const [uploadJob, setUploadJob] = useState(null); // { id, status, message }
+    const [uploadJobs, setUploadJobs] = useState([]); // List of jobs for the batch
+    const [isUploading, setIsUploading] = useState(false);
 
     // Store Access
     const { queueOfflineAttendance, attendanceList, clearOfflineQueue } = useAttendanceStore();
@@ -78,18 +101,28 @@ const OfflineSync = () => {
         }
     }, [selectedBatch]);
 
+    // Fetch Upload Jobs History
+    useEffect(() => {
+        if (selectedBatch) {
+            attendanceService.getUploadJobsByBatch(selectedBatch)
+                .then(setUploadJobs)
+                .catch(err => console.error("Failed to fetch upload jobs", err));
+        } else {
+            setUploadJobs([]);
+        }
+    }, [selectedBatch]);
+
     // Auto-init attendance or clear on session change
     useEffect(() => {
         if (selectedSessionId && students.length > 0) {
             const initial = {};
             students.forEach(s => {
-                initial[s.id] = 'PRESENT';
+                initial[s.id] = 'UNMARKED'; // Default to UNMARKED instead of PRESENT
             });
             setAttendanceMap(initial);
         } else {
             setAttendanceMap({});
         }
-        setCsvPreview(null); // Clear preview on session switch
     }, [selectedSessionId, students]);
 
     // Stats Calculation
@@ -115,203 +148,106 @@ const OfflineSync = () => {
         setAttendanceMap(prev => ({ ...prev, [studentId]: status }));
     };
 
-    // CSV Upload (Preview Mode) with Strict Validation
-    const handleFileUpload = (e) => {
+    // Backend-driven CSV Upload Job
+    const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        // A. File Level Validation
-        if (!file.name.toLowerCase().endsWith('.csv')) {
-            alert('❌ Invalid File Type. Only .csv files are allowed.');
+        // Basic validation
+        const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+        if (!['.csv', '.xls', '.xlsx'].includes(ext)) {
+            alert('❌ Invalid File Type. Only .csv, .xls, and .xlsx files are allowed.');
             e.target.value = null;
             return;
         }
 
-        if (file.size > 2 * 1024 * 1024) { // 2 MB
-            alert('❌ File too large. Max 2MB allowed.');
+        if (file.size > 5 * 1024 * 1024) { // 5 MB
+            alert('❌ File too large. Max 5MB allowed.');
             e.target.value = null;
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-            const text = evt.target.result;
-            const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+        setIsUploading(true);
+        try {
+            // Get current user ID
+            const authUser = JSON.parse(localStorage.getItem('auth_user') || '{}');
+            const uploadedBy = authUser.id || 1;
 
-            if (lines.length < 2) {
-                alert('❌ Empty or invalid CSV. Needs header + data.');
-                e.target.value = null;
-                return;
+            const job = await attendanceService.uploadCsvJob(
+                selectedCourse,
+                selectedBatch,
+                selectedSessionId,
+                selectedDate,
+                uploadedBy,
+                file
+            );
+
+            console.log("Upload Job Created:", job);
+            setUploadJob(job);
+            setActiveTab('HISTORY');
+
+            // Refresh history
+            if (selectedBatch) {
+                attendanceService.getUploadJobsByBatch(selectedBatch)
+                    .then(setUploadJobs)
+                    .catch(console.error);
             }
 
-            // B. Header Validation (Strict)
-            const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-
-            // Allow exact set match
-            const allowedHeaders = new Set(['student_id', 'status', 'remark']);
-            const headerSet = new Set(headers);
-
-            // Check for duplicates
-            if (headerSet.size !== headers.length) {
-                alert('❌ Duplicate headers found.');
-                e.target.value = null;
-                return;
+            if (window.confirm(`File uploaded successfully (ID: ${job.id}). Do you want to apply this data now?`)) {
+                await handleProcessJob(job.id);
             }
 
-            // Check required presence
-            const missing = ['student_id', 'status'].filter(h => !headerSet.has(h));
-            // Check extra columns (Strict)
-            const extra = headers.filter(h => !allowedHeaders.has(h));
-
-            if (missing.length > 0) {
-                alert(`❌ Missing headers: ${missing.join(', ')}`);
-                e.target.value = null;
-                return;
-            }
-            if (extra.length > 0) {
-                alert(`❌ Extra headers not allowed: ${extra.join(', ')}`);
-                e.target.value = null;
-                return;
-            }
-
-            const idIdx = headers.indexOf('student_id');
-            const statusIdx = headers.indexOf('status');
-            const remarkIdx = headers.indexOf('remark');
-
-            // C. Row Parsing & Validation
-            const previewRows = [];
-            const seenIds = new Set();
-            let validCount = 0;
-            let errorCount = 0;
-
-            // Stats for Suspicious Check
-            let countPresent = 0;
-            let countAbsent = 0;
-
-            for (let i = 1; i < lines.length; i++) {
-                const parts = lines[i].split(',').map(p => p.trim());
-
-                // If line has comma but empty values, keep them. 
-                // We trust split result.
-
-                const rawId = parts[idIdx];
-                const rawStatus = parts[statusIdx]?.toUpperCase();
-                const rawRemark = remarkIdx !== -1 ? parts[remarkIdx] : '';
-
-                const row = {
-                    line: i + 1, // +1 for header
-                    studentId: rawId,
-                    status: rawStatus,
-                    remark: rawRemark,
-                    errors: [],
-                    isValid: true
-                };
-
-                // 1. Identity Check
-                if (!rawId) {
-                    row.errors.push('Missing ID');
-                } else if (!/^[A-Za-z0-9_-]+$/.test(rawId)) {
-                    row.errors.push('Invalid ID Format');
-                } else {
-                    const student = students.find(s => s.id === rawId);
-                    if (!student) row.errors.push('Not in batch');
-                }
-
-                // 2. Status Check
-                const validStatuses = ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED'];
-                if (!validStatuses.includes(rawStatus)) {
-                    row.errors.push('Invalid Status');
-                } else {
-                    if (rawStatus === 'PRESENT') countPresent++;
-                    if (rawStatus === 'ABSENT') countAbsent++;
-                }
-
-                // 3. Remark Sanitization
-                if (rawRemark && rawRemark.length > 255) {
-                    row.errors.push('Remark too long');
-                }
-                if (rawRemark && /<[^>]*>/g.test(rawRemark)) {
-                    row.errors.push('HTML not allowed');
-                }
-
-                // 4. Duplicate Check
-                if (seenIds.has(rawId)) row.errors.push('Duplicate ID');
-                else if (rawId) seenIds.add(rawId);
-
-                // 5. Online Conflict Guard
-                const onlineRecord = attendanceList.find(
-                    r => r.studentId === rawId && r.sessionId === selectedSessionId && r.mode === 'ONLINE'
-                );
-                if (onlineRecord) {
-                    row.errors.push('Already Online');
-                }
-
-                if (row.errors.length > 0) {
-                    row.isValid = false;
-                    errorCount++;
-                } else {
-                    validCount++;
-                }
-
-                previewRows.push(row);
-            }
-
-            if (previewRows.length === 0) {
-                alert('❌ Copied parsed but found no rows.');
-                e.target.value = null;
-                return;
-            }
-
-            // Suspicious File Checks
-            const totalRows = previewRows.length;
-            const warnings = [];
-            if (countPresent === totalRows) warnings.push('All students marked PRESENT');
-            if (countAbsent === totalRows) warnings.push('All students marked ABSENT');
-
-            setCsvPreview({
-                rows: previewRows,
-                summary: {
-                    total: totalRows,
-                    valid: validCount,
-                    errors: errorCount,
-                    warnings // Pass to UI
-                }
-            });
-            e.target.value = null; // Reset input
-        };
-        reader.readAsText(file);
+        } catch (err) {
+            console.error("Upload failed", err);
+            alert(`❌ Upload failed: ${err.message}`);
+        } finally {
+            setIsUploading(false);
+            e.target.value = null;
+        }
     };
 
-    const handleConfirmImport = () => {
-        if (!csvPreview) return;
+    const handleProcessJob = async (jobId) => {
+        setIsUploading(true);
+        try {
+            await attendanceService.processCsvJob(jobId);
+            alert("✅ Data applied to database successfully.");
 
-        const newMap = { ...attendanceMap };
-        let importCount = 0;
-
-        csvPreview.rows.forEach(row => {
-            if (row.isValid) {
-                newMap[row.studentId] = row.status;
-                importCount++;
+            // Refresh history to see updated status
+            if (selectedBatch) {
+                const refreshedJobs = await attendanceService.getUploadJobsByBatch(selectedBatch);
+                setUploadJobs(refreshedJobs);
+                const currentJob = refreshedJobs.find(j => j.id === jobId);
+                if (currentJob) setUploadJob(currentJob);
             }
-        });
-
-        setAttendanceMap(newMap);
-        alert(`✅ Imported ${importCount} records successfully.`);
-        setCsvPreview(null);
-    };
-
-    const handleCancelPreview = () => {
-        setCsvPreview(null);
+        } catch (err) {
+            console.error("Processing failed", err);
+            alert(`❌ Application failed: ${err.message}`);
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const handleSave = () => {
         if (!selectedSessionId) return;
 
+        let markedCount = 0;
         Object.entries(attendanceMap).forEach(([sid, status]) => {
+            // Skip unmarked records
+            if (!status || status === 'UNMARKED') return;
+
             const meta = status === 'LATE' && lateMinutesMap[sid] ? { minutesLate: lateMinutesMap[sid] } : {};
+
+            // Normalize ID usage: Ensure we pass the selectedSessionId clearly
             queueOfflineAttendance(sid, status, selectedDate, selectedSessionId, meta);
+            markedCount++;
         });
-        alert(`Attendance for ${students.length} students queued locally.`);
+
+        if (markedCount === 0) {
+            alert("No changes to save. Please mark at least one student.");
+            return;
+        }
+
+        alert(`Attendance for ${markedCount} students queued locally.`);
         setActiveTab('QUEUE');
     };
 
@@ -332,48 +268,84 @@ const OfflineSync = () => {
     useEffect(() => { loadQueue(); }, [activeTab]);
 
     const handleSync = async () => {
-        // Group by Session ID
+        // 1. Group by Session ID to batch requests
         const grouped = queue.reduce((acc, curr) => {
-            if (!acc[curr.sessionId]) acc[curr.sessionId] = [];
-            acc[curr.sessionId].push(curr);
+            // Normalized key: prefer attendanceSessionId, fall back to sessionId
+            const sid = curr.attendanceSessionId || curr.sessionId;
+            if (!acc[sid]) acc[sid] = [];
+            acc[sid].push(curr);
             return acc;
         }, {});
 
         let successCount = 0;
         let failCount = 0;
+        const successfulSessionIds = new Set();
 
-        for (const [sessionId, records] of Object.entries(grouped)) {
+        for (const [sid, records] of Object.entries(grouped)) {
+            // Validation
+            if (!sid || sid === 'undefined' || sid === 'null' || isNaN(Number(sid))) {
+                console.warn(`Skipping invalid session ID in sync queue: ${sid}`, records);
+                continue; // Skip invalid, don't delete yet (or should we?)
+            }
+            const numericSessionId = Number(sid);
+
             try {
-                // Prepare payload
-                // The API needs records in a specific format.
-                // queueOfflineAttendance stores { studentId, status, sessionId, ... }
-                // saveAttendance expects list of records.
-                const payload = records.map(r => ({
-                    studentId: r.studentId,
-                    status: r.status,
-                    mode: 'OFFLINE', // It was queued as offline
-                    markedAt: r.timestamp
-                    // Add other meta if needed
+                // 2. DEDUPLICATION Logic
+                const uniqueRecords = new Map();
+                records.forEach(r => {
+                    // Composite Key: StudentID - SessionID - Date
+                    const dateStr = r.timestamp ? r.timestamp.split('T')[0] : selectedDate; // or today
+                    // We use the date stored in the record
+                    const recordDate = r.timestamp ? r.timestamp.split('T')[0] : new Date().toISOString().split('T')[0];
+
+                    const key = `${r.studentId}-${numericSessionId}-${recordDate}`;
+
+                    // Upsert: Last writer wins (or first? let's use last to get latest status)
+                    uniqueRecords.set(key, { ...r, attendanceDate: recordDate });
+                });
+
+                const payload = Array.from(uniqueRecords.values()).map(r => ({
+                    studentId: Number(r.studentId),
+                    status: (r.status || 'PRESENT').toUpperCase(),
+                    source: 'MANUAL',
+                    remarks: r.remarks || '',
+                    attendanceDate: r.attendanceDate
                 }));
 
-                await attendanceService.saveAttendance(sessionId, payload);
-                successCount += records.length;
+                // 3. Send
+                if (payload.length > 0) {
+                    await attendanceService.saveAttendance(numericSessionId, payload);
+                    successCount += records.length; // Count original records as synced
+                    successfulSessionIds.add(sid);
+                }
 
             } catch (err) {
-                console.error(`Failed to sync session ${sessionId}`, err);
+                console.error(`Failed to sync session ${numericSessionId}`, err);
                 failCount += records.length;
+                // We do NOT remove failed records from local storage, so user can retry
             }
         }
 
+        // 4. Cleanup: Remove ONLY successfully synced records from LocalStorage
         if (successCount > 0) {
-            // Remove successfully synced ones?
-            // For simplicity, we just clear the queue if mostly successful, or we should be more granular.
-            // Let's clear for now as per original simple logic.
-            localStorage.removeItem('offline_attendance');
-            loadQueue();
-            alert(`Synced ${successCount} records successfully!`);
-        } else if (failCount > 0) {
-            alert("Failed to sync records. Check network or data.");
+            const currentQueue = JSON.parse(localStorage.getItem('offline_attendance') || '[]');
+            const remainingHelper = currentQueue.filter(r => {
+                const rSid = String(r.attendanceSessionId || r.sessionId);
+                // If this record's session was successfully synced, FILTER IT OUT (return false)
+                // Wait, what if we only synced *some* sessions?
+                // Simple approach: If session X succeeded, remove all records for session X.
+                // This assumes batch save is all-or-nothing per session. 
+                // If saveAttendance throws, we assume nothing saved for that session.
+                return !successfulSessionIds.has(rSid);
+            });
+
+            localStorage.setItem('offline_attendance', JSON.stringify(remainingHelper));
+            loadQueue(); // Refresh UI
+            alert(`✅ Synced ${successCount} records successfully!`);
+        }
+
+        if (failCount > 0) {
+            alert(`⚠️ Failed to sync ${failCount} records. They remain in the queue.`);
         }
     };
 
@@ -401,43 +373,61 @@ const OfflineSync = () => {
                     >
                         Sync Queue ({queue.length})
                     </button>
+                    <button
+                        className={`btn btn-sm ${activeTab === 'HISTORY' ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                        onClick={() => setActiveTab('HISTORY')}
+                    >
+                        Upload History ({uploadJobs.length})
+                    </button>
+                </div>
+            </div>
+
+            {/* Global Context Selectors - Always Visible */}
+            <div className="card border-0 shadow-sm mb-4 bg-light">
+                <div className="card-body py-3">
+                    <div className="row g-3 align-items-center">
+                        <div className="col-md-5">
+                            <label className="form-label small fw-bold text-secondary mb-1">Select Course</label>
+                            <select
+                                className="form-select"
+                                value={selectedCourse}
+                                onChange={e => { setSelectedCourse(e.target.value); setSelectedBatch(''); setSelectedSessionId(''); }}
+                            >
+                                <option value="">-- Select Course --</option>
+                                {courses.map(c => (
+                                    <option key={c.courseId} value={c.courseId}>{c.courseName}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="col-md-5">
+                            <label className="form-label small fw-bold text-secondary mb-1">Select Batch</label>
+                            <select
+                                className="form-select"
+                                value={selectedBatch}
+                                onChange={e => { setSelectedBatch(e.target.value); setSelectedSessionId(''); }}
+                                disabled={!selectedCourse}
+                            >
+                                <option value="">-- Select Batch --</option>
+                                {batches.map(b => (
+                                    <option key={b.batchId} value={b.batchId}>{b.batchName}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="col-md-2 text-end">
+                            {/* Optional: Add a clear or refresh button here if needed */}
+                        </div>
+                    </div>
                 </div>
             </div>
 
             {activeTab === 'ENTRY' && (
                 <>
-                    {/* Filters */}
+                    {/* Manual Entry Specific Filters (Date & Upload) */}
                     <div className="card border-0 shadow-sm mb-4">
                         <div className="card-body">
                             <div className="row g-3 align-items-end">
-                                <div className="col-md-3">
-                                    <label className="form-label small fw-bold text-secondary">Course</label>
-                                    <select
-                                        className="form-select"
-                                        value={selectedCourse}
-                                        onChange={e => { setSelectedCourse(e.target.value); setSelectedBatch(''); setSelectedSessionId(''); }}
-                                    >
-                                        <option value="">Select Course</option>
-                                        {courses.map(c => (
-                                            <option key={c.courseId} value={c.courseId}>{c.courseName}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="col-md-3">
-                                    <label className="form-label small fw-bold text-secondary">Batch</label>
-                                    <select
-                                        className="form-select"
-                                        value={selectedBatch}
-                                        onChange={e => { setSelectedBatch(e.target.value); setSelectedSessionId(''); }}
-                                    >
-                                        <option value="">Select Batch</option>
-                                        {batches.map(b => (
-                                            <option key={b.batchId} value={b.batchId}>{b.batchName}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="col-md-3">
-                                    <label className="form-label small fw-bold text-secondary">Date</label>
+                                <div className="col-md-4">
+                                    <label className="form-label small fw-bold text-secondary">Attendance Date</label>
                                     <input
                                         type="date"
                                         className="form-control"
@@ -445,23 +435,43 @@ const OfflineSync = () => {
                                         onChange={e => { setSelectedDate(e.target.value); setSelectedSessionId(''); }}
                                     />
                                 </div>
-                                <div className="col-md-3">
+                                <div className="col-md-8">
                                     {/* CSV Upload Button - Only active if session selected */}
-                                    <div className="w-100">
-                                        <input
-                                            type="file"
-                                            accept=".csv"
-                                            id="csv-upload"
-                                            className="d-none"
-                                            onChange={handleFileUpload}
-                                            disabled={!selectedSessionId}
-                                        />
-                                        <label
-                                            htmlFor="csv-upload"
-                                            className={`btn btn-outline-secondary w-100 ${!selectedSessionId ? 'disabled' : ''}`}
+                                    <label className="form-label small fw-bold text-secondary">Bulk Upload (Optional)</label>
+                                    <div className="w-100 d-flex gap-2">
+                                        <div className="flex-grow-1">
+                                            <input
+                                                type="file"
+                                                accept=".csv,.xlsx"
+                                                id="csv-upload"
+                                                className="d-none"
+                                                onChange={handleFileUpload}
+                                                disabled={!selectedSessionId || isUploading}
+                                            />
+                                            <label
+                                                htmlFor="csv-upload"
+                                                className={`btn btn-outline-secondary w-100 ${(!selectedSessionId || isUploading) ? 'disabled' : ''}`}
+                                            >
+                                                {isUploading ? (
+                                                    <><span className="spinner-border spinner-border-sm me-2" /> Uploading...</>
+                                                ) : (
+                                                    <><FiUpload className="me-2" /> Upload CSV/Excel to Session</>
+                                                )}
+                                            </label>
+                                        </div>
+                                        <button
+                                            className="btn btn-outline-info d-flex align-items-center gap-1"
+                                            title="Download CSV Template"
+                                            onClick={downloadTemplate}
                                         >
-                                            <FiUpload className="me-2" /> Upload CSV
-                                        </label>
+                                            <FiDownload />
+                                            <span className="small">Template</span>
+                                        </button>
+                                    </div>
+                                    <div className="text-muted mt-1">
+                                        <small style={{ fontSize: '0.75rem' }}>
+                                            Required columns: <code>studentId</code>, <code>status</code> (PRESENT/ABSENT/LATE)
+                                        </small>
                                     </div>
                                 </div>
                             </div>
@@ -497,6 +507,36 @@ const OfflineSync = () => {
                                     <FiCalendar className="me-2" /> No classes found linked to this batch on this date.
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {/* Upload Job Status */}
+                    {uploadJob && (
+                        <div className="mb-4 fade-in">
+                            <div className={`card border-0 shadow-sm border-start border-4 ${uploadJob.status === 'FAILED' ? 'border-danger' : uploadJob.status === 'PROCESSED' ? 'border-success' : 'border-info'}`}>
+                                <div className="card-body d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 className="fw-bold mb-1">
+                                            {uploadJob.status === 'PENDING' && <><FiClock className="me-2 text-info" /> File Uploaded (Action Required)</>}
+                                            {uploadJob.status === 'PROCESSED' && <><FiCheckCircle className="me-2 text-success" /> Attendance Updated Successfully</>}
+                                            {uploadJob.status === 'FAILED' && <><FiAlertCircle className="me-2 text-danger" /> Processing Failed</>}
+                                        </h6>
+                                        <p className="small text-muted mb-0">Job ID: {uploadJob.id} | The file is saved, but attendance records are not updated yet.</p>
+                                    </div>
+                                    <div>
+                                        {uploadJob.status === 'PENDING' && (
+                                            <button
+                                                className="btn btn-warning btn-sm fw-bold shadow-sm"
+                                                onClick={() => handleProcessJob(uploadJob.id)}
+                                                disabled={isUploading}
+                                            >
+                                                {isUploading ? 'Applying...' : 'Apply Data to DB'}
+                                            </button>
+                                        )}
+                                        <button className="btn btn-link btn-sm text-secondary" onClick={() => setUploadJob(null)}>Dismiss</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -690,7 +730,7 @@ const OfflineSync = () => {
                                                 </div>
                                             )}
                                         </td>
-                                        <td className="small text-muted">{r.sessionId}</td>
+                                        <td className="small text-muted">{r.attendanceSessionId || r.sessionId}</td>
                                         <td className="text-muted small">
                                             {r.timestamp ? new Date(r.timestamp).toLocaleDateString() : '-'}
                                         </td>
@@ -699,6 +739,68 @@ const OfflineSync = () => {
                                 {queue.length === 0 && (
                                     <tr>
                                         <td colSpan="4" className="text-center py-5 text-muted">Queue is empty</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+            {/* History Tab */}
+            {activeTab === 'HISTORY' && (
+                <div className="card border-0 shadow-sm">
+                    <div className="card-header bg-white p-3 d-flex justify-content-between align-items-center">
+                        <h5 className="mb-0 fw-bold">Upload Job History ({uploadJobs.length})</h5>
+                        <button
+                            className="btn btn-outline-secondary btn-sm"
+                            onClick={() => {
+                                if (selectedBatch) {
+                                    attendanceService.getUploadJobsByBatch(selectedBatch).then(setUploadJobs);
+                                }
+                            }}
+                        >
+                            <FiRefreshCw className="me-1" /> Refresh
+                        </button>
+                    </div>
+                    <div className="table-responsive">
+                        <table className="table table-hover mb-0 align-middle">
+                            <thead className="bg-light">
+                                <tr>
+                                    <th className="ps-4">Job ID</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Session ID</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {[...uploadJobs].reverse().map((job) => (
+                                    <tr key={job.id}>
+                                        <td className="ps-4 fw-medium text-primary">#{job.id}</td>
+                                        <td className="small">{job.attendanceDate}</td>
+                                        <td>
+                                            <span className={`badge bg-${job.status === 'PROCESSED' ? 'success' : job.status === 'FAILED' ? 'danger' : 'info'} bg-opacity-10 text-${job.status === 'PROCESSED' ? 'success' : job.status === 'FAILED' ? 'danger' : 'info'}`}>
+                                                {job.status}
+                                            </span>
+                                        </td>
+                                        <td className="small text-muted">{job.sessionId || 'N/A'}</td>
+                                        <td>
+                                            {job.status === 'PENDING' && (
+                                                <button
+                                                    className="btn btn-primary btn-xs py-0 px-2"
+                                                    style={{ fontSize: '0.75rem' }}
+                                                    onClick={() => handleProcessJob(job.id)}
+                                                    disabled={isUploading}
+                                                >
+                                                    Apply Data
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {uploadJobs.length === 0 && (
+                                    <tr>
+                                        <td colSpan="5" className="text-center py-5 text-muted">No upload history found</td>
                                     </tr>
                                 )}
                             </tbody>

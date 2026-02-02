@@ -9,13 +9,21 @@ export const batchService = {
             const courses = await courseService.getCourses();
             if (!courses || courses.length === 0) return [];
 
-            const batchPromises = courses.map(c =>
-                batchService.getBatchesByCourseId(c.courseId)
-                    .catch(() => [])
-            );
-
-            const results = await Promise.all(batchPromises);
-            return results.flat();
+            // Fetch sequentially or in small chunks to avoid overwhelming the backend
+            // and causing 500 errors.
+            const results = [];
+            for (const course of courses) {
+                try {
+                    const batches = await batchService.getBatchesByCourseId(course.courseId);
+                    if (Array.isArray(batches)) {
+                        results.push(...batches);
+                    }
+                } catch (err) {
+                    // Suppress 500 errors for individual courses so we don't spam console
+                    // console.warn(`Skipping batches for course ${course.courseId} due to error.`);
+                }
+            }
+            return results;
         } catch (error) {
             console.error("Failed to aggregate batches", error);
             return [];

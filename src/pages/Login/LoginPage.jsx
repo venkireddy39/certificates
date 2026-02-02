@@ -17,8 +17,16 @@ const LoginPage = () => {
         setIsLoading(true);
 
         try {
-            await login(email, password);
-            navigate('/library'); // Fixed: Navigate to library or dashboard
+            const user = await login(email, password);
+            if (user.role === 'STUDENT') {
+                navigate('/student/dashboard');
+            } else if (user.role === 'LIBRARIAN') {
+                navigate('/library');
+            } else if (user.role === 'MARKETING_MANAGER') {
+                navigate('/marketing');
+            } else {
+                navigate('/dashboard');
+            }
         } catch (err) {
             console.error(err);
             setError('Invalid credentials or server error');
@@ -27,16 +35,21 @@ const LoginPage = () => {
         }
     };
 
-    const handleDevLogin = async () => {
+    const handleDevLogin = async (role = 'ADMIN') => {
         setError('');
         setIsLoading(true);
         try {
-            console.log("Initiating Quick Dev Login...");
-            devLogin();
+            console.log(`Initiating Quick Dev Login for ${role}...`);
+            devLogin(role);
             // Small delay to ensure state propagates before navigation
             setTimeout(() => {
-                console.log("Navigating to Library...");
-                navigate('/library');
+                if (role === 'STUDENT') {
+                    console.log("Navigating to Student Dashboard...");
+                    navigate('/student/dashboard');
+                } else {
+                    console.log("Navigating to Admin Dashboard...");
+                    navigate('/dashboard');
+                }
             }, 100);
         } catch (err) {
             console.error(err);
@@ -65,7 +78,7 @@ const LoginPage = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
-                            placeholder="admin@gmail.com"
+                            placeholder="admin@gmail.com / student@gmail.com"
                         />
                     </div>
 
@@ -89,22 +102,9 @@ const LoginPage = () => {
                         {isLoading ? 'Signing In...' : 'Sign In'}
                     </button>
 
-                    <div className="hr-text text-center text-muted mb-3">
-                        <small style={{ background: '#f8f9fa', padding: '0 10px', position: 'relative', zIndex: 1 }}>OR DEVELOPER ACCESS</small>
-                        <div style={{ borderTop: '1px solid #dee2e6', marginTop: '-10px' }}></div>
-                    </div>
-
-                    <button
-                        type="button"
-                        className="btn btn-outline-secondary w-100 btn-sm mb-3"
-                        onClick={handleDevLogin}
-                    >
-                        Quick Dev Login (Guest Mode)
-                    </button>
-
                     <div className="text-center">
-                        <div className="alert alert-warning py-1 px-2 small mb-0" style={{ fontSize: '0.75rem' }}>
-                            Note: Ensure Library Backend (9191) is running!
+                        <div className="alert alert-light py-1 px-2 small mb-0 text-muted" style={{ fontSize: '0.75rem' }}>
+                            Test Creds: admin@gmail.com / student@gmail.com
                         </div>
                     </div>
                 </form>

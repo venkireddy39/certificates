@@ -1,11 +1,19 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { navigationConfig } from '../../config/navigation';
+import { navigationConfig, studentNavigationConfig } from '../../config/navigation';
+import { useAuth } from '../../pages/Library/context/AuthContext';
 
 const ContextNav = () => {
     const location = useLocation();
+    const { user } = useAuth();
+
+    const isStudentPortal = location.pathname.startsWith('/student');
+    const isStudentUser = user?.role === 'STUDENT';
+
+    // Consistent logic with TopNav
+    const currentConfig = (isStudentPortal || isStudentUser) ? studentNavigationConfig : navigationConfig;
 
     // Find the currently active active primary tab
-    const activeItem = navigationConfig.find(item => {
+    const activeItem = currentConfig.find(item => {
         // 1. Direct match or prefix match on the main path
         if (item.path === '/' && location.pathname === '/') return true;
 

@@ -50,8 +50,33 @@ const SessionsList = () => {
     const fetchSessions = async () => {
         setLoading(true);
         try {
-            const data = await attendanceService.getSessions(selectedBatch);
-            setSessions(data || []);
+            const [attData, acadData] = await Promise.all([
+                attendanceService.getSessions(selectedBatch),
+                attendanceService.getAcademicSessions(selectedBatch)
+            ]);
+
+            // Enrich attendance sessions with academic schedule info
+            const enriched = await Promise.all((attData || []).map(async s => {
+                const acad = acadData.find(a => String(a.classId || a.sessionId) === String(s.classId));
+                console.log(`[SessionsList] Matching AttSession #${s.id} (classId: ${s.classId}) with AcadSession:`, acad);
+
+                let studentCount = 0;
+                try {
+                    const students = await attendanceService.getStudents(s.batchId);
+                    studentCount = students.length;
+                } catch (e) { /* ignore */ }
+
+                return {
+                    ...s,
+                    scheduledDate: acad?.startDate,
+                    scheduledStartTime: acad?.startTime,
+                    scheduledEndTime: acad?.endTime,
+                    sessionName: acad?.sessionName || s.title || `Session #${s.classId}`,
+                    studentCount
+                };
+            }));
+
+            setSessions(enriched);
         } catch (error) {
             console.error("Failed to fetch sessions", error);
         } finally {
@@ -176,6 +201,7 @@ const SessionsList = () => {
                         <thead className="table-light">
                             <tr>
                                 <th className="ps-4">Attendance ID</th>
+                                <th>Session Name</th>
                                 <th>Class/LMS ID</th>
                                 <th>Date</th>
                                 <th>Status</th>
@@ -190,6 +216,9 @@ const SessionsList = () => {
                                     <tr key={session.id}>
                                         <td className="ps-4 fw-bold text-primary">#{session.id}</td>
                                         <td>
+                                            <div className="fw-semibold text-dark">{session.sessionName || '—'}</div>
+                                        </td>
+                                        <td>
                                             <span className="badge bg-info bg-opacity-10 text-info">
                                                 ID: {session.sessionId || 'N/A'}
                                             </span>
@@ -197,7 +226,7 @@ const SessionsList = () => {
                                         <td>
                                             <div className="d-flex align-items-center gap-2">
                                                 <FiCalendar className="text-muted" />
-                                                <span>{session.startedAt ? new Date(session.startedAt).toLocaleDateString() : 'N/A'}</span>
+                                                <span>{session.scheduledDate || (session.startedAt ? new Date(session.startedAt).toLocaleDateString() : 'N/A')}</span>
                                             </div>
                                         </td>
                                         <td>{getStatusBadge(session.status)}</td>
@@ -205,16 +234,16 @@ const SessionsList = () => {
                                             <div className="small text-muted">
                                                 <div className="d-flex align-items-center gap-1">
                                                     <FiClock size={12} />
-                                                    {session.startedAt ? new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                                    {session.scheduledStartTime || (session.startedAt ? new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--')}
                                                     {' - '}
-                                                    {session.endedAt ? new Date(session.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Ongoing'}
+                                                    {session.scheduledEndTime || (session.endedAt ? new Date(session.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Ongoing')}
                                                 </div>
                                             </div>
                                         </td>
                                         <td>
-                                            <div className="d-flex align-items-center gap-2 text-muted">
+                                            <div className="d-flex align-items-center gap-2 text-primary fw-semibold">
                                                 <FiUsers size={16} />
-                                                <span>--</span>
+                                                <span>{session.studentCount || 0}</span>
                                             </div>
                                         </td>
                                         <td className="text-end pe-4">
@@ -247,7 +276,7 @@ const SessionsList = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="7" className="text-center py-5 text-muted">
+                                    <td colSpan="8" className="text-center py-5 text-muted">
                                         No live or ended sessions found.
                                     </td>
                                 </tr>

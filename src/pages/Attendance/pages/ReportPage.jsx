@@ -55,6 +55,7 @@ const ReportPage = ({ batchId: propBatchId }) => {
 
     const [selectedClass, setSelectedClass] = useState('');
     const [classes, setClasses] = useState([]);
+    const [students, setStudents] = useState([]);
 
     // When Batch Changes, load Classes
     useEffect(() => {
@@ -64,11 +65,18 @@ const ReportPage = ({ batchId: propBatchId }) => {
                 .then(setClasses)
                 .catch(() => setClasses([]));
 
+            // Load Students
+            enrollmentService.getStudentsByBatch(selectedBatch)
+                .then(setStudents)
+                .catch(e => { console.warn(e); setStudents([]); });
+
             // Load batch-wide history initially
             loadHistory(selectedBatch);
         } else if (propBatchId) {
-            // If prop is used, we assume batch view, but optionally could load classes too
-            // For now, let's keep prop mode simple
+            // If prop is used, we assume batch view
+            enrollmentService.getStudentsByBatch(propBatchId)
+                .then(setStudents)
+                .catch(() => setStudents([]));
         }
     }, [selectedBatch, propBatchId]);
 
@@ -131,6 +139,8 @@ const ReportPage = ({ batchId: propBatchId }) => {
             const enrichedHistory = (historyData || []).map(record => ({
                 ...record,
                 status: (record.status || 'ABSENT').toUpperCase(), // Normalize status
+                date: record.attendanceDate || record.date, // Map attendanceDate to date
+                method: record.source || record.method || 'MANUAL', // Map source to method
                 studentName: studentMap[record.studentId] || record.studentName || `Student #${record.studentId}`,
                 // If courseName wasn't set during aggregation, set default
                 courseName: record.courseName || (isSessionLevel ? 'Class Session' : 'Batch History')
@@ -217,7 +227,7 @@ const ReportPage = ({ batchId: propBatchId }) => {
                         <p className="mt-2 text-muted">Loading attendance data...</p>
                     </div>
                 ) : (
-                    <AttendanceReport history={history} />
+                    <AttendanceReport history={history} students={students} />
                 )
             ) : (
                 <div className="text-center py-5 text-muted">

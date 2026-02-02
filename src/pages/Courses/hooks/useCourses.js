@@ -19,12 +19,20 @@ export const useCourses = () => {
     // Helper to format image URL
     const getFullImageUrl = (url) => {
         if (!url) return null;
+
+        // Robust fix: Remove any hardcoded 192.168.x.x IP from the start of the URL
+        // This handles cases where DB has http://192.168.1.23:5151/uploads/...
+        // We want to convert it to just /uploads/... so the Vite proxy handles it.
+        if (url.includes('192.168.')) {
+            // Replace http://192.168.X.X:PORT/ with just /
+            const relativeUrl = url.replace(/^https?:\/\/192\.168\.\d+\.\d+(:\d+)?/, '');
+            return relativeUrl.startsWith('/') ? relativeUrl : `/${relativeUrl}`;
+        }
+
         if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
 
-        // If relative path, prepend backend origin
-        // We use the same target as configured in vite.config.js
-        const BACKEND_URL = "http://192.168.1.23:5151";
-        return `${BACKEND_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+        // Use relative path so Vite proxy (configured for /uploads) can handle it
+        return `${url.startsWith('/') ? '' : '/'}${url}`;
     };
 
     const loadCourses = async () => {

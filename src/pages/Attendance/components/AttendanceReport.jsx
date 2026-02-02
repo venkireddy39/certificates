@@ -44,8 +44,10 @@ const StatusBadge = React.memo(({ status }) => {
 
 
 
-const AttendanceReport = ({ history = [] }) => {
+const AttendanceReport = ({ history = [], students = [] }) => {
     const [viewMode, setViewMode] = useState('SUMMARY'); // 'SUMMARY' or 'LOG'
+    const [statusFilter, setStatusFilter] = useState('ALL');
+    const [selectedStudent, setSelectedStudent] = useState(null);
 
     /* ---------------- MEMOIZED COMPUTATIONS ---------------- */
 
@@ -191,11 +193,19 @@ const AttendanceReport = ({ history = [] }) => {
                                 studentStats.map(student => (
                                     <tr
                                         key={student.id}
-                                        onClick={() => setSelectedStudent({
-                                            id: student.id,
-                                            name: student.name,
-                                            courseName: student.courseName
-                                        })}
+                                        onClick={() => {
+                                            const fullProfile = students.find(s => String(s.id || s.studentId) === String(student.id)) || {};
+                                            const sInfo = fullProfile.student || fullProfile;
+                                            setSelectedStudent({
+                                                id: student.id,
+                                                studentId: student.id,
+                                                name: student.name,
+                                                courseName: student.courseName,
+                                                email: sInfo.email || sInfo.studentEmail || sInfo.userEmail,
+                                                phone: sInfo.phone || sInfo.phoneNumber || sInfo.studentPhone || sInfo.mobile,
+                                                enrolledDate: fullProfile.enrolledAt || fullProfile.enrolledDate || fullProfile.createdAt || sInfo.createdAt
+                                            });
+                                        }}
                                         className="cursor-pointer"
                                         style={{ cursor: 'pointer' }}
                                     >
@@ -236,15 +246,26 @@ const AttendanceReport = ({ history = [] }) => {
                                         <td className="fw-semibold text-dark">{record.courseName || record.subject}</td>
                                         <td
                                             className="fw-medium text-primary cursor-pointer text-decoration-underline"
-                                            onClick={() => setSelectedStudent({
-                                                id: record.studentId,
-                                                name: record.studentName,
-                                                courseName: record.courseName
-                                            })}
+                                            onClick={() => {
+                                                const studentId = record.studentId || record.id;
+                                                const fullProfile = students.find(s => String(s.id || s.studentId) === String(studentId)) || {};
+                                                const sInfo = fullProfile.student || fullProfile;
+
+                                                setSelectedStudent({
+                                                    id: studentId,
+                                                    studentId: studentId,
+                                                    name: record.studentName || sInfo.name || sInfo.studentName,
+                                                    courseName: record.courseName || sInfo.courseName,
+                                                    email: sInfo.email || sInfo.studentEmail || sInfo.userEmail,
+                                                    phone: sInfo.phone || sInfo.phoneNumber || sInfo.studentPhone || sInfo.mobile,
+                                                    enrolledDate: fullProfile.enrolledAt || fullProfile.enrolledDate || fullProfile.createdAt || sInfo.createdAt
+                                                });
+                                            }}
                                             style={{ cursor: 'pointer' }}
                                         >
                                             {record.studentName || '—'}
                                         </td>
+
                                         <td>
                                             <StatusBadge status={record.status} />
                                         </td>
@@ -272,15 +293,17 @@ const AttendanceReport = ({ history = [] }) => {
             </div>
 
             {/* Student Profile Modal */}
-            {selectedStudent && (
-                <StudentAttendanceProfile
-                    key={selectedStudent.id}
-                    student={selectedStudent}
-                    studentHistory={history.filter(h => h.studentId === selectedStudent.id)}
-                    onClose={() => setSelectedStudent(null)}
-                />
-            )}
-        </div>
+            {
+                selectedStudent && (
+                    <StudentAttendanceProfile
+                        key={selectedStudent.id}
+                        student={selectedStudent}
+                        studentHistory={history.filter(h => String(h.studentId) === String(selectedStudent.id))}
+                        onClose={() => setSelectedStudent(null)}
+                    />
+                )
+            }
+        </div >
     );
 };
 

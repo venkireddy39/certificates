@@ -1,10 +1,19 @@
 import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { navigationConfig } from '../../config/navigation';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { navigationConfig, studentNavigationConfig } from '../../config/navigation';
+import { useAuth } from '../../pages/Library/context/AuthContext';
 
 const TopNav = () => {
     const location = useLocation();
+    const navigate = useNavigate();
     const [showMobileMenu, setShowMobileMenu] = useState(false);
+    const { user, logout } = useAuth();
+
+    const isStudentPortal = location.pathname.startsWith('/student');
+    const isStudentUser = user?.role === 'STUDENT';
+
+    // Show student nav if inside student portal OR if logged in as a student
+    const currentNavigation = (isStudentPortal || isStudentUser) ? studentNavigationConfig : navigationConfig;
 
     const isActive = (item) => {
         if (item.matchPrefix) {
@@ -19,6 +28,34 @@ const TopNav = () => {
         }
 
         return location.pathname === item.path;
+    };
+
+    const getInitials = () => {
+        if (!user) return 'GU'; // Guest/Unknown
+        if (user.firstName && user.lastName) {
+            return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+        }
+        if (user.name) {
+            const parts = user.name.split(' ');
+            if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+            return user.name.substring(0, 2).toUpperCase();
+        }
+        return user.email ? user.email.substring(0, 2).toUpperCase() : 'US';
+    };
+
+    const getUserName = () => {
+        if (!user) return 'Guest User';
+        return user.name || `${user.firstName} ${user.lastName}` || 'User';
+    };
+
+    const getUserRole = () => {
+        if (!user) return 'Guest';
+        return user.role ? user.role.replace('_', ' ') : 'User';
+    };
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
     };
 
     return (
@@ -45,7 +82,7 @@ const TopNav = () => {
 
                         {/* DESKTOP NAV (Hidden on Mobile) */}
                         <div className="d-none d-md-flex align-items-center gap-1 flex-grow-1 mx-4">
-                            {navigationConfig.map((item) => {
+                            {currentNavigation.map((item) => {
                                 const active = isActive(item);
                                 return (
                                     <NavLink
@@ -75,16 +112,12 @@ const TopNav = () => {
 
                             <div className="d-flex align-items-center gap-2 ps-2 ms-1 border-start">
                                 <div className="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center fw-bold d-none d-sm-flex" style={{ width: '32px', height: '32px', fontSize: '0.85rem' }}>
-                                    AD
+                                    {getInitials()}
                                 </div>
                             </div>
                             <button
                                 className="btn btn-light rounded-circle p-2 text-danger border-0 hover-bg-danger-subtle"
-                                onClick={() => {
-                                    localStorage.removeItem('authToken');
-                                    localStorage.removeItem('auth_user');
-                                    window.location.href = '/login';
-                                }}
+                                onClick={handleLogout}
                                 title="Sign Out"
                             >
                                 <i className="bi bi-box-arrow-right"></i>
@@ -117,7 +150,7 @@ const TopNav = () => {
                         {/* Vertical Nav */}
                         <div className="flex-grow-1 overflow-auto p-3">
                             <div className="d-flex flex-column gap-2">
-                                {navigationConfig.map((item) => {
+                                {currentNavigation.map((item) => {
                                     const active = isActive(item);
                                     return (
                                         <NavLink
@@ -138,11 +171,12 @@ const TopNav = () => {
                         <div className="p-3 border-top bg-light">
                             <div className="d-flex align-items-center gap-3 px-2">
                                 <div className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style={{ width: '40px', height: '40px' }}>
-                                    AD
+                                    {getInitials()}
                                 </div>
                                 <div>
-                                    <div className="fw-bold text-dark small">Admin User</div>
-                                    <div className="text-secondary small">admin@classx360.com</div>
+                                    <div className="fw-bold text-dark small">{getUserName()}</div>
+                                    <div className="text-secondary small">{user?.email || 'No Email'}</div>
+                                    <div className="text-primary x-small fw-bold" style={{ fontSize: '0.7rem' }}>{getUserRole()}</div>
                                 </div>
                             </div>
                         </div>

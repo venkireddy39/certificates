@@ -29,11 +29,8 @@ export const sessionService = {
             console.log(`[sessionService] Received ${data?.length || 0} sessions from API`);
             return Array.isArray(data) ? data : [];
         } catch (e) {
-            console.warn(`[sessionService] API fetch failed for batch ${batchId}, falling back to local storage`, e);
-            const sessions = getStorage(STORAGE_KEYS.SESSIONS);
-            const filtered = sessions.filter(s => String(s.batchId) === String(batchId));
-            console.log(`[sessionService] Found ${filtered.length} sessions in local storage`);
-            return filtered;
+            console.warn(`[sessionService] API fetch failed for batch ${batchId}`, e);
+            return [];
         }
     },
 

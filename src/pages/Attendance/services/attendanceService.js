@@ -41,6 +41,7 @@ export const attendanceService = {
         try {
             const apiSessions = await apiFetch(url);
             const combined = Array.isArray(apiSessions) ? apiSessions : [];
+            console.log("[attendanceService] getSessions RAW:", combined);
 
             if (combined.length > 0) {
                 console.log("[attendanceService] getSessions SAMPLE:", combined[0]);
@@ -50,9 +51,28 @@ export const attendanceService = {
             const mapped = combined.map(s => {
                 // Robust mapping to find the Academic Session ID
                 const acadId = s.classId || s.sessionId || s.session_id || s.academicSessionId || s.academic_session_id || s?.session?.id;
+
+                // Robust title finding
+                const title = s.title || s.sessionName || s.name || s.topic ||
+                    s?.session?.title || s?.session?.sessionName || s?.session?.name ||
+                    `Session #${acadId}`;
+
+                // Robust batch/course ID finding
+                const recBatchId = s.batchId || s.batch_id || s?.batch?.batchId || s?.batch?.id || s?.session?.batchId;
+                const recCourseId = s.courseId || s.course_id || s?.course?.courseId || s?.course?.id || s?.session?.courseId;
+
+                // Robust Name Finding
+                const recBatchName = s.batchName || s.batch_name || s?.batch?.batchName || s?.batch?.name || s?.session?.batchName;
+                const recCourseName = s.courseName || s.course_name || s?.course?.courseName || s?.course?.name || s?.session?.courseName;
+
                 return {
                     ...s,
-                    classId: acadId
+                    classId: acadId,
+                    title: title,
+                    batchId: recBatchId || s.batchId,
+                    courseId: recCourseId || s.courseId,
+                    batchName: recBatchName || s.batchName,
+                    courseName: recCourseName || s.courseName
                 };
             });
 
@@ -78,10 +98,27 @@ export const attendanceService = {
 
     // Start a new attendance session
     // classId: LMS Academic Session ID (Backend expects this as 'sessionId' param)
-    startSession: (classId, courseId, batchId, userId) => {
-        console.log(`[attendanceService] startSession payload: classId=${classId}, courseId=${courseId}, batchId=${batchId}`);
+    startSession: async (classId, courseId, batchId, userId) => {
+        console.log(`[attendanceService] Checking existing sessions before start...`);
+
+        // 1. Check if session already exists for this class
+        try {
+            const existingSessions = await attendanceService.getAttendanceSessionsByClassId(classId);
+            if (Array.isArray(existingSessions) && existingSessions.length > 0) {
+                // Find any ACTIVE session logic
+                const active = existingSessions.find(s => (s.status === 'ACTIVE' || s.status === 'LIVE'));
+                if (active) {
+                    console.log(`[attendanceService] Found existing active session ${active.id}, re-using.`);
+                    return active; // Return existing instead of getting 409 or duplicate
+                }
+            }
+        } catch (e) {
+            console.warn("[attendanceService] Check existing failed, trying to start anyway", e);
+        }
+
+        console.log(`[attendanceService] Starting NEW session: classId=${classId}`);
         const params = new URLSearchParams({
-            sessionId: Number(classId), // BACKEND MAP: classId -> sessionId
+            sessionId: Number(classId),
             courseId: Number(courseId),
             batchId: Number(batchId),
             userId: Number(userId || 1)
@@ -99,6 +136,14 @@ export const attendanceService = {
         });
     },
 
+    // Delete an attendance session (CLEANUP)
+    deleteSession: (attendanceSessionId) => {
+        console.log(`[attendanceService] Deleting session: ${attendanceSessionId}`);
+        return apiFetch(`${API_BASE_URL}/attendance/session/${Number(attendanceSessionId)}`, {
+            method: 'DELETE'
+        });
+    },
+
     // ------------------------------------------
     // ATTENDANCE RECORD CONTROLLER
     // ------------------------------------------
@@ -111,7 +156,7 @@ export const attendanceService = {
     saveAttendance: async (attendanceSessionId, records) => {
         if (!records || records.length === 0) return null;
 
-        // Deduplicate records by studentId to prevent sending duplicates
+        // Deduplicate input records by studentId to prevent sending duplicates in payload
         const uniqueMap = new Map();
         records.forEach(r => {
             if (r.studentId) {
@@ -119,43 +164,89 @@ export const attendanceService = {
             }
         });
 
-        const payload = Array.from(uniqueMap.values()).map(r => {
-            const studentId = r.studentId || 0;
+        // 1. Fetch EXISTING records for this session to get their IDs
+        // This prevents creating duplicate rows if we are updating
+        let existingRecords = [];
+        try {
+            existingRecords = await attendanceService.getAttendance(attendanceSessionId);
+            if (!Array.isArray(existingRecords)) existingRecords = [];
+        } catch (e) {
+            console.warn("Could not fetch existing records for merge, proceeding blindly", e);
+        }
+
+        const existingMap = new Map();
+        existingRecords.forEach(e => existingMap.set(Number(e.studentId), e.id));
+
+        const toCreate = [];
+        const toUpdate = [];
+
+        Array.from(uniqueMap.values()).forEach(r => {
+            const studentId = Number(r.studentId || 0);
+
+            // Resolve ID: Use passed ID, or look up from existing db records
+            const existingId = r.id || existingMap.get(studentId);
 
             const record = {
                 // Link to the attendance record primary key if updating
-                id: r.id ? Number(r.id) : null,
+                id: existingId ? Number(existingId) : null,
                 // Link to the attendance session ID (Long in Java)
                 attendanceSessionId: Number(attendanceSessionId),
                 // Links to student_id (Long in Java)
-                studentId: Number(studentId),
-                // PRESENT / ABSENT / LATE / EXCUSED (String in Java)
+                studentId: studentId,
+                // STATUS
                 status: (r.status || 'PRESENT').toUpperCase(),
-                // Optional remarks (String in Java)
+                // REMARKS
                 remarks: r.remarks || "",
-                // MANUAL / CSV / QR (String in Java)
+                // SOURCE
                 source: (r.source || r.mode || 'ONLINE').toUpperCase(),
-                // Date in YYYY-MM-DD (LocalDate in Java)
+                // DATE
                 attendanceDate: r.attendanceDate || new Date().toISOString().split('T')[0],
-                // Admin ID (Long in Java)
                 markedBy: 1
             };
 
-            // Remove ID if null to avoid JPA errors
-            if (!record.id) delete record.id;
-
-            return record;
+            if (existingId) {
+                toUpdate.push(record);
+            } else {
+                record.id = null; // Send explicit null for new records, don't delete key
+                toCreate.push(record);
+            }
         });
 
-        console.log("[attendanceService] saveAttendance (Online/Bulk) payload:", payload);
+        if (Number.isNaN(Number(attendanceSessionId)) || Number(attendanceSessionId) <= 0) {
+            console.error("Invalid Attendance Session ID for Save:", attendanceSessionId);
+            throw new Error("Invalid Session ID");
+        }
+
+        console.log(`[attendanceService] Splitting save: ${toCreate.length} create, ${toUpdate.length} update`);
 
         try {
-            const response = await apiFetch(`${API_BASE_URL}/attendance/record/bulk`, {
-                method: 'POST',
-                body: JSON.stringify(payload)
+            const promises = [];
+
+            // 1. Bulk Create New Records
+            if (toCreate.length > 0) {
+                promises.push(
+                    apiFetch(`${API_BASE_URL}/attendance/record/bulk`, {
+                        method: 'POST',
+                        body: JSON.stringify(toCreate)
+                    })
+                );
+            }
+
+            // 2. Individual Update Existing Records (Backend likely lacks bulk update)
+            // Or if backend supports bulk update via PUT, we could use that. 
+            // Assuming we must iterate or use a flexible endpoint.
+            // Let's try iterating updates for safety to avoid 500s.
+            toUpdate.forEach(rec => {
+                promises.push(
+                    apiFetch(`${API_BASE_URL}/attendance/record/${rec.id}`, { // Assuming generic update endpoint
+                        method: 'PUT',
+                        body: JSON.stringify(rec)
+                    }).catch(e => console.error(`Failed to update record ${rec.id}`, e))
+                );
             });
-            console.log("[attendanceService] saveAttendance response received:", response);
-            return response;
+
+            await Promise.all(promises);
+            return { success: true };
         } catch (error) {
             console.error("[attendanceService] saveAttendance error details:", error);
             throw error;
@@ -256,7 +347,47 @@ export const attendanceService = {
         apiFetch(`${API_BASE_URL}/attendance/config/${Number(configId)}`, {
             method: 'PUT',
             body: JSON.stringify(config)
-        })
+        }),
+
+    // ------------------------------------------
+    // CSV UPLOAD JOB
+    // ------------------------------------------
+
+    // Upload CSV file and create a job
+    uploadCsvJob: (courseId, batchId, sessionId, attendanceDate, uploadedBy, file) => {
+        const formData = new FormData();
+        formData.append('courseId', courseId);
+        formData.append('batchId', batchId);
+        if (sessionId) formData.append('sessionId', sessionId);
+        formData.append('attendanceDate', attendanceDate);
+        formData.append('uploadedBy', uploadedBy);
+        formData.append('file', file);
+
+        return apiFetch(`${API_BASE_URL}/attendance/upload-job/upload`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                "Content-Type": null
+            }
+        });
+    },
+
+    // Process a specific upload job
+    processCsvJob: (uploadJobId) => {
+        return apiFetch(`${API_BASE_URL}/attendance/upload-job/${uploadJobId}/process`, {
+            method: 'POST'
+        });
+    },
+
+    // Get all upload jobs for a batch
+    getUploadJobsByBatch: (batchId) => {
+        return apiFetch(`${API_BASE_URL}/attendance/upload-job/batch/${batchId}`);
+    },
+
+    // Get upload job status (assuming GET /id exists)
+    getUploadJobStatus: (uploadJobId) => {
+        return apiFetch(`${API_BASE_URL}/attendance/upload-job/${uploadJobId}`);
+    }
 };
 
 export default attendanceService;
