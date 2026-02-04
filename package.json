@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node generate_token.js && vite",
+    "dev": "vite",
     "generate-token": "node generate_token.cjs",
     "build": "vite build",
     "lint": "eslint .",

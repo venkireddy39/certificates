@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Library/context/AuthContext';
+import { useToast } from '../Library/context/ToastContext';
 import { studentService } from '../../services/studentService';
 import {
     StatCard,
@@ -13,79 +14,73 @@ import {
     BookOpen,
     Users,
     Calendar,
-    Book,
-    Play,
-    Upload,
     Video,
     BarChart2,
-    Bell,
-    Search,
-    FileText
+    Bus,
+    Home,
+    MessageCircle
 } from 'lucide-react';
+
 import './StudentDashboard.css';
 
 const StudentDashboard = () => {
     const { user } = useAuth();
+    const toast = useToast();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
+
+    const handleFakeAction = (action) => {
+        toast.info(`${action} feature coming soon!`);
+    };
 
     const [dashboardData, setDashboardData] = useState({
         courses: [],
         batches: [],
         attendance: [],
-        books: [],
-        assignments: [],
         stats: {
             coursesCount: 0,
             batchesCount: 0,
-            attendancePct: 0,
-            booksCount: 0,
-            assignmentsCount: 0
+            attendancePct: 0
         }
     });
 
     useEffect(() => {
-        const loadDashboardData = async () => {
+        const fetchAllData = async () => {
             setLoading(true);
             try {
-                const [myCourses, myBatches, myAttendance, myBooks, myAssignments] = await Promise.all([
-                    studentService.getMyCourses(),
-                    studentService.getMyBatches(),
-                    studentService.getMyAttendance(),
-                    studentService.getMyLibraryBooks(),
-                    studentService.getAssignments()
+                const [myCourses, myBatches, myAttendance] = await Promise.all([
+                    studentService.getMyCourses() || [],
+                    studentService.getMyBatches() || [],
+                    studentService.getMyAttendance() || []
                 ]);
 
                 // Calculate Attendance %
-                const totalAtt = Array.isArray(myAttendance) ? myAttendance.length : 0;
-                const present = Array.isArray(myAttendance) ? myAttendance.filter(a => a.status === 'Present').length : 0;
+                const attArray = Array.isArray(myAttendance) ? myAttendance : [];
+                const totalAtt = attArray.length;
+                const present = attArray.filter(a => (a.status || '').toLowerCase() === 'present').length;
                 const attPercent = totalAtt > 0 ? Math.round((present / totalAtt) * 100) : 0;
 
                 setDashboardData({
                     courses: Array.isArray(myCourses) ? myCourses : [],
                     batches: Array.isArray(myBatches) ? myBatches : [],
-                    attendance: Array.isArray(myAttendance) ? myAttendance : [],
-                    books: Array.isArray(myBooks) ? myBooks : [],
-                    assignments: Array.isArray(myAssignments) ? myAssignments : [],
+                    attendance: attArray,
                     stats: {
                         coursesCount: Array.isArray(myCourses) ? myCourses.length : 0,
                         batchesCount: Array.isArray(myBatches) ? myBatches.length : 0,
-                        attendancePct: attPercent,
-                        booksCount: Array.isArray(myBooks) ? myBooks.length : 0,
-                        assignmentsCount: Array.isArray(myAssignments) ? myAssignments.length : 0
+                        attendancePct: attPercent
                     }
                 });
             } catch (e) {
-                console.error("Failed to load dashboard data", e);
+                console.error("Dashboard Load Error:", e);
             } finally {
                 setLoading(false);
             }
         };
 
-        loadDashboardData();
+        fetchAllData();
     }, []);
 
-    // Learner profile derived from real user data
+    // Derived State
     const learnerProfile = {
         level: user?.level || "Learner",
         xp: user?.xp || 0,
@@ -97,22 +92,12 @@ const StudentDashboard = () => {
         ]
     };
 
-    // Simplified schedule from batches if available
-    const [scheduleItems, setScheduleItems] = useState([
-        { time: "09:00 AM", title: "Upcoming Session", type: "Live Class", instructor: "Loading..." },
-    ]);
-
-    useEffect(() => {
-        if (dashboardData.batches.length > 0) {
-            const batchItems = dashboardData.batches.slice(0, 3).map((batch, i) => ({
-                time: i === 0 ? "09:00 AM" : (i === 1 ? "11:30 AM" : "02:00 PM"),
-                title: batch.batchName || batch.name,
-                type: "Batch Session",
-                instructor: batch.instructorName || "Faculty"
-            }));
-            setScheduleItems(batchItems);
-        }
-    }, [dashboardData.batches]);
+    const scheduleItems = (dashboardData.batches || []).slice(0, 3).map((batch, i) => ({
+        time: i === 0 ? "09:00 AM" : (i === 1 ? "11:30 AM" : "02:00 PM"),
+        title: batch.batchName || batch.name || "Scheduled Session",
+        type: "Batch Session",
+        instructor: batch.instructorName || "Faculty"
+    }));
 
     if (loading) {
         return (
@@ -127,45 +112,27 @@ const StudentDashboard = () => {
     return (
         <div className="student-dashboard container-fluid px-0">
             {/* Header */}
-            <div className="row mb-4 align-items-center">
-                <div className="col">
-                    <h2 className="fw-bold mb-1">Welcome back, {user?.name?.split(' ')[0] || 'Learner'}! 👋</h2>
-                    <p className="text-secondary mb-0">You have {dashboardData.stats.coursesCount} active courses and {dashboardData.stats.assignmentsCount} pending assignments.</p>
-                </div>
-                <div className="col-auto d-none d-md-flex gap-2">
-                    <button className="btn btn-outline-secondary btn-sm rounded-circle p-2">
-                        <Search size={18} />
-                    </button>
-                    <button className="btn btn-outline-secondary btn-sm rounded-circle p-2 position-relative">
-                        <Bell size={18} />
-                        <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '8px', padding: '3px 5px' }}>
-                            2
-                        </span>
-                    </button>
-                </div>
+            <div className="mb-4">
+                <h3 className="fw-bold">Dashboard</h3>
+                <p className="text-secondary small">Overview of your courses and schedule</p>
             </div>
 
             {/* Stats Row */}
             <div className="row g-4 mb-5">
-                <div className="col-12 col-sm-6 col-xl-3">
+                <div className="col-12 col-md-4">
                     <StatCard label="My Courses" value={dashboardData.stats.coursesCount} icon={BookOpen} color="99, 102, 241" delay={0.1} />
                 </div>
-                <div className="col-12 col-sm-6 col-xl-3">
+                <div className="col-12 col-md-4">
                     <StatCard label="Active Batches" value={dashboardData.stats.batchesCount} icon={Users} color="168, 85, 247" delay={0.2} />
                 </div>
-                <div className="col-12 col-sm-6 col-xl-3">
+                <div className="col-12 col-md-4">
                     <StatCard label="Attendance" value={`${dashboardData.stats.attendancePct}%`} icon={Calendar} color="16, 185, 129" delay={0.3} />
-                </div>
-                <div className="col-12 col-sm-6 col-xl-3">
-                    <StatCard label="Library Books" value={dashboardData.stats.booksCount} icon={Book} color="245, 158, 11" delay={0.4} />
                 </div>
             </div>
 
             <div className="row g-5">
                 {/* Main Content Area */}
                 <div className="col-12 col-lg-8">
-
-                    {/* Courses Section */}
                     <section className="mb-5">
                         <div className="d-flex justify-content-between align-items-center mb-4">
                             <h4 className="fw-bold m-0">Continue Learning</h4>
@@ -176,14 +143,14 @@ const StudentDashboard = () => {
                         <div className="row g-4">
                             {dashboardData.courses.length > 0 ? (
                                 dashboardData.courses.slice(0, 2).map((course, idx) => (
-                                    <div className="col-12 col-md-6" key={course.id || idx}>
+                                    <div className="col-12 col-md-6" key={course.courseId || idx}>
                                         <CourseCard
                                             course={{
                                                 ...course,
-                                                progress: course.progress || 75,
+                                                progress: course.progress || 0,
                                                 priority: idx === 0 ? 'High' : 'Medium'
                                             }}
-                                            onNavigate={(id) => navigate(`/student/courses`)}
+                                            onNavigate={() => navigate(`/student/courses`)}
                                         />
                                     </div>
                                 ))
@@ -192,14 +159,13 @@ const StudentDashboard = () => {
                                     <div className="glass-card p-5 text-center text-secondary">
                                         <BookOpen size={48} className="mb-3 opacity-25" />
                                         <h5>No courses enrolled yet</h5>
-                                        <button className="btn btn-primary mt-3 px-4">Browse Catalog</button>
+                                        <button className="btn btn-primary mt-3 px-4" onClick={() => navigate('/student/courses')}>Browse Catalog</button>
                                     </div>
                                 </div>
                             )}
                         </div>
                     </section>
 
-                    {/* Today's Schedule timeline */}
                     <section>
                         <div className="d-flex justify-content-between align-items-center mb-4">
                             <h4 className="fw-bold m-0">Today's Schedule</h4>
@@ -207,65 +173,49 @@ const StudentDashboard = () => {
                                 {scheduleItems.length} Sessions
                             </span>
                         </div>
-                        <ActivityTimeline items={scheduleItems} />
+                        <ActivityTimeline items={scheduleItems.length > 0 ? scheduleItems : [
+                            { time: "TBD", title: "No classes scheduled", type: "Stay tuned", instructor: "-" }
+                        ]} />
                     </section>
-
                 </div>
 
                 {/* Sidebar area */}
                 <div className="col-12 col-lg-4">
-
-                    {/* Gamification Widget */}
                     <section className="mb-5">
                         <XpWidget user={learnerProfile} />
                     </section>
 
-                    {/* Quick Actions */}
                     <section className="mb-5">
                         <h5 className="fw-bold mb-4">Quick Actions</h5>
                         <div className="row g-3">
                             <div className="col-6">
-                                <QuickAction icon={Video} label="Join Class" color="239, 68, 68" onClick={() => { }} />
+                                <QuickAction icon={Video} label="Join Class" color="239, 68, 68" onClick={() => handleFakeAction('Join Class')} />
                             </div>
                             <div className="col-6">
-                                <QuickAction icon={Upload} label="Submit" color="168, 85, 247" onClick={() => { }} />
+                                <QuickAction icon={Calendar} label="Attendance" color="16, 185, 129" onClick={() => navigate('/student/attendance')} />
                             </div>
                             <div className="col-6">
-                                <QuickAction icon={FileText} label="Assignments" color="16, 185, 129" onClick={() => navigate('/student/courses')} />
+                                <QuickAction icon={MessageCircle} label="Messages" color="139, 92, 246" onClick={() => navigate('/student/communication')} />
                             </div>
                             <div className="col-6">
-                                <QuickAction icon={BarChart2} label="Reports" color="59, 130, 246" onClick={() => navigate('/student/attendance')} />
+                                <QuickAction icon={BarChart2} label="Reports" color="59, 130, 246" onClick={() => navigate('/student/reports')} />
                             </div>
+                            <div className="col-6">
+                                <QuickAction icon={BookOpen} label="Library" color="99, 102, 241" onClick={() => navigate('/student/library')} />
+                            </div>
+                            <div className="col-6">
+                                <QuickAction icon={Bus} label="Transport" color="245, 158, 11" onClick={() => navigate('/student/transport')} />
+                            </div>
+                            <div className="col-6">
+                                <QuickAction icon={Home} label="Hostel" color="14, 165, 233" onClick={() => navigate('/student/hostel')} />
+                            </div>
+
                         </div>
                     </section>
 
-                    {/* Upcoming Deadlines */}
-                    <section>
-                        <h5 className="fw-bold mb-4">Deadlines</h5>
-                        <div className="d-flex flex-column gap-3">
-                            {dashboardData.assignments.length > 0 ? (
-                                dashboardData.assignments.slice(0, 3).map((asgn, idx) => (
-                                    <div key={asgn.id || idx} className={`glass-card p-3 ${idx === 0 ? 'border-danger border-opacity-25' : ''}`}>
-                                        <div className="d-flex justify-content-between align-items-center mb-2">
-                                            <span className={`badge ${idx === 0 ? 'bg-danger' : 'bg-primary'} bg-opacity-10 text-${idx === 0 ? 'danger' : 'primary'} small`}>
-                                                {idx === 0 ? 'URGENT' : 'UPCOMING'}
-                                            </span>
-                                            <span className="text-secondary small">{asgn.dueDate || 'Soon'}</span>
-                                        </div>
-                                        <h6 className="fw-bold mb-2 text-white">{asgn.title || asgn.name}</h6>
-                                        <button className="btn btn-sm w-100 btn-light bg-white bg-opacity-10 text-white border-white border-opacity-10">
-                                            {idx === 0 ? 'Prepare Now' : 'Submit Now'}
-                                        </button>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="glass-card p-4 text-center text-secondary small">
-                                    No upcoming deadlines
-                                </div>
-                            )}
-                        </div>
-                    </section>
-
+                    <div className="glass-card p-4 text-center text-secondary small">
+                        Join your scheduled sessions or check your courses for updates.
+                    </div>
                 </div>
             </div>
         </div>
@@ -273,4 +223,3 @@ const StudentDashboard = () => {
 };
 
 export default StudentDashboard;
-

@@ -7,7 +7,7 @@ const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const { login, devLogin } = useAuth();
+    const { login } = useAuth();
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
 
@@ -18,44 +18,23 @@ const LoginPage = () => {
 
         try {
             const user = await login(email, password);
-            if (user.role === 'STUDENT') {
+            const userRole = user.role?.toUpperCase();
+
+            // Direct mapping of roles to dashboards
+            if (userRole === 'STUDENT') {
                 navigate('/student/dashboard');
-            } else if (user.role === 'LIBRARIAN') {
-                navigate('/library');
-            } else if (user.role === 'MARKETING_MANAGER') {
-                navigate('/marketing');
+            } else if (userRole === 'LIBRARIAN') {
+                navigate('/admin/library');
+            } else if (userRole === 'MARKETING_MANAGER') {
+                navigate('/admin/marketing');
+            } else if (userRole === 'ADMIN' || userRole === 'INSTRUCTOR') {
+                navigate('/admin/dashboard');
             } else {
-                navigate('/dashboard');
+                navigate('/admin/dashboard'); // Default
             }
         } catch (err) {
             console.error(err);
-            // Use the specific error message if it's not too long/messy
-            const msg = err.message || 'Invalid credentials or server error';
-            setError(msg.length < 100 ? msg : 'Invalid credentials or server error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleDevLogin = async (role = 'ADMIN') => {
-        setError('');
-        setIsLoading(true);
-        try {
-            console.log(`Initiating Quick Dev Login for ${role}...`);
-            devLogin(role);
-            // Small delay to ensure state propagates before navigation
-            setTimeout(() => {
-                if (role === 'STUDENT') {
-                    console.log("Navigating to Student Dashboard...");
-                    navigate('/student/dashboard');
-                } else {
-                    console.log("Navigating to Admin Dashboard...");
-                    navigate('/dashboard');
-                }
-            }, 100);
-        } catch (err) {
-            console.error(err);
-            setError('Dev Login failed');
+            setError(err.message || 'Invalid credentials or server error');
         } finally {
             setIsLoading(false);
         }
@@ -66,7 +45,7 @@ const LoginPage = () => {
             <div className="card shadow p-4" style={{ maxWidth: '400px', width: '100%' }}>
                 <div className="text-center mb-4">
                     <h3 className="mb-1">LMS Portal Login</h3>
-                    <small className="text-muted">Enter credentials to access your account</small>
+                    <small className="text-muted">Enter your institutional credentials</small>
                 </div>
 
                 {error && <div className="alert alert-danger py-2 small">{error}</div>}
@@ -80,7 +59,7 @@ const LoginPage = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
-                            placeholder="admin@gmail.com / student@gmail.com"
+                            placeholder="your@email.com"
                         />
                     </div>
 
@@ -98,18 +77,30 @@ const LoginPage = () => {
 
                     <button
                         type="submit"
-                        className="btn btn-primary w-100 mb-3"
+                        className="btn btn-primary w-100 mb-4"
                         disabled={isLoading}
                     >
                         {isLoading ? 'Signing In...' : 'Sign In'}
                     </button>
-
-                    <div className="text-center">
-                        <div className="alert alert-light py-1 px-2 small mb-0 text-muted" style={{ fontSize: '0.75rem' }}>
-                            Test Creds: admin@gmail.com / student@gmail.com
-                        </div>
-                    </div>
                 </form>
+
+                <div className="demo-login-section mt-2 pt-3 border-top">
+                    <p className="text-center x-small text-secondary mb-3">Demo Accounts</p>
+                    <div className="d-grid gap-2">
+                        <button
+                            className="btn btn-outline-dark btn-sm"
+                            onClick={() => { setEmail('admin@gmail.com'); setPassword('123456'); }}
+                        >
+                            Log in as Admin
+                        </button>
+                        <button
+                            className="btn btn-outline-primary btn-sm"
+                            onClick={() => { setEmail('student@gmail.com'); setPassword('123456'); }}
+                        >
+                            Log in as Student
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );

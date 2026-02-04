@@ -249,7 +249,7 @@ const Batches = () => {
                             onEdit={openModal}
                             onDelete={handleDelete}
                             onManageContent={(id) =>
-                                navigate(`/batches/builder/${id}`)
+                                navigate(`/admin/batches/builder/${id}`)
                             }
                         />
                     ))}

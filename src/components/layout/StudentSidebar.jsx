@@ -8,46 +8,57 @@ import {
     ClipboardList,
     Edit3,
     BarChart3,
+    BarChart2,
     Calendar,
     MessageCircle,
     User,
     Award,
+    Bus,
+    Home,
     LifeBuoy,
-    LogOut
+    Video
 } from 'lucide-react';
-import { useAuth } from '../../pages/Library/context/AuthContext';
+import { useToast } from '../../pages/Library/context/ToastContext';
 import './StudentSidebar.css';
 
-const StudentSidebar = () => {
-    const { logout } = useAuth();
+const StudentSidebar = ({ isCollapsed }) => {
     const navigate = useNavigate();
+    const toast = useToast();
 
     const menuItems = [
-        { id: 'dashboard', label: 'Dashboard', path: '/student/dashboard', icon: LayoutGrid },
-        { id: 'courses', label: 'My Courses', path: '/student/courses', icon: BookOpen },
-        { id: 'content', label: 'Learning Content', path: '/student/content', icon: PlayCircle },
-        { id: 'assignments', label: 'Assignments', path: '/student/assignments', icon: ClipboardList },
-        { id: 'exams', label: 'Exams', path: '/student/exams', icon: Edit3 },
-        { id: 'grades', label: 'Grades', path: '/student/grades', icon: BarChart3 },
-        { id: 'calendar', label: 'Calendar', path: '/student/calendar', icon: Calendar },
-        { id: 'communication', label: 'Communication', path: '/student/communication', icon: MessageCircle },
-        { id: 'profile', label: 'Profile', path: '/student/profile', icon: User },
-        { id: 'certificates', label: 'Certificates', path: '/student/certificates', icon: Award },
-        { id: 'support', label: 'Support', path: '/student/support', icon: LifeBuoy },
+        { id: 'dashboard', label: 'Dashboard', path: '/student/dashboard', icon: LayoutGrid, isMock: false },
+        { id: 'courses', label: 'My Courses', path: '/student/courses', icon: BookOpen, isMock: false },
+        { id: 'content', label: 'Learning Content', path: '/student/content', icon: PlayCircle, isMock: false },
+        { id: 'assignments', label: 'Assignments', path: '/student/assignments', icon: ClipboardList, isMock: false },
+        { id: 'exams', label: 'Exams', path: '/student/exams', icon: Edit3, isMock: false },
+        { id: 'grades', label: 'Grades', path: '/student/grades', icon: BarChart3, isMock: false },
+        { id: 'reports', label: 'Reports', path: '/student/reports', icon: BarChart2, isMock: false },
+        { id: 'calendar', label: 'Calendar', path: '/student/calendar', icon: Calendar, isMock: false },
+        { id: 'webinars', label: 'Webinars', path: '/student/webinars', icon: Video, isMock: false },
+        { id: 'transport', label: 'Transport', path: '/student/transport', icon: Bus, isMock: false },
+        { id: 'hostel', label: 'My Hostel', path: '/student/hostel', icon: Home, isMock: false },
+        { id: 'communication', label: 'Communication', path: '/student/communication', icon: MessageCircle, isMock: false },
+        { id: 'profile', label: 'Profile', path: '/student/profile', icon: User, isMock: false },
+        { id: 'attendance', label: 'Attendance', path: '/student/attendance', icon: Calendar, isMock: false },
+        { id: 'library', label: 'Campus Library', path: '/student/library', icon: BookOpen, isMock: false },
+        { id: 'certificates', label: 'Certificates', path: '/student/certificates', icon: Award, isMock: false },
+        { id: 'support', label: 'Help Desk', path: '/student/support', icon: LifeBuoy, isMock: false },
     ];
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
+    const handleItemClick = (e, item) => {
+        if (item.isMock) {
+            e.preventDefault();
+            toast.info(`${item.label} feature is coming soon!`);
+        }
     };
 
     return (
-        <aside className="student-sidebar">
+        <aside className={`student-sidebar ${isCollapsed ? 'is-collapsed' : ''}`}>
             <div className="student-sidebar-brand">
-                <div className="bg-primary rounded-3 p-1 d-flex align-items-center justify-content-center">
+                <div className="brand-logo bg-primary rounded-3 p-1 d-flex align-items-center justify-content-center">
                     <PlayCircle size={28} className="text-white" />
                 </div>
-                <h3>LMS Student</h3>
+                {!isCollapsed && <h3>LMS Student</h3>}
             </div>
 
             <nav className="student-sidebar-nav">
@@ -55,20 +66,23 @@ const StudentSidebar = () => {
                     <NavLink
                         key={item.id}
                         to={item.path}
+                        onClick={(e) => handleItemClick(e, item)}
                         className={({ isActive }) => `student-nav-item ${isActive ? 'active' : ''}`}
+                        title={isCollapsed ? item.label : ''}
                     >
-                        <item.icon size={20} />
-                        <span>{item.label}</span>
+                        <item.icon size={20} className="nav-icon" />
+                        {!isCollapsed && <span>{item.label}</span>}
                     </NavLink>
                 ))}
             </nav>
 
-            <div className="student-sidebar-footer">
-                <button className="student-logout-btn" onClick={handleLogout}>
-                    <LogOut size={20} />
-                    <span>Logout</span>
-                </button>
-            </div>
+            {!isCollapsed && (
+                <div className="student-sidebar-footer">
+                    <div className="glass-card p-3 text-center text-secondary x-small">
+                        Academic Year 2024-25
+                    </div>
+                </div>
+            )}
         </aside>
     );
 };

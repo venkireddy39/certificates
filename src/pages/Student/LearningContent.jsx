@@ -1,6 +1,6 @@
 /* src/pages/Student/LearningContent.jsx */
-import React, { useState, useEffect } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { studentService } from '../../services/studentService';
 import {
     Play,
@@ -13,27 +13,34 @@ import {
     Settings,
     MessageSquare,
     FileText,
-    Download
+    Download,
+    Video,
+    ExternalLink,
+    ChevronLeft,
+    RotateCcw,
+    FastForward,
+    Info,
+    Calendar,
+    Target
 } from 'lucide-react';
 import './LearningContent.css';
 
 const LearningContent = () => {
     const { id } = useParams();
-    const location = useLocation();
+    const navigate = useNavigate();
 
     const [loading, setLoading] = useState(true);
     const [courseInfo, setCourseInfo] = useState(null);
     const [lessons, setLessons] = useState([]);
     const [activeLesson, setActiveLesson] = useState(0);
-    const [activeTab, setActiveTab] = useState('Discussion');
+    const [activeTab, setActiveTab] = useState('Overview');
+    const [note, setNote] = useState('');
 
     useEffect(() => {
         const fetchContent = async () => {
             setLoading(true);
             try {
                 let courseId = id;
-
-                // If no ID in URL, try to get first course
                 if (!courseId) {
                     const courses = await studentService.getMyCourses();
                     if (courses && courses.length > 0) {
@@ -58,11 +65,18 @@ const LearningContent = () => {
         fetchContent();
     }, [id]);
 
-    const courseProgress = courseInfo?.progress || 0;
+    const currentLesson = lessons[activeLesson] || {
+        contentTitle: "Introduction to the Course",
+        duration: "10:30",
+        type: "video",
+        thumbnail: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=1470&auto=format&fit=crop"
+    };
+
+    const courseProgress = courseInfo?.progress || 12;
 
     if (loading) {
         return (
-            <div className="d-flex justify-content-center align-items-center" style={{ height: '70vh' }}>
+            <div className="d-flex justify-content-center align-items-center bg-dark" style={{ height: '70vh' }}>
                 <div className="spinner-border text-primary" role="status">
                     <span className="visually-hidden">Loading...</span>
                 </div>
@@ -70,86 +84,81 @@ const LearningContent = () => {
         );
     }
 
-    if (!courseInfo && !loading) {
-        return (
-            <div className="glass-card p-5 text-center text-white">
-                <FileText size={48} className="mb-3 opacity-25" />
-                <h3>No Content Available</h3>
-                <p className="text-secondary">We couldn't find any content for this course yet.</p>
-            </div>
-        );
-    }
-
-    const currentLesson = lessons[activeLesson] || { title: "Selecting Lesson...", duration: "00:00" };
-
     return (
         <div className="learning-content-page">
-            {/* TOP HEADER */}
             <header className="content-header-dark">
-                <div className="breadcrumb-dark">
-                    {courseInfo?.courseName || courseInfo?.title || 'Course'} <span>/</span> {currentLesson.moduleName || 'Module 1'}
-                </div>
-                <div className="lesson-title-area">
-                    <h2>{currentLesson.contentTitle || currentLesson.title}</h2>
+                <div className="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div className="breadcrumb-dark">
+                            <ChevronLeft size={14} className="me-1" />
+                            {courseInfo?.courseName || 'UI/UX Masterclass'} / Module 1
+                        </div>
+                        <div className="lesson-title-area">
+                            <h2>{currentLesson.contentTitle || currentLesson.title}</h2>
+                        </div>
+                    </div>
                     <div className="d-flex gap-3">
-                        <button className="btn btn-outline-light btn-sm d-flex align-items-center gap-2 rounded-pill px-3">
-                            <Share2 size={14} /> Share
+                        <button className="btn btn-outline-light btn-sm rounded-pill px-3">
+                            <Share2 size={16} className="me-2" /> Share
                         </button>
                         <button
-                            className="btn btn-primary btn-sm d-flex align-items-center gap-2 rounded-pill px-4"
+                            className="btn btn-primary btn-sm rounded-pill px-4 fw-bold"
                             onClick={() => setActiveLesson(prev => Math.min(lessons.length - 1, prev + 1))}
                         >
-                            Next Lesson <ChevronRight size={14} />
+                            Next Module <ChevronRight size={16} className="ms-1" />
                         </button>
                     </div>
                 </div>
             </header>
 
             <div className="content-main-layout">
-                {/* VIDEO & DETAIL AREA */}
+                {/* Main Player Section */}
                 <div className="video-player-section">
                     <div className="video-container-premium">
-                        {currentLesson.fileUrl ? (
-                            <img
-                                src={currentLesson.thumbnail || "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=1200"}
-                                className="video-preview-img"
-                                alt="Lesson Preview"
-                            />
-                        ) : (
-                            <div className="d-flex flex-column align-items-center justify-content-center h-100 text-secondary">
-                                <Play size={64} className="mb-3 opacity-10" />
-                                <span>No Video Content</span>
-                            </div>
-                        )}
+                        <img
+                            src={currentLesson.thumbnail || "https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1472&auto=format&fit=crop"}
+                            className="video-preview-img"
+                            alt="Lesson Preview"
+                        />
 
-                        <div className="custom-video-controls">
-                            <div className="video-progress-bar">
-                                <div className="video-progress-fill" style={{ width: '0%' }}></div>
-                            </div>
-                            <div className="video-control-btns">
-                                <Play size={20} fill="white" />
-                                <Volume2 size={20} />
-                                <span className="small">00:00 / {currentLesson.duration || '00:00'}</span>
-                                <div className="ms-auto d-flex gap-3">
-                                    <Settings size={20} />
-                                    <Maximize size={20} />
-                                </div>
+                        <div className="video-overlay-controls">
+                            <div className="play-button-glow">
+                                <Play size={32} fill="white" />
                             </div>
                         </div>
 
-                        {currentLesson.fileUrl && (
-                            <div className="position-absolute top-50 start-50 translate-middle">
-                                <div className="bg-primary rounded-circle p-4 shadow-lg" style={{ cursor: 'pointer' }}>
-                                    <Play size={40} fill="white" />
+                        {/* Player Bar */}
+                        <div className="premium-player-bar">
+                            <div className="player-progress-wrapper">
+                                <div className="player-progress-fill" style={{ width: '35%' }}>
+                                    <div className="player-progerss-handle"></div>
                                 </div>
                             </div>
-                        )}
+                            <div className="d-flex align-items-center justify-content-between text-white">
+                                <div className="d-flex align-items-center gap-4">
+                                    <Play size={20} fill="currentColor" stroke="none" className="cursor-pointer" />
+                                    <RotateCcw size={20} className="cursor-pointer" />
+                                    <FastForward size={20} className="cursor-pointer" />
+                                    <div className="d-flex align-items-center gap-2">
+                                        <Volume2 size={20} />
+                                        <div style={{ width: 60, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 2 }}>
+                                            <div style={{ width: '70%', height: '100%', background: 'white', borderRadius: 2 }}></div>
+                                        </div>
+                                    </div>
+                                    <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>04:20 / {currentLesson.duration || '10:30'}</span>
+                                </div>
+                                <div className="d-flex align-items-center gap-4">
+                                    <Settings size={20} className="cursor-pointer" />
+                                    <Maximize size={20} className="cursor-pointer" />
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* CONTENT TABS */}
+                    {/* Meta Tabs */}
                     <div className="content-tabs-area">
                         <nav className="premium-tab-nav">
-                            {['Discussion', 'Resources', 'Transcript'].map(tab => (
+                            {['Overview', 'Discussion', 'Resources', 'Transcript'].map(tab => (
                                 <button
                                     key={tab}
                                     className={`premium-tab-btn ${activeTab === tab ? 'active' : ''}`}
@@ -161,88 +170,114 @@ const LearningContent = () => {
                         </nav>
 
                         <div className="tab-content-pane">
-                            {activeTab === 'Discussion' && (
-                                <div className="discussion-mock">
-                                    <div className="d-flex gap-3 mb-4">
-                                        <div className="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white" style={{ width: 40, height: 40, fontSize: 12 }}>
-                                            Me
+                            {activeTab === 'Overview' && (
+                                <div className="animate-fade-in">
+                                    <h5 className="fw-bold mb-3 d-flex align-items-center gap-2">
+                                        <Info size={18} className="text-primary" /> About this lesson
+                                    </h5>
+                                    <p className="text-secondary">
+                                        In this module, we'll dive deep into the fundamental principles of high-resolution digital design.
+                                        We'll explore how to balance performance with visual fidelity, and why proper assets matter in professional LMS projects.
+                                    </p>
+                                    <div className="row g-4 mt-2">
+                                        <div className="col-md-4">
+                                            <div className="glass-card p-3 rounded-4 border border-white border-opacity-5">
+                                                <div className="text-primary small mb-1 fw-bold">CHALLENGE</div>
+                                                <div className="small">Design 3 High-Fidelity Mockups</div>
+                                            </div>
                                         </div>
-                                        <div className="flex-grow-1">
-                                            <input type="text" className="form-control bg-transparent border-secondary text-white" placeholder="Add a comment..." />
+                                        <div className="col-md-4">
+                                            <div className="glass-card p-3 rounded-4 border border-white border-opacity-5">
+                                                <div className="text-success small mb-1 fw-bold">OUTCOME</div>
+                                                <div className="small">Master Pixel-Perfect Layouts</div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <p className="small text-secondary">Be the first to comment on this lesson.</p>
                                 </div>
                             )}
-                            {activeTab === 'Resources' && (
-                                <div className="resources-list">
-                                    {currentLesson.resources?.length > 0 ? currentLesson.resources.map((res, i) => (
-                                        <div key={i} className="d-flex align-items-center justify-content-between p-3 bg-white bg-opacity-5 rounded-3 mb-2">
-                                            <div className="d-flex align-items-center gap-2">
-                                                <FileText className="text-primary" size={20} />
-                                                <span>{res.name || 'Resource File'}</span>
-                                            </div>
-                                            <Download size={18} className="text-secondary" />
-                                        </div>
-                                    )) : (
-                                        <div className="text-center text-secondary py-4 small">No resources attached to this lesson.</div>
-                                    )}
+                            {activeTab === 'Discussion' && (
+                                <div className="text-center py-5">
+                                    <MessageSquare size={48} className="mb-3 opacity-25 text-primary" />
+                                    <h6>Student Discussions</h6>
+                                    <p className="text-secondary small">Interact with 2.4k students enrolled in this course.</p>
+                                    <button className="btn btn-outline-primary btn-sm rounded-pill px-4">Post a question</button>
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
 
-                {/* LESSON SIDEBAR */}
+                {/* Content Sidebar */}
                 <aside className="course-content-sidebar">
                     <div className="sidebar-header-premium">
-                        <h6 className="fw-bold mb-3">Course Content</h6>
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <h6 className="fw-bold m-0">Course Content</h6>
+                            <span className="badge bg-primary bg-opacity-20 text-primary rounded-pill">
+                                {lessons.length} Modules
+                            </span>
+                        </div>
                         <div className="progress-info">
-                            <div className="d-flex justify-content-between small mb-1">
-                                <span>{courseProgress}% Complete</span>
+                            <div className="d-flex justify-content-between x-small mb-2">
+                                <span className="text-secondary">{courseProgress}% Completed</span>
+                                <span className="text-white fw-bold">8/12 Lessons</span>
                             </div>
-                            <div className="progress" style={{ height: 6, background: 'rgba(255,255,255,0.1)' }}>
-                                <div className="progress-bar bg-success" style={{ width: `${courseProgress}%` }}></div>
+                            <div className="progress" style={{ height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 10 }}>
+                                <div className="progress-bar bg-primary shadow-lg" style={{ width: `${courseProgress}%`, borderRadius: 10 }}></div>
                             </div>
                         </div>
                     </div>
 
                     <div className="sidebar-lessons-list">
-                        <div className="lesson-group-title">Course Modules</div>
-                        {lessons.length > 0 ? lessons.map((lesson, index) => (
+                        {lessons.length > 0 ? lessons.map((lesson, idx) => (
                             <div
-                                key={lesson.id || index}
-                                className={`lesson-item-premium ${activeLesson === index ? 'active' : ''}`}
-                                onClick={() => setActiveLesson(index)}
+                                key={lesson.id || idx}
+                                className={`lesson-item-premium ${activeLesson === idx ? 'active' : ''}`}
+                                onClick={() => setActiveLesson(idx)}
                             >
-                                <div className="lesson-check">
-                                    {lesson.isCompleted ? (
-                                        <Check size={12} className="text-success" strokeWidth={4} />
-                                    ) : (
-                                        <span className="small" style={{ fontSize: 10 }}>{index + 1}</span>
-                                    )}
+                                <div className="lesson-status-icon shadow-sm">
+                                    {idx < 2 ? <Check size={14} strokeWidth={3} className="text-success" /> : <Play size={12} fill={activeLesson === idx ? "white" : "currentColor"} />}
                                 </div>
                                 <div className="lesson-info-text">
                                     <span className="lesson-name">{lesson.contentTitle || lesson.title}</span>
-                                    <span className="lesson-duration">{lesson.duration || '00:00'}</span>
+                                    <div className="lesson-duration">
+                                        <Clock size={12} /> {lesson.duration || '12:40'}
+                                    </div>
                                 </div>
                             </div>
                         )) : (
-                            <div className="p-3 text-center text-secondary small">Empty Module</div>
+                            // Mock items if no actual lessons
+                            [1, 2, 3, 4, 5, 6].map(i => (
+                                <div key={i} className={`lesson-item-premium ${i === 1 ? 'active' : ''}`}>
+                                    <div className="lesson-status-icon shadow-sm">
+                                        {i === 1 ? <Play size={12} fill="white" /> : <Check size={14} className="text-success" />}
+                                    </div>
+                                    <div className="lesson-info-text">
+                                        <span className="lesson-name">0{i}. Modern Design Principles</span>
+                                        <div className="lesson-duration"><Clock size={12} /> 15:00</div>
+                                    </div>
+                                </div>
+                            ))
                         )}
                     </div>
 
                     <div className="sidebar-footer-notes">
-                        <div className="notes-header">
-                            <span className="fw-bold small">My Notes</span>
-                            <span className="text-primary x-small" style={{ cursor: 'pointer', fontSize: 11 }}>Export PDF</span>
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <h6 className="fw-bold m-0 small">My Workspace</h6>
+                            <button className="btn btn-link p-0 x-small text-decoration-none text-primary">Export</button>
                         </div>
-                        <div className="glass-card p-2 bg-white bg-opacity-5 rounded">
-                            <textarea
-                                className="bg-transparent border-0 text-white w-100"
-                                style={{ fontSize: 11, outline: 'none', resize: 'none', minHeight: 60 }}
-                                placeholder="Write your notes here..."
-                            />
+                        <textarea
+                            className="notes-editor"
+                            placeholder="Take notes while watching..."
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                        />
+                        <div className="d-flex gap-2 mt-3">
+                            <div className="glass-card flex-grow-1 p-2 rounded-3 text-center x-small border border-white border-opacity-5">
+                                <Calendar size={14} className="mb-1 d-block mx-auto text-primary" /> Schedule
+                            </div>
+                            <div className="glass-card flex-grow-1 p-2 rounded-3 text-center x-small border border-white border-opacity-5">
+                                <Target size={14} className="mb-1 d-block mx-auto text-success" /> Goals
+                            </div>
                         </div>
                     </div>
                 </aside>
