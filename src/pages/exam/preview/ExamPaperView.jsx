@@ -1,7 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { Clock, ChevronLeft, ChevronRight, Send, AlertCircle, CheckCircle, FileText, Layout, Eye } from "lucide-react";
+import { ExamService } from "../services/examService";
+import { Loader2 } from "lucide-react";
 
 const ExamPaperView = () => {
     const { id } = useParams();
@@ -11,574 +14,308 @@ const ExamPaperView = () => {
     const [answers, setAnswers] = useState({});
     const [timeLeft, setTimeLeft] = useState(0);
     const [submitted, setSubmitted] = useState(false);
-    const [executionStatus, setExecutionStatus] = useState({});
-    const [consoleOutput, setConsoleOutput] = useState({});
+    const [loading, setLoading] = useState(true);
 
-    // Section State
     const [sections, setSections] = useState([]);
     const [currentSectionIdx, setCurrentSectionIdx] = useState(0);
-    const [showSectionTransition, setShowSectionTransition] = useState(false);
-
-    // View Mode State: 'single' (Question by Question) or 'all' (Scrollable List)
-    const [viewMode, setViewMode] = useState('single');
     const [currentQIndex, setCurrentQIndex] = useState(0);
+    const [viewMode, setViewMode] = useState("single");
 
-    // --- Component: Question Card (Refactored for reuse) ---
-    const QuestionCard = ({ q, index, isCodingTheme, answers, handleAnswerChange, executionStatus, consoleOutput, handleRunCode, submitted }) => (
-        <div className={`card border-0 shadow-sm overflow-hidden ${isCodingTheme ? 'bg-dark text-white border-secondary' : ''}`} style={{ borderRadius: '15px' }}>
-            <div className={`card-header border-0 py-3 px-4 ${isCodingTheme ? 'bg-secondary bg-opacity-25' : 'bg-light'}`}>
-                <div className="d-flex justify-content-between align-items-center">
-                    <span className={`badge ${isCodingTheme ? 'bg-primary' : 'bg-dark'}`}>Q{index + 1}</span>
-                    <span className={`fw-bold small ${isCodingTheme ? 'text-info' : 'text-muted'}`}>{q.marks} Marks</span>
-                </div>
-            </div>
-
-            <div className="card-body p-4">
-                <h5 className="fw-bold mb-4" style={{ lineHeight: '1.6' }}>{q.question}</h5>
-
-                {q.image && (
-                    <div className="mb-4 text-center bg-light rounded p-3">
-                        <img src={q.image} alt="Question Reference" className="img-fluid rounded shadow-sm" style={{ maxHeight: '300px' }} />
-                    </div>
-                )}
-
-                {/* --- RENDER BASED ON TYPE --- */}
-
-                {/* 1. QUIZ (MCQ) */}
-                {q.type === 'quiz' && (
-                    <div className="vstack gap-2">
-                        {q.options.map((opt, optIndex) => (
-                            <label key={optIndex} className={`d-flex align-items-center p-3 rounded border transition-all cursor-pointer ${answers[index] === optIndex ? (isCodingTheme ? 'border-primary bg-primary bg-opacity-10' : 'border-primary bg-blue-50') : (isCodingTheme ? 'border-secondary' : 'border-light hover-bg-light')
-                                }`}>
-                                <input
-                                    type="radio"
-                                    name={`q-${index}`}
-                                    className="form-check-input me-3"
-                                    checked={answers[index] === optIndex}
-                                    onChange={() => handleAnswerChange(index, optIndex)}
-                                    disabled={submitted}
-                                />
-                                <span className={isCodingTheme ? 'text-light' : 'text-dark'}>{opt}</span>
-                            </label>
-                        ))}
-                    </div>
-                )}
-
-                {/* 2. CODING */}
-                {q.type === 'coding' && (
-                    <div className="d-flex flex-column gap-3">
-                        <div className="d-flex justify-content-between align-items-center">
-                            {/* Language Selector */}
-                            <div className="d-flex align-items-center gap-2">
-                                <label className="small fw-bold text-muted mb-0">Language:</label>
-                                <select
-                                    className="form-select form-select-sm"
-                                    style={{ width: '150px' }}
-                                    defaultValue={q.language || 'javascript'}
-                                    disabled={submitted}
-                                >
-                                    <option value="javascript">JavaScript</option>
-                                    <option value="python">Python</option>
-                                    <option value="java">Java</option>
-                                    <option value="cpp">C++</option>
-                                    <option value="c">C</option>
-                                    <option value="csharp">C#</option>
-                                </select>
-                            </div>
-                            <div className="d-flex gap-2">
-                                <button
-                                    className="btn btn-sm btn-outline-secondary"
-                                    onClick={() => handleAnswerChange(index, q.starterCode || '')}
-                                    disabled={executionStatus[index] === 'running' || submitted}
-                                >
-                                    <i className="bi bi-arrow-counterclockwise me-1"></i> Reset
-                                </button>
-                                <button
-                                    className="btn btn-sm btn-success fw-bold"
-                                    onClick={() => handleRunCode(index, answers[index])}
-                                    disabled={executionStatus[index] === 'running' || submitted}
-                                >
-                                    {executionStatus[index] === 'running' ? (
-                                        <><span className="spinner-border spinner-border-sm me-1"></span>Running...</>
-                                    ) : (
-                                        <><i className="bi bi-play-fill me-1"></i>Run Code</>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-
-                        <textarea
-                            className={`form-control font-monospace border-0 p-3 ${isCodingTheme ? 'bg-black text-white' : 'bg-dark text-white'}`}
-                            rows="10"
-                            value={answers[index]}
-                            onChange={(e) => handleAnswerChange(index, e.target.value)}
-                            disabled={submitted}
-                            spellCheck="false"
-                            style={{ fontSize: '14px', lineHeight: '1.5', tabSize: 4 }}
-                        ></textarea>
-
-                        {/* Console Output Simulation */}
-                        {(executionStatus[index] || consoleOutput[index]) && (
-                            <div className={`rounded p-3 mt-0 ${executionStatus[index] === 'error' ? 'bg-danger bg-opacity-10 border border-danger text-danger' : 'bg-black bg-opacity-50 border border-secondary text-info'}`} style={{ fontFamily: "monospace", fontSize: "0.85rem", whiteSpace: "pre-wrap" }}>
-                                <div className="mb-1 opacity-50 x-small text-uppercase ls-1">Console Output</div>
-                                {consoleOutput[index]}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* 3. SHORT / LONG ANSWER */}
-                {(q.type === 'short' || q.type === 'long') && (
-                    <textarea
-                        className={`form-control ${isCodingTheme ? 'bg-black text-white border-secondary' : 'bg-light border-0'}`}
-                        rows={q.type === 'short' ? 3 : 6}
-                        placeholder="Type your answer here..."
-                        value={answers[index]}
-                        onChange={(e) => handleAnswerChange(index, e.target.value)}
-                        disabled={submitted}
-                    ></textarea>
-                )}
-
-                {/* 4. ABACUS */}
-                {q.type === 'abacus' && (
-                    <div className="row align-items-center g-3">
-                        <div className="col-auto">
-                            <label className="col-form-label fw-bold">Answer:</label>
-                        </div>
-                        <div className="col-auto">
-                            <input
-                                type="number"
-                                className={`form-control fs-4 fw-bold text-center ${isCodingTheme ? 'bg-secondary text-white border-0' : 'bg-light border-primary'}`}
-                                style={{ width: '150px' }}
-                                placeholder="0"
-                                value={answers[index]}
-                                onChange={(e) => handleAnswerChange(index, e.target.value)}
-                                disabled={submitted}
-                            />
-                        </div>
-                        <div className="col-auto">
-                            <button className="btn btn-outline-secondary btn-sm disabled opacity-50" title="Virtual Numpad (Coming Soon)">
-                                <i className="bi bi-grid-3x3 me-1"></i> Virtual Keypad
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-            </div>
-        </div>
-    );
-
-    // Timer Logic
-    useEffect(() => {
-        if (exam && !submitted && timeLeft > 0) {
-            const timer = setInterval(() => {
-                setTimeLeft(prev => {
-                    if (prev <= 1) {
-                        clearInterval(timer);
-                        handleSubmit(); // Auto-submit
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-            return () => clearInterval(timer);
-        }
-    }, [exam, submitted, timeLeft]);
+    const timerRef = useRef(null);
 
     useEffect(() => {
-        const exams = JSON.parse(localStorage.getItem("exams")) || [];
-        const foundExam = exams.find(e => String(e.id) === String(id));
-
-        if (foundExam) {
-            setExam(foundExam);
-            // Initialize timer in seconds
-            setTimeLeft(foundExam.duration * 60);
-
-            // Initialize answers structure
-            const initialAnswers = {};
-            foundExam.questions.forEach((q, i) => {
-                initialAnswers[i] = q.type === 'coding' ? (q.starterCode || '') : '';
-            });
-            setAnswers(initialAnswers);
-
-            // Build sections (backward compatible)
-            if (foundExam.sections && foundExam.sections.length > 0) {
-                setSections(foundExam.sections);
-            } else {
-                // Create default single section if none exist
-                setSections([{
-                    id: 'default',
-                    title: 'Main Section',
-                    description: '',
-                    questionIds: foundExam.questions.map((_, idx) => idx)
-                }]);
-            }
-        }
+        fetchExam();
     }, [id]);
 
-    const handleAnswerChange = (index, value) => {
-        setAnswers(prev => ({
-            ...prev,
-            [index]: value
-        }));
-    };
+    const fetchExam = async () => {
+        setLoading(true);
+        try {
+            const data = await ExamService.getExamPaper(id);
+            if (!data) throw new Error("No data");
 
-    const handleRunCode = (index, code) => {
-        if (!code) {
-            toast.warning("Please write some code first!");
-            return;
-        }
-        setExecutionStatus(prev => ({ ...prev, [index]: 'running' }));
-        setConsoleOutput(prev => ({ ...prev, [index]: 'Compiling and executing...' }));
+            setExam(data);
+            setTimeLeft(data.durationMinutes * 60);
 
-        // Simulate execution delay
-        setTimeout(() => {
-            const isSuccess = Math.random() > 0.3; // 70% success rate for simulation
-            if (isSuccess) {
-                setExecutionStatus(prev => ({ ...prev, [index]: 'success' }));
-                setConsoleOutput(prev => ({ ...prev, [index]: '> Output:\nHello World!\n[Tests]\nTest Case 1: Passed ✅\nTest Case 2: Passed ✅\n\nResult: Success' }));
+            const initAnswers = {};
+            data.questions.forEach((q, i) => {
+                initAnswers[i] = q.type === "coding" ? (q.starterCode || "") : "";
+            });
+            setAnswers(initAnswers);
+
+            if (data.sections?.length) {
+                setSections(data.sections);
+                setCurrentQIndex(data.sections[0].questionIds[0]);
             } else {
-                setExecutionStatus(prev => ({ ...prev, [index]: 'error' }));
-                setConsoleOutput(prev => ({ ...prev, [index]: '> Output:\nReferenceError: x is not defined\n    at main.js:4:5\n\n[Tests]\nTest Case 1: Failed ❌' }));
+                setSections([{
+                    id: "default",
+                    title: "General Assessment",
+                    questionIds: data.questions.map((_, i) => i),
+                }]);
+                setCurrentQIndex(0);
             }
-        }, 1500);
+        } catch (error) {
+            toast.error("Failed to load assessment data");
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleSubmit = () => {
+    useEffect(() => {
+        if (!exam || submitted || timeLeft <= 0) return;
+        timerRef.current = setInterval(() => {
+            setTimeLeft(prev => {
+                if (prev <= 1) {
+                    clearInterval(timerRef.current);
+                    handleSubmit();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+        return () => clearInterval(timerRef.current);
+    }, [exam, submitted, timeLeft]);
+
+    const handleAnswerChange = (idx, val) => {
+        setAnswers(prev => ({ ...prev, [idx]: val }));
+    };
+
+    const handleSubmit = async () => {
         setSubmitted(true);
-        window.scrollTo(0, 0);
-        toast.info("Exam Submitted Successfully!");
-        // Here you would typically save to DB/Local Storage
+        try {
+            await ExamService.updateExam(id, { answers, type: 'STUDENT_SUBMISSION' });
+            toast.success("Assessment submitted successfully!");
+        } catch (error) {
+            console.error("Submission failed");
+        }
     };
 
-    const formatTime = (seconds) => {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        return `${m}:${s < 10 ? '0' : ''}${s}`;
-    };
+    const formatTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-    if (!exam) {
+    if (loading) {
         return (
-            <div className="container py-5 text-center">
-                <div className="spinner-border text-primary mb-3"></div>
-                <h3 className="text-muted">Loading Assessment...</h3>
+            <div className="min-vh-100 bg-white d-flex align-items-center justify-content-center text-dark">
+                <Loader2 className="animate-spin text-primary" size={48} />
             </div>
         );
     }
 
-    const isCodingTheme = exam.type === 'coding' || exam.questions.some(q => q.type === 'coding');
-    const watermark = exam.customAssets?.watermark;
-    const watermarkOpacity = exam.customAssets?.watermarkOpacity || 0.1;
-
-    // Get current section info
     const currentSection = sections[currentSectionIdx];
-    const isLastSection = currentSectionIdx === sections.length - 1;
-    const hasMultipleSections = sections.length > 1;
 
-    // Get questions for current section
-    const currentSectionQuestions = currentSection ?
-        currentSection.questionIds.map(qId => ({ ...exam.questions[qId], originalIndex: qId })) :
-        [];
-
-    // Find position within current section
-    const currentQuestionInSection = currentSectionQuestions.findIndex(q => q.originalIndex === currentQIndex);
-    const isLastQuestionInSection = currentQuestionInSection === currentSectionQuestions.length - 1;
-    const isFirstQuestionInSection = currentQuestionInSection === 0;
-
-    // Section transition handler
-    const handleCompleteSection = () => {
-        if (isLastSection) {
-            // This was the last section, submit the exam
-            handleSubmit();
-        } else {
-            // Show transition to next section
-            setShowSectionTransition(true);
-        }
-    };
-
-    const handleStartNextSection = () => {
-        setShowSectionTransition(false);
-        setCurrentSectionIdx(prev => prev + 1);
-        // Move to first question of next section
-        const nextSection = sections[currentSectionIdx + 1];
-        if (nextSection && nextSection.questionIds.length > 0) {
-            setCurrentQIndex(nextSection.questionIds[0]);
-        }
-        window.scrollTo(0, 0);
-    };
-
-    // Section Transition Overlay
-    if (showSectionTransition && !submitted) {
-        const nextSection = sections[currentSectionIdx + 1];
+    // Safety check for empty exam
+    if (!exam.questions || exam.questions.length === 0) {
         return (
-            <div className="min-vh-100 d-flex align-items-center justify-content-center"
-                style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-                <ToastContainer />
-                <div className="card border-0 shadow-lg text-center p-5 animate-fade-in" style={{ maxWidth: '600px', borderRadius: '20px' }}>
-                    <div className="mb-4 text-success">
-                        <i className="bi bi-check-circle-fill" style={{ fontSize: '64px' }}></i>
-                    </div>
-                    <h2 className="fw-bold mb-3">Section {currentSectionIdx + 1} Complete!</h2>
-                    <p className="text-muted mb-4">Great progress! You're ready for the next section.</p>
+            <div className="min-vh-100 bg-white d-flex align-items-center justify-content-center flex-column gap-3 text-muted">
+                <AlertCircle size={48} />
+                <h5>No questions available in this assessment.</h5>
+                <button onClick={() => navigate(-1)} className="btn btn-outline-secondary rounded-pill px-4">Go Back</button>
+            </div>
+        );
+    }
 
-                    <div className="bg-light p-4 rounded mb-4">
-                        <h5 className="fw-bold text-primary mb-2">Up Next:</h5>
-                        <h4 className="fw-bold mb-1">{nextSection.title}</h4>
-                        {nextSection.description && (
-                            <p className="text-muted small mb-2">{nextSection.description}</p>
-                        )}
-                        <div className="d-flex justify-content-center gap-3 mt-3 small">
-                            <span>
-                                <i className="bi bi-question-circle me-1"></i>
-                                {nextSection.questionIds.length} questions
-                            </span>
+    const sectionQuestions = currentSection.questionIds.map(i => ({ ...exam.questions[i], originalIndex: i }));
+    const pos = sectionQuestions.findIndex(q => q.originalIndex === currentQIndex);
+    const isLastQuestion = pos === sectionQuestions.length - 1;
+    const isLastSection = currentSectionIdx === sections.length - 1;
+
+    return (
+        <div className="min-vh-100 bg-white text-dark d-flex flex-column overflow-hidden">
+            <ToastContainer theme="light" />
+
+            {/* Premium App Bar */}
+            <header className="px-4 py-3 bg-white border-bottom border-light-subtle d-flex justify-content-between align-items-center z-10 shadow-sm">
+                <div className="d-flex align-items-center gap-3">
+                    <button onClick={() => navigate(-1)} className="btn btn-icon-sm btn-light">
+                        <ChevronLeft size={20} />
+                    </button>
+                    <div>
+                        <h6 className="fw-bold mb-0 text-truncate text-dark" style={{ maxWidth: 200 }}>{exam.title}</h6>
+                        <div className="small text-muted">{exam.course}</div>
+                    </div>
+                </div>
+
+                <div className="d-flex align-items-center gap-4">
+                    <div className="d-flex align-items-center gap-2 bg-light px-3 py-1 rounded-pill border border-light-subtle shadow-sm">
+                        <Clock size={16} className={timeLeft < 300 ? "text-danger animate-pulse" : "text-primary"} />
+                        <span className={`fw-mono fs-5 ${timeLeft < 300 ? "text-danger" : "text-dark"}`}>{formatTime(timeLeft)}</span>
+                    </div>
+                    {!submitted && (
+                        <button className="btn btn-primary rounded-pill px-4 premium-btn shadow-sm fw-bold" onClick={handleSubmit}>
+                            FINISH SESSION
+                        </button>
+                    )}
+                </div>
+            </header>
+
+            <main className="flex-grow-1 row g-0 overflow-hidden">
+                {/* Navigation Sidebar */}
+                <aside className="col-md-3 border-end border-light-subtle bg-light d-none d-md-block overflow-auto p-4 scrollbar-hide">
+                    <div className="mb-4">
+                        <h6 className="text-uppercase small tracking-widest text-muted fw-bold mb-3">Sections</h6>
+                        <div className="d-flex flex-column gap-2">
+                            {sections.map((s, idx) => (
+                                <button
+                                    key={s.id}
+                                    className={`btn text-start rounded-3 px-3 py-2 transition-all ${idx === currentSectionIdx ? 'bg-primary text-white shadow' : 'text-secondary hover-bg-gray-10'}`}
+                                    onClick={() => {
+                                        setCurrentSectionIdx(idx);
+                                        setCurrentQIndex(s.questionIds[0]);
+                                    }}
+                                >
+                                    {s.title}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
-                    <button
-                        className="btn btn-primary btn-lg px-5 py-3 fw-bold rounded-pill shadow"
-                        onClick={handleStartNextSection}
-                    >
-                        Start Next Section <i className="bi bi-arrow-right ms-2"></i>
-                    </button>
-                </div>
+                    <div>
+                        <h6 className="text-uppercase small tracking-widest text-muted fw-bold mb-3">Navigation</h6>
+                        <div className="d-grid grid-cols-5 gap-2">
+                            {exam.questions.map((_, i) => (
+                                <button
+                                    key={i}
+                                    className={`q-nav-dot ${currentQIndex === i ? 'active' : ''} ${answers[i] ? 'answered' : ''}`}
+                                    onClick={() => {
+                                        const sIdx = sections.findIndex(sec => sec.questionIds.includes(i));
+                                        setCurrentSectionIdx(sIdx);
+                                        setCurrentQIndex(i);
+                                    }}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </aside>
+
+                {/* Content Area */}
+                <section className="col-md-9 overflow-auto p-4 p-lg-5 scrollbar-hide bg-gray-5">
+                    <div className="max-w-800 mx-auto">
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={currentQIndex}
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                <div className="glass-panel p-4 p-md-5 rounded-4 shadow-sm border border-light-subtle bg-white">
+                                    <div className="d-flex justify-content-between align-items-center mb-4">
+                                        <span className="badge bg-light border border-light-subtle text-muted px-3 py-2">Question {currentQIndex + 1} / {exam.questions.length}</span>
+                                        <div className="small text-muted fw-bold uppercase tracking-wider">{exam.questions[currentQIndex].type}</div>
+                                    </div>
+
+                                    <h4 className="fw-bold mb-5 leading-relaxed text-dark">{exam.questions[currentQIndex].question}</h4>
+
+                                    <div className="options-container">
+                                        <QuestionRenderer
+                                            q={exam.questions[currentQIndex]}
+                                            index={currentQIndex}
+                                            answers={answers}
+                                            onChange={handleAnswerChange}
+                                            disabled={submitted}
+                                        />
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </AnimatePresence>
+
+                        <div className="d-flex justify-content-between mt-5">
+                            <button
+                                className="btn btn-outline-secondary rounded-pill px-4 py-2 d-flex align-items-center gap-2 bg-white"
+                                disabled={pos === 0 && currentSectionIdx === 0}
+                                onClick={() => {
+                                    if (pos > 0) setCurrentQIndex(sectionQuestions[pos - 1].originalIndex);
+                                    else if (currentSectionIdx > 0) {
+                                        const prevSec = sections[currentSectionIdx - 1];
+                                        setCurrentSectionIdx(currentSectionIdx - 1);
+                                        setCurrentQIndex(prevSec.questionIds[prevSec.questionIds.length - 1]);
+                                    }
+                                }}
+                            >
+                                <ChevronLeft size={18} /> Previous
+                            </button>
+
+                            <button
+                                className="btn btn-primary rounded-pill px-4 py-2 d-flex align-items-center gap-2 premium-btn active-glow shadow-sm"
+                                onClick={() => {
+                                    if (!isLastQuestion) setCurrentQIndex(sectionQuestions[pos + 1].originalIndex);
+                                    else if (!isLastSection) {
+                                        setCurrentSectionIdx(currentSectionIdx + 1);
+                                        setCurrentQIndex(sections[currentSectionIdx + 1].questionIds[0]);
+                                    } else {
+                                        handleSubmit();
+                                    }
+                                }}
+                            >
+                                {isLastSection && isLastQuestion ? "Finish Assessment" : (isLastQuestion ? "Next Section" : "Save & Next")}
+                                <ChevronRight size={18} />
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <style>{`
+                .bg-gray-5 { background: #f8fafc; }
+                .bg-gray-10 { background: #f1f5f9; }
+                .hover-bg-gray-10:hover { background: #f1f5f9; }
+                .border-light-subtle { border-color: rgba(0,0,0,0.05) !important; }
+                .glass-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(20px); }
+                .max-w-800 { max-width: 800px; }
+                .grid-cols-5 { display: grid; grid-template-columns: repeat(5, 1fr); }
+                .q-nav-dot { width: 40px; height: 40px; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; color: #64748b; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s; }
+                .q-nav-dot:hover { background: #f1f5f9; color: #1e293b; transform: translateY(-2px); }
+                .q-nav-dot.active { background: #6366f1; border-color: #6366f1; color: white; box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
+                .q-nav-dot.answered { background: #ecfdf5; border-color: #10b981; color: #10b981; }
+                .btn-icon-sm { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; background: #f1f5f9; border: 1px solid #e2e8f0; color: #64748b; }
+                .btn-icon-sm:hover { background: #e2e8f0; color: #1e293b; }
+                .premium-btn { transition: all 0.3s; }
+                .premium-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,0.2); }
+                @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+                .animate-pulse { animation: pulse 1s infinite; }
+                .scrollbar-hide::-webkit-scrollbar { display: none; }
+                .uppercase { text-transform: uppercase; }
+            `}</style>
+        </div>
+    );
+};
+
+const QuestionRenderer = ({ q, index, answers, onChange, disabled }) => {
+    if (q.type === "quiz") {
+        return (
+            <div className="d-flex flex-column gap-3">
+                {q.options.map((opt, i) => (
+                    <label key={i} className={`option-card ${answers[index] === i ? 'selected' : ''}`}>
+                        <input type="radio" className="d-none" name={`q-${index}`} checked={answers[index] === i} onChange={() => onChange(index, i)} disabled={disabled} />
+                        <div className="d-flex align-items-center gap-3">
+                            <div className="option-indicator">{String.fromCharCode(65 + i)}</div>
+                            <div className="flex-grow-1 text-dark">{opt}</div>
+                            {answers[index] === i && <CheckCircle className="text-primary" size={20} />}
+                        </div>
+                        <style>{`
+                            .option-card { padding: 1.25rem; border-radius: 16px; border: 1px solid #e2e8f0; background: #ffffff; cursor: pointer; transition: all 0.2s; }
+                            .option-card:hover { border-color: #6366f1; background: #f5f3ff; }
+                            .option-card.selected { background: #f5f3ff; border-color: #6366f1; box-shadow: 0 4px 12px rgba(99,102,241,0.1); }
+                            .option-indicator { width: 32px; height: 32px; border-radius: 8px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 1px solid #e2e8f0; color: #64748b; }
+                            .selected .option-indicator { background: #6366f1; border-color: #6366f1; color: white; }
+                        `}</style>
+                    </label>
+                ))}
             </div>
         );
     }
 
     return (
-        <div className="min-vh-100 pb-5 position-relative" style={{
-            fontFamily: "'Inter', sans-serif",
-            background: isCodingTheme ? "#0f172a" : "#f8f9fa",
-            color: isCodingTheme ? "#e2e8f0" : "#212529"
-        }}>
-            <ToastContainer />
-
-            {/* Watermark (Live Exam Mode) */}
-            {watermark && (
-                <div className="position-fixed top-50 start-50 translate-middle pointer-events-none user-select-none"
-                    style={{
-                        zIndex: 0,
-                        opacity: watermarkOpacity,
-                        width: '50%',
-                        pointerEvents: 'none'
-                    }}>
-                    <img src={watermark} alt="" className="img-fluid opacity-50" />
-                </div>
-            )}
-
-            {/* Sticky Header with Timer */}
-            <div className={`sticky-top shadow-sm px-4 py-3 d-flex justify-content-between align-items-center ${isCodingTheme ? 'bg-dark border-bottom border-secondary' : 'bg-white'}`} style={{ zIndex: 1020 }}>
-                <div>
-                    <h5 className={`mb-0 fw-bold ${isCodingTheme ? 'text-white' : 'text-primary'}`}>{exam.title}</h5>
-                    <small className={isCodingTheme ? 'text-secondary' : 'text-muted'}>{exam.course}</small>
-                </div>
-
-                {!submitted ? (
-                    <div className={`d-flex align-items-center px-4 py-2 rounded-pill fw-bold fs-5 ${timeLeft < 300 ? 'bg-danger text-white' : isCodingTheme ? 'bg-secondary text-white' : 'bg-primary text-white'}`}>
-                        <i className="bi bi-stopwatch me-2"></i>
-                        {formatTime(timeLeft)}
-                    </div>
-                ) : (
-                    <div className="badge bg-success px-3 py-2 fs-6">Submitted</div>
-                )}
-            </div>
-
-            <div className="container py-5 position-relative" style={{ maxWidth: '900px', zIndex: 1 }}>
-
-                {/* Section Progress Indicator (only show if multiple sections) */}
-                {hasMultipleSections && (
-                    <div className="mb-4">
-                        <small className="text-muted d-block mb-2 fw-bold">Progress:</small>
-                        <div className="d-flex gap-2">
-                            {sections.map((sec, idx) => (
-                                <div
-                                    key={sec.id}
-                                    className={`flex-grow-1 rounded overflow-hidden`}
-                                    style={{ height: '8px', background: idx < currentSectionIdx ? '#198754' : idx === currentSectionIdx ? '#0d6efd' : '#e9ecef' }}
-                                    title={sec.title}
-                                ></div>
-                            ))}
-                        </div>
-                        <div className="d-flex justify-content-between mt-1">
-                            <small className="text-muted">Section {currentSectionIdx + 1} of {sections.length}: {currentSection?.title}</small>
-                            <small className="text-muted">
-                                Q{currentQuestionInSection + 1} of {currentSectionQuestions.length} in section
-                            </small>
-                        </div>
-                    </div>
-                )}
-
-                {/* Intro Card */}
-                {!submitted && (
-                    <div className={`card border-0 shadow-sm mb-4 ${isCodingTheme ? 'bg-dark text-white border-secondary' : ''}`}>
-                        <div className="card-body p-4">
-                            <div className="d-flex align-items-center gap-3">
-                                <div className="bg-primary bg-opacity-10 text-primary rounded-circle p-3">
-                                    <i className="bi bi-info-circle fs-4"></i>
-                                </div>
-                                <div>
-                                    <h6 className="fw-bold mb-1">Instructions</h6>
-                                    <p className={`small mb-0 ${isCodingTheme ? 'text-white-50' : 'text-muted'}`}>
-                                        You are about to start. Please answer all {exam.questions.length} questions.
-                                        Don't refresh the page.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* View Mode Toggle */}
-                <div className="d-flex justify-content-end mb-3">
-                    <div className="btn-group">
-                        <button
-                            className={`btn ${viewMode === 'single' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                            onClick={() => setViewMode('single')}
-                        >
-                            <i className="bi bi-file-earmark-play me-1"></i> Question View
-                        </button>
-                        <button
-                            className={`btn ${viewMode === 'all' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                            onClick={() => setViewMode('all')}
-                        >
-                            <i className="bi bi-list-task me-1"></i> Full Paper View
-                        </button>
-                    </div>
-                </div>
-
-                {/* Questions List */}
-                {viewMode === 'all' ? (
-                    <div className="vstack gap-4">
-                        {hasMultipleSections ? (
-                            // Show sections with headers
-                            sections.map((section, secIdx) => (
-                                <div key={section.id} className="mb-4">
-                                    <div className="alert alert-primary d-flex align-items-center mb-3">
-                                        <i className="bi bi-folder2-open me-2 fs-5"></i>
-                                        <div>
-                                            <h5 className="mb-0 fw-bold">Section {secIdx + 1}: {section.title}</h5>
-                                            {section.description && <small>{section.description}</small>}
-                                        </div>
-                                    </div>
-                                    {section.questionIds.map((qId, qIdx) => (
-                                        <QuestionCard
-                                            key={qId}
-                                            q={exam.questions[qId]}
-                                            index={qId}
-                                            isCodingTheme={isCodingTheme}
-                                            answers={answers}
-                                            handleAnswerChange={handleAnswerChange}
-                                            executionStatus={executionStatus}
-                                            consoleOutput={consoleOutput}
-                                            handleRunCode={handleRunCode}
-                                            submitted={submitted}
-                                        />
-                                    ))}
-                                </div>
-                            ))
-                        ) : (
-                            // No sections, show all questions
-                            exam.questions.map((q, index) => (
-                                <QuestionCard
-                                    key={index}
-                                    q={q}
-                                    index={index}
-                                    isCodingTheme={isCodingTheme}
-                                    answers={answers}
-                                    handleAnswerChange={handleAnswerChange}
-                                    executionStatus={executionStatus}
-                                    consoleOutput={consoleOutput}
-                                    handleRunCode={handleRunCode}
-                                    submitted={submitted}
-                                />
-                            ))
-                        )}
-                    </div>
-                ) : (
-                    // Single Question View with Section Navigation
-                    <div className="d-flex flex-column gap-3">
-                        <QuestionCard
-                            q={exam.questions[currentQIndex]}
-                            index={currentQIndex}
-                            isCodingTheme={isCodingTheme}
-                            answers={answers}
-                            handleAnswerChange={handleAnswerChange}
-                            executionStatus={executionStatus}
-                            consoleOutput={consoleOutput}
-                            handleRunCode={handleRunCode}
-                            submitted={submitted}
-                        />
-
-                        <div className="d-flex justify-content-between mt-3">
-                            <button
-                                className="btn btn-outline-secondary px-4"
-                                disabled={isFirstQuestionInSection && currentSectionIdx === 0}
-                                onClick={() => {
-                                    if (isFirstQuestionInSection && currentSectionIdx > 0) {
-                                        // Can't go back to previous section (locked)
-                                        toast.info('Cannot return to previous section');
-                                    } else {
-                                        const prevQId = currentSectionQuestions[currentQuestionInSection - 1]?.originalIndex;
-                                        if (prevQId !== undefined) setCurrentQIndex(prevQId);
-                                    }
-                                }}
-                            >
-                                <i className="bi bi-arrow-left me-2"></i> Previous
-                            </button>
-
-                            {isLastQuestionInSection ? (
-                                <button
-                                    className="btn btn-success px-4 fw-bold"
-                                    onClick={handleCompleteSection}
-                                >
-                                    {isLastSection ? 'Submit Exam' : 'Complete Section'} <i className="bi bi-check2 ms-2"></i>
-                                </button>
-                            ) : (
-                                <button
-                                    className="btn btn-primary px-4"
-                                    onClick={() => {
-                                        const nextQId = currentSectionQuestions[currentQuestionInSection + 1]?.originalIndex;
-                                        if (nextQId !== undefined) setCurrentQIndex(nextQId);
-                                    }}
-                                >
-                                    Next <i className="bi bi-arrow-right ms-2"></i>
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Submit Action */}
-                {!submitted && (
-                    <div className="mt-5 text-center">
-                        <button
-                            className="btn btn-primary btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg hover-scale"
-                            onClick={() => {
-                                if (window.confirm("Are you sure you want to final submit? You cannot change answers after this.")) {
-                                    handleSubmit();
-                                }
-                            }}
-                        >
-                            Submit Assessment <i className="bi bi-arrow-right ms-2"></i>
-                        </button>
-                    </div>
-                )}
-
-                {submitted && (
-                    <div className="mt-5 text-center animate-fade-in">
-                        <div className="alert alert-success d-inline-block px-5 py-3 rounded-4 shadow-sm">
-                            <h4 className="fw-bold mb-2"><i className="bi bi-check-circle-fill me-2"></i>Submission Received!</h4>
-                            <p className="mb-3">Your responses have been recorded.</p>
-                            <button className="btn btn-outline-success btn-sm" onClick={() => navigate('/exams/dashboard')}>Return to Dashboard</button>
-                        </div>
-                    </div>
-                )}
-
-            </div>
-        </div>
+        <textarea
+            className="form-control bg-light border-light-subtle text-dark rounded-4 p-4 font-monospace"
+            rows={q.type === "long" ? 12 : 6}
+            placeholder="Type your answer here..."
+            value={answers[index]}
+            onChange={e => onChange(index, e.target.value)}
+            disabled={disabled}
+            style={{ fontSize: '1.1rem', lineHeight: '1.6', border: '1px solid #e2e8f0' }}
+        />
     );
 };
 
 export default ExamPaperView;
-

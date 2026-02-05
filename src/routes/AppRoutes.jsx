@@ -3,6 +3,11 @@ import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayOut';
 import Loading from '../components/common/Loading';
+import { useAuth } from '../pages/Library/context/AuthContext';
+import {
+  Edit3, ClipboardList, BarChart3, Calendar as CalendarIcon,
+  MessageCircle, User as UserIcon, Award, LifeBuoy
+} from 'lucide-react';
 
 // Lazy Load Pages
 const Home = lazy(() => import('../pages/Home/Home'));
@@ -34,6 +39,23 @@ const StudentCourses = lazy(() => import('../pages/Student/StudentCourses'));
 const StudentBatches = lazy(() => import('../pages/Student/StudentBatches'));
 const StudentAttendance = lazy(() => import('../pages/Student/StudentAttendance'));
 const StudentLibrary = lazy(() => import('../pages/Student/StudentLibrary'));
+const LearningContent = lazy(() => import('../pages/Student/LearningContent'));
+const StudentLayout = lazy(() => import('../components/layout/StudentLayout'));
+const StudentPagePlaceholder = lazy(() => import('../pages/Student/components/StudentPagePlaceholder'));
+const StudentCommunication = lazy(() => import('../pages/Student/StudentCommunication'));
+const StudentHostel = lazy(() => import('../pages/Student/StudentHostel'));
+const StudentTransport = lazy(() => import('../pages/Student/StudentTransport'));
+
+const RootRedirect = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) return <Loading />;
+
+  if (user?.role === 'STUDENT') {
+    return <Navigate to="/student/dashboard" replace />;
+  }
+  return <Navigate to="/dashboard" replace />;
+};
 
 const AppRoutes = () => {
   return (
@@ -46,16 +68,8 @@ const AppRoutes = () => {
         <Route path="/share/:shareCode" element={<CourseOverview />} />
         <Route path="/affiliate/join" element={<AffiliateRegister />} />
 
-        {/* ================= DASHBOARD ROUTES ================= */}
-        <Route element={<DashboardLayout />}>
-
-          {/* 🔴 FIX: ROOT NEVER RENDERS UI */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
-          {/* ✅ REAL DASHBOARD ROUTE */}
-          <Route path="/dashboard" element={<Home />} />
-
-          {/* ===== STUDENT ROUTES ===== */}
+        {/* ================= STUDENT PORTAL (VERTICAL LAYOUT) ================= */}
+        <Route element={<StudentLayout />}>
           <Route path="/student">
             <Route index element={<Navigate to="/student/dashboard" replace />} />
             <Route path="dashboard" element={<StudentDashboard />} />
@@ -63,13 +77,29 @@ const AppRoutes = () => {
             <Route path="batches" element={<StudentBatches />} />
             <Route path="attendance" element={<StudentAttendance />} />
             <Route path="library" element={<StudentLibrary />} />
-            <Route path="exams" element={<div className="p-4"><h2>Exams</h2><p>Coming soon...</p></div>} />
-            <Route path="webinars" element={<div className="p-4"><h2>Webinars</h2><p>Coming soon...</p></div>} />
-            <Route path="transport" element={<div className="p-4"><h2>Transport</h2><p>Coming soon...</p></div>} />
-            <Route path="fees" element={<div className="p-4"><h2>Fee History</h2><p>Coming soon...</p></div>} />
-            <Route path="notifications" element={<div className="p-4"><h2>Notifications</h2><p>Coming soon...</p></div>} />
+            <Route path="content" element={<LearningContent />} />
+            <Route path="exams" element={<StudentPagePlaceholder title="Exams" description="View your upcoming and past examinations." icon={Edit3} />} />
+            <Route path="assignments" element={<StudentPagePlaceholder title="Assignments" description="Track and submit your course assignments." icon={ClipboardList} />} />
+            <Route path="grades" element={<StudentPagePlaceholder title="Grades" description="Monitor your academic performance." icon={BarChart3} />} />
+            <Route path="calendar" element={<StudentPagePlaceholder title="Calendar" description="Your personal academic schedule." icon={CalendarIcon} />} />
+            <Route path="communication" element={<StudentCommunication />} />
+            <Route path="hostel" element={<StudentHostel />} />
+            <Route path="transport" element={<StudentTransport />} />
+            <Route path="profile" element={<StudentPagePlaceholder title="My Profile" description="Manage your personal information." icon={UserIcon} />} />
+            <Route path="certificates" element={<StudentPagePlaceholder title="Certificates" description="View earned certificates and achievements." icon={Award} />} />
+            <Route path="support" element={<StudentPagePlaceholder title="Support" description="Get help with your learning journey." icon={LifeBuoy} />} />
             <Route path="*" element={<NotFound />} />
           </Route>
+        </Route>
+
+        {/* ================= ADMIN/GENERAL DASHBOARD ROUTES ================= */}
+        <Route element={<DashboardLayout />}>
+
+          {/* 🔴 ROLE-AWARE ROOT REDIRECT */}
+          <Route path="/" element={<RootRedirect />} />
+
+          {/* ✅ REAL DASHBOARD ROUTE */}
+          <Route path="/dashboard" element={<Home />} />
 
           {/* ... existing routes ... */}
 

@@ -3,6 +3,7 @@ import { FiPlus, FiSearch, FiFilter } from "react-icons/fi";
 import { useNavigate } from 'react-router-dom';
 
 import { useBatches } from './hooks/useBatches';
+import { useEnrichedBatches } from './hooks/useEnrichedBatches';
 import BatchCard from './components/BatchCard';
 import BatchModal from './components/BatchModal';
 import BatchStats from './components/BatchStats';
@@ -123,40 +124,8 @@ const Batches = () => {
         loading: loadingBatches
     } = useBatches(courses, instructors);
 
-    // Manual Enrichment: We calculate student counts from enrollmentService
-    // by fetching students for each batch from the API.
-    const [enrichedBatches, setEnrichedBatches] = useState([]);
-
-    useEffect(() => {
-        const enrichData = async () => {
-            if (!batches || batches.length === 0) {
-                setEnrichedBatches([]);
-                return;
-            }
-
-            try {
-                // Fetch students count for each batch in parallel from the REAL service
-                const enriched = await Promise.all(batches.map(async (b) => {
-                    try {
-                        const studentsList = await enrollmentService.getStudentsByBatch(b.batchId);
-                        return {
-                            ...b,
-                            students: studentsList.length
-                        };
-                    } catch (err) {
-                        return { ...b, students: b.students || 0 };
-                    }
-                }));
-
-                setEnrichedBatches(enriched);
-            } catch (e) {
-                console.error("Failed to enrich batches:", e);
-                setEnrichedBatches(batches);
-            }
-        };
-
-        enrichData();
-    }, [batches]);
+    // Manual Enrichment: Student counts
+    const enrichedBatches = useEnrichedBatches(batches);
 
     if (loadingData && loadingBatches) {
         return <div className="p-4">Loading Batches...</div>;

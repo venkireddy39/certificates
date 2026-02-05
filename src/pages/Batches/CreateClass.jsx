@@ -161,48 +161,31 @@ const CreateClass = () => {
             return '#64748b';
         };
 
+        const borderLeftColor = getColor(session.status);
+
         return (
-            <div style={{
-                background: '#fff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                padding: '16px',
-                borderLeft: `4px solid ${getColor(session.status)}`,
-                marginBottom: '10px'
-            }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <h4 style={{ margin: 0, fontSize: '16px' }}>{session.sessionName}</h4>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{
-                            fontSize: '11px',
-                            padding: '2px 8px',
-                            borderRadius: '10px',
-                            background: '#f1f5f9',
-                            color: getColor(session.status),
-                            fontWeight: 'bold'
-                        }}>{session.status || 'Upcoming'}</span>
+            <div className="preview-card" style={{ borderLeft: `4px solid ${borderLeftColor}` }}>
+                <div className="preview-card-header">
+                    <h4 className="preview-card-title">{session.sessionName}</h4>
+                    <div className="preview-card-meta">
+                        <span className="status-badge" style={{ color: borderLeftColor }}>
+                            {session.status || 'Upcoming'}
+                        </span>
                         {session.status === 'Upcoming' && (
                             <button
                                 onClick={() => handleEdit(session)}
-                                style={{
-                                    border: 'none',
-                                    background: 'transparent',
-                                    color: '#3b82f6',
-                                    fontWeight: '600',
-                                    fontSize: '12px',
-                                    cursor: 'pointer'
-                                }}
+                                className="btn-edit-inline"
                             >
                                 Edit
                             </button>
                         )}
                     </div>
                 </div>
-                <div style={{ fontSize: '13px', color: '#64748b' }}>
+                <div className="preview-card-details">
                     {session.startDate} {session.startTime} • {session.durationMinutes} mins
                 </div>
                 {session.meetingLink && (
-                    <a href={session.meetingLink} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: '#3b82f6', display: 'block', marginTop: '4px' }}>
+                    <a href={session.meetingLink} target="_blank" rel="noreferrer" className="preview-card-link">
                         Join Link
                     </a>
                 )}

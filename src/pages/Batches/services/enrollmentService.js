@@ -24,12 +24,37 @@ export const enrollmentService = {
     // Get students in a specific batch
     getStudentsByBatch: async (batchId) => {
         try {
-            return await apiFetch(`${API_BASE_URL_SB}/batch/${batchId}`, {
+            const data = await apiFetch(`${API_BASE_URL_SB}/batch/${batchId}`, {
                 headers: { "Cache-Control": "no-cache" }
             });
+            if (Array.isArray(data)) {
+                // Filter out non-active students (Status: TRANSFERRED, DROPPED, or active=false)
+                const activeStudents = data.filter(s => {
+                    const status = (s.status || 'ACTIVE').toUpperCase();
+                    const isActive = s.active !== false; // Assume true if missing
+                    return isActive && !['TRANSFERRED', 'DROPPED', 'INACTIVE', 'COMPLETED'].includes(status);
+                });
+
+                // Update specific batch in storage for later offline use
+                const all = getStorage(STORAGE_KEYS.STUDENT_BATCHES);
+                const other = all.filter(e => String(e.batchId) !== String(batchId));
+                setStorage(STORAGE_KEYS.STUDENT_BATCHES, [...other, ...activeStudents]);
+
+                return activeStudents;
+            }
+            // Fallback: Filter storage as well
+            const stored = getStorage(STORAGE_KEYS.STUDENT_BATCHES).filter(e => String(e.batchId) === String(batchId));
+            return stored.filter(s => {
+                const status = (s.status || 'ACTIVE').toUpperCase();
+                return s.active !== false && !['TRANSFERRED', 'DROPPED', 'INACTIVE'].includes(status);
+            });
         } catch (error) {
-            console.error("API failed to get students", error);
-            return [];
+            console.error("API failed to get students, using storage fallback", error);
+            const stored = getStorage(STORAGE_KEYS.STUDENT_BATCHES).filter(e => String(e.batchId) === String(batchId));
+            return stored.filter(s => {
+                const status = (s.status || 'ACTIVE').toUpperCase();
+                return s.active !== false && !['TRANSFERRED', 'DROPPED', 'INACTIVE'].includes(status);
+            });
         }
     },
 
@@ -49,10 +74,15 @@ export const enrollmentService = {
     // Get all enrollments
     getAllEnrollments: async () => {
         try {
-            return await apiFetch(API_BASE_URL_SB);
+            const data = await apiFetch(API_BASE_URL_SB);
+            if (Array.isArray(data)) {
+                setStorage(STORAGE_KEYS.STUDENT_BATCHES, data);
+                return data;
+            }
+            return getStorage(STORAGE_KEYS.STUDENT_BATCHES);
         } catch (e) {
-            console.warn("API failed to get all enrollments", e);
-            return [];
+            console.warn("API failed to get all enrollments, using storage fallback", e);
+            return getStorage(STORAGE_KEYS.STUDENT_BATCHES);
         }
     },
 
@@ -60,21 +90,18 @@ export const enrollmentService = {
 
     transferStudent: async (transferData) => {
         try {
-            // Remove from old batch
-            const originalBatchId = transferData.studentBatchId || transferData.fromStudentBatchId;
-            if (originalBatchId) {
-                await enrollmentService.removeStudentFromBatch(originalBatchId);
-            }
-
-            // Enroll in new batch
-            const enrollPayload = {
+            // New endpoint using StudentBatchTransferController
+            // Expects params: studentId, courseId, toBatchId, reason
+            const queryParams = new URLSearchParams({
                 studentId: transferData.studentId,
-                studentName: transferData.studentName,
-                studentEmail: transferData.studentEmail,
                 courseId: transferData.courseId,
-                batchId: transferData.targetBatchId || transferData.toBatchId
-            };
-            return await enrollmentService.addStudentToBatch(enrollPayload);
+                toBatchId: transferData.targetBatchId || transferData.toBatchId,
+                reason: transferData.reason || ""
+            });
+
+            return await apiFetch(`/api/student-batch-transfers/transfer?${queryParams.toString()}`, {
+                method: "POST"
+            });
         } catch (error) {
             console.error("Transfer Failed in Service:", error);
             throw error;

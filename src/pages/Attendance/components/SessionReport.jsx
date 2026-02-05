@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Download, CheckCircle, Clock } from 'lucide-react';
+import { Download, CheckCircle, Clock, ListChecks, Users } from 'lucide-react';
 import { ATTENDANCE_STATUS } from '../constants/attendanceConstants';
 import AttendanceTable from '../components/AttendanceTable';
 import { attendanceService } from '../services/attendanceService';
@@ -11,7 +11,7 @@ import { FiEdit2, FiSave, FiUpload, FiX } from 'react-icons/fi';
 const COLORS = {
     PRESENT: '#22c55e',
     ABSENT: '#ef4444',
-    LATE: '#eab308',
+    LATE: '#816d32',
     LEFT_EARLY: '#3b82f6',
     UNMARKED: '#94a3b8'
 };
@@ -52,8 +52,8 @@ const SessionReport = ({ sessionId }) => {
 
                 setSessionRecords(mergedRecords);
                 setContext({
-                    batchName: batchInfo?.batchName || `Batch #${sessionInfo?.batchId}`,
-                    courseName: batchInfo?.courseName || 'N/A',
+                    batchName: (batchInfo?.batchName && batchInfo.batchName !== 'just now created') ? batchInfo.batchName : `Batch #${sessionInfo?.batchId || sessionId}`,
+                    courseName: (batchInfo?.courseName && batchInfo.courseName !== 'N/A') ? batchInfo.courseName : 'Standard Course',
                     totalEnrolled: enrollment.length,
                     batchId: sessionInfo?.batchId
                 });
@@ -140,26 +140,35 @@ const SessionReport = ({ sessionId }) => {
 
     return (
         <div className="card border-0 shadow-sm">
-            <div className="card-header bg-white border-bottom py-3">
+            <div className="card-header bg-white border-bottom py-4 px-4 shadow-sm">
                 <div className="d-flex justify-content-between align-items-center">
                     <div>
-                        <h4 className="fw-bold mb-1">{context.batchName}</h4>
-                        <p className="text-primary small mb-0 fw-medium text-uppercase">{context.courseName}</p>
+                        <div className="d-flex align-items-center gap-2 mb-1">
+                            <div className="p-2 bg-primary bg-opacity-10 rounded-3 text-primary">
+                                <ListChecks size={24} />
+                            </div>
+                            <h3 className="fw-bold mb-0" style={{ letterSpacing: '-0.5px' }}>{context.batchName}</h3>
+                        </div>
+                        <p className="text-muted small mb-0 d-flex align-items-center gap-2">
+                            <span className="badge bg-primary bg-opacity-10 text-primary fw-bold" style={{ fontSize: '0.7rem' }}>{context.courseName || 'General Course'}</span>
+                            <span className="text-secondary opacity-50">•</span>
+                            <span className="fw-medium">ID: {sessionId}</span>
+                        </p>
                     </div>
                     <div className="d-flex gap-2">
                         {!isEditMode ? (
                             <>
                                 <button
-                                    className="btn btn-primary btn-sm d-flex align-items-center gap-2 px-3"
+                                    className="btn btn-warning d-flex align-items-center gap-2 px-4 py-2 fw-bold shadow-sm"
                                     onClick={() => setIsEditMode(true)}
                                 >
-                                    <FiEdit2 size={14} /> Correct Records
+                                    <FiEdit2 size={18} /> Correct Records
                                 </button>
                                 <button
-                                    className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2"
+                                    className="btn btn-outline-primary d-flex align-items-center gap-2 px-4 py-2 fw-bold shadow-sm bg-white"
                                     onClick={handleDownload}
                                 >
-                                    <Download size={16} /> Export CSV
+                                    <Download size={18} /> Export CSV
                                 </button>
                             </>
                         ) : (
@@ -225,11 +234,34 @@ const SessionReport = ({ sessionId }) => {
 
             <div className="card-body">
                 {/* Summary */}
-                <div className="row g-4 mb-4">
-                    <SummaryCard label="Total" value={stats.total} />
-                    <SummaryCard label="Present" value={stats.present} color="success" />
-                    <SummaryCard label="Late" value={stats.late} color="warning" />
-                    <SummaryCard label="Absent" value={stats.absent} color="danger" />
+                <div className="row g-4 mb-5">
+                    <SummaryCard
+                        label="Total Students"
+                        value={stats.total}
+                        icon={<Users size={20} />}
+                        className="border-start border-4 border-primary"
+                    />
+                    <SummaryCard
+                        label="Present"
+                        value={stats.present}
+                        color="success"
+                        icon={<CheckCircle size={20} />}
+                        className="border-start border-4 border-success"
+                    />
+                    <SummaryCard
+                        label="Late"
+                        value={stats.late}
+                        color="warning"
+                        icon={<Clock size={20} />}
+                        className="border-start border-4 border-warning"
+                    />
+                    <SummaryCard
+                        label="Absent"
+                        value={stats.absent}
+                        color="danger"
+                        icon={<FiX size={20} />}
+                        className="border-start border-4 border-danger"
+                    />
                 </div>
 
                 {/* Chart + Details */}
@@ -349,16 +381,22 @@ const SessionReport = ({ sessionId }) => {
 
 /* ---------------- SMALL HELPER ---------------- */
 
-const SummaryCard = ({ label, value, color }) => (
+const SummaryCard = ({ label, value, color, icon, className }) => (
     <div className="col-md-3">
         <div
-            className={`p-3 rounded-3 text-center border ${color ? `bg-${color} bg-opacity-10 border-${color}` : 'bg-light'
-                }`}
+            className={`p-4 rounded-4 bg-white shadow-sm h-100 d-flex flex-column justify-content-between border-0 ${className}`}
+            style={{ transition: 'all 0.3s ease' }}
         >
-            <h6 className="text-uppercase small fw-bold text-muted">{label}</h6>
-            <h2 className={`fw-bold mb-0 ${color ? `text-${color}` : ''}`}>
-                {value}
-            </h2>
+            <div className="d-flex justify-content-between align-items-start mb-2">
+                <span className="text-uppercase tracking-wider small fw-bold text-muted" style={{ fontSize: '0.75rem' }}>{label}</span>
+                {icon && <div className={color ? `text-${color}` : 'text-primary'}>{icon}</div>}
+            </div>
+            <div>
+                <h2 className={`fw-bold mb-0 ${color ? `text-${color}` : 'text-dark'}`} style={{ fontSize: '2rem', letterSpacing: '-1px' }}>
+                    {value}
+                </h2>
+                <div className="small text-muted mt-1">Students</div>
+            </div>
         </div>
     </div>
 );

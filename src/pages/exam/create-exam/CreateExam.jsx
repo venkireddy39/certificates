@@ -1,30 +1,37 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
+import { motion, AnimatePresence } from "framer-motion";
 import "react-toastify/dist/ReactToastify.css";
 
 import SetupMode from "./components/SetupMode";
 import EditorMode from "./components/EditorMode";
 import PreviewMode from "./components/PreviewMode";
+import { ExamService } from "../services/examService";
+import { ExamSettingsService } from "../services/examSettingsService";
+import { QuestionService } from "../services/questionService";
+import { Loader2 } from "lucide-react";
 
 const CreateExam = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = !!id;
 
-  // Global Orchestrator State
-  // If edit mode, jump straight to editor. Else start at setup.
   const [step, setStep] = useState(isEditMode ? "editor" : "setup");
   const [showPreview, setShowPreview] = useState(false);
+  const [loading, setLoading] = useState(isEditMode);
+  const [submitting, setSubmitting] = useState(false);
 
   const [examData, setExamData] = useState({
     title: "",
-    course: "",
+    course: "", // Display name
+    courseId: null, // Required for backend
+    batchId: null, // Required for backend
     type: "mixed", // mixed | coding | quiz
     totalMarks: 100,
     duration: 60,
     questions: [],
-    sections: [], // Multi-section support: [{id, title, description, questionIds: []}]
+    sections: [],
     customAssets: {
       bgImage: null,
       watermark: null,
@@ -32,177 +39,247 @@ const CreateExam = () => {
       orientation: "portrait"
     },
     settings: {
-      maxAttempts: 1, // Default to 1
+      maxAttempts: 1,
       gradingStrategy: "highest",
-      cooldownPeriod: 0,
-
-      // A. Negative Marking
       negativeMarking: false,
-      negativeMarkingPenalty: 0.25,
-
-      // B. Auto Submit
       autoSubmit: true,
-
-      // C. Shuffle
       shuffleQuestions: false,
       shuffleOptions: false,
-
-      // D. Resume
       allowResume: true,
-
-      // E. Reattempt
-      allowReattempt: false,
-      // maxAttempts is already above
-
-      // F. Late Entry
-      allowLateEntry: false,
-      lateEntryWindow: 15, // minutes
-
-      // 4. Evaluation
       autoEvaluation: true,
       partialMarking: false,
-
-      // 5. Result
       showResults: true,
-      resultView: "score", // 'score' | 'score_correct' | 'full'
       showRank: false,
-      showPercentile: false,
-
-      // 6. Notifications
-      scheduledNotification: false,
-      examReminder: 0, // 0 = disabled, otherwise minutes
-      collectFeedback: false,
-
-      // 7. Accessibility
-      screenReader: false
+      showPercentile: false
     },
     proctoring: {
       enabled: false,
-
-      // A. Camera
       cameraRequired: false,
-
-      // B. Microphone
-      microphoneRequired: false,
-
-      // C. Camera Monitoring
-      cameraMonitoring: false, // 10s warning
-
-      // D. Violation Count
-      maxViolations: 5,
-
-      // E. Tab Switch
-      maxTabSwitches: 2,
-      blockOnTabSwitch: true, // Auto submit on limit
-
-      // F. Full Screen
       forceFullScreen: false,
-
-      // G. Disable Copy/Paste
-      disableCopyPaste: false,
-
-      // H. Device
-      deviceRestriction: "any" // 'any' | 'desktop' | 'mobile'
+      maxViolations: 5
     },
     status: "DRAFT"
   });
 
-  // Load Existing Data
   useEffect(() => {
     if (isEditMode) {
-      const savedExams = JSON.parse(localStorage.getItem("exams") || "[]");
-      const examToEdit = savedExams.find((e) => e.id.toString() === id);
+      fetchExamToEdit();
+    }
+  }, [id, isEditMode]);
 
+  const fetchExamToEdit = async () => {
+    setLoading(true);
+    try {
+      const examToEdit = await ExamService.getExamById(id);
       if (examToEdit) {
+        // Fetch related settings too
+        const [settings, design, proctoring, grading] = await Promise.all([
+          ExamService.getExamSettings(id),
+          ExamService.getExamDesign(id),
+          ExamService.getExamProctoring(id),
+          ExamService.getExamGrading(id)
+        ]);
+
         setExamData({
           ...examToEdit,
-          // Ensure compatibility with potentially missing fields
-          customAssets: examToEdit.customAssets || {
-            bgImage: null, watermark: null, watermarkOpacity: 0.1, orientation: 'portrait'
-          }
+          settings: { ...examToEdit.settings, ...settings, ...grading },
+          proctoring: { ...examToEdit.proctoring, ...proctoring },
+          customAssets: { ...examToEdit.customAssets, ...design }
         });
-        setStep("editor"); // Skip setup for edits
+        setStep("editor");
       } else {
-        toast.error("Exam not found!");
+        toast.error("Exam record not found!");
         navigate("/exams/dashboard");
       }
+    } catch (error) {
+      toast.error("Failed to load exam data");
+    } finally {
+      setLoading(false);
     }
-  }, [id, isEditMode, navigate]);
+  };
 
-  // Handler: Setup Complete
   const handleSetupComplete = (config) => {
-    setExamData(prev => ({
-      ...prev,
-      ...config, // Merges title, course, type, duration, totalMarks, customAssets
-    }));
+    setExamData(prev => ({ ...prev, ...config }));
     setStep("editor");
-    toast.success("Setup Complete! Entering Editor...");
+    toast.info("Configuration saved. Opening question editor...");
   };
 
-  // Handler: Save Exam
-  const handleSave = () => {
-    if (!examData.title || !examData.course) {
-      toast.error("Title and Course are required.");
-      return;
-    }
-    if (examData.questions.length === 0) {
-      toast.warn("Please add at least one question.");
+  const handleSave = async () => {
+    if (!examData.title || !examData.courseId) {
+      toast.error("Title and Course selection are required.");
       return;
     }
 
-    const payload = {
-      ...examData,
-      id: isEditMode ? parseInt(id) : Date.now(),
-      dateCreated: isEditMode ? examData.dateCreated : new Date().toISOString(),
-      status: 'published' // Auto publish or update
-    };
+    setSubmitting(true);
+    try {
+      // 1. Core Exam Data
+      const corePayload = {
+        title: examData.title,
+        courseId: examData.courseId,
+        batchId: examData.batchId,
+        examType: examData.type.toUpperCase(),
+        totalMarks: examData.totalMarks,
+        durationMinutes: examData.duration,
+        passPercentage: 40 // Default
+      };
 
-    const existingExams = JSON.parse(localStorage.getItem("exams")) || [];
-    let updatedExams;
+      let savedExam;
+      if (isEditMode) {
+        // Assuming updateExam is implemented or we use a specific update flow
+        savedExam = await ExamService.updateExam(id, corePayload);
+      } else {
+        savedExam = await ExamService.saveExam(corePayload);
+      }
 
-    if (isEditMode) {
-      updatedExams = existingExams.map(e => e.id.toString() === id ? payload : e);
-    } else {
-      updatedExams = [...existingExams, payload];
+      const examId = savedExam.exam_id || savedExam.examId || savedExam.id || id;
+
+      // 2. Parallel save of all configuration entities aligned with Tables 2, 3, 4, 5, 6
+      await Promise.all([
+        // Table 3: exam_settings
+        ExamSettingsService.saveSettings(examId, {
+          attemptsAllowed: examData.settings.maxAttempts,
+          negativeMarking: examData.settings.negativeMarking,
+          negativeMarkValue: examData.settings.negativeMarkingPenalty || 0,
+          shuffleQuestions: examData.settings.shuffleQuestions,
+          shuffleOptions: examData.settings.shuffleOptions,
+          allowLateEntry: examData.settings.allowLateEntry || false,
+          networkMode: (examData.settings.networkStrictness || "LENIENT").toUpperCase()
+        }),
+
+        // Table 2: exam_design
+        ExamSettingsService.saveDesign(examId, {
+          orientation: (examData.customAssets?.orientation || "PORTRAIT").toUpperCase(),
+          instituteLogo: examData.customAssets?.logo,
+          backgroundImage: examData.customAssets?.bgImage,
+          watermark_type: (typeof examData.customAssets?.watermark === 'string' && !examData.customAssets?.watermark.startsWith('data:')) ? 'TEXT' : 'IMAGE',
+          watermark_value: examData.customAssets?.watermark,
+          watermark_opacity: examData.customAssets?.watermarkOpacity || 0.1
+        }),
+
+        // Table 4: exam_proctoring
+        ExamSettingsService.saveProctoring(examId, {
+          enabled: examData.proctoring.enabled,
+          cameraRequired: examData.proctoring.cameraRequired,
+          systemCheckRequired: true,
+          violationLimit: examData.proctoring.maxViolations || 5
+        }),
+
+        // Table 5: exam_grading
+        ExamSettingsService.saveGrading(examId, {
+          autoEvaluation: examData.settings.autoEvaluation ?? true,
+          partialMarking: examData.settings.partialMarking,
+          showResult: examData.settings.showResults,
+          showRank: examData.settings.showRank,
+          showPercentile: examData.settings.showPercentile
+        }),
+
+        // Table 6: exam_notification
+        ExamSettingsService.saveNotification(examId, {
+          scheduledNotification: examData.settings.scheduledNotification || false,
+          reminderBefore: examData.settings.examReminder || "NONE",
+          feedback_after_exam: examData.settings.collectFeedback || false
+        })
+      ]);
+
+      // 3. Table 7: exam_question (Saving & Mapping Questions)
+      if (examData.questions && examData.questions.length > 0) {
+
+        // A. Persist new questions to Question Bank first
+        const questionsWithIds = await Promise.all(examData.questions.map(async (q) => {
+          // If it already has an ID, it's from the bank.
+          if (q.id || q.questionId) return q;
+
+          // Otherwise, CREATE it in the backend
+          try {
+            // Enrich with course context
+            const savedQ = await QuestionService.createQuestion({
+              ...q,
+              courseId: examData.courseId
+            });
+            // Return original q merged with new ID
+            return { ...q, id: savedQ.id || savedQ.questionId || savedQ.question_id };
+          } catch (err) {
+            console.error("Failed to auto-save new question:", q);
+            throw new Error("Failed to save one or more new questions. Please try again.");
+          }
+        }));
+
+        // B. Link questions to the Exam
+        await ExamService.addExamQuestions(examId, questionsWithIds.map((q, i) => ({
+          questionId: q.id || q.questionId,
+          marks: q.marks || 1,
+          questionOrder: i + 1
+        })));
+      }
+
+      // 4. Publish if it's a final action
+      await ExamService.publishExam(examId);
+
+      toast.success(isEditMode ? "Exam updated!" : "New exam published!");
+      setTimeout(() => navigate("/exams/dashboard"), 1500);
+    } catch (error) {
+      console.error("Save failed:", error);
+      toast.error("Failed to save exam. Check console for details.");
+    } finally {
+      setSubmitting(false);
     }
-
-    localStorage.setItem("exams", JSON.stringify(updatedExams));
-    toast.success(isEditMode ? "Exam Updated Successfully!" : "Exam Created & Published!");
-
-    setTimeout(() => {
-      navigate("/exams/dashboard");
-    }, 1500);
   };
 
-  // Render Logic
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-100 bg-white text-dark">
+        <div className="text-center">
+          <Loader2 className="animate-spin text-primary mb-3" size={48} />
+          <h5 className="fw-light">Loading exam content...</h5>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-vh-100 bg-light d-flex flex-column font-sans" style={{ fontFamily: "'Inter', sans-serif" }}>
-      <ToastContainer position="bottom-right" theme="colored" />
+    <div className="min-vh-100 bg-white text-dark d-flex flex-column" style={{ fontFamily: "'Inter', sans-serif" }}>
+      <ToastContainer position="bottom-right" theme="dark" />
 
-      {/* 1. SETUP MODE */}
-      {step === "setup" && (
-        <SetupMode
-          initialData={isEditMode ? examData : null}
-          onComplete={handleSetupComplete}
-        />
-      )}
+      <AnimatePresence mode="wait">
+        {step === "setup" && (
+          <motion.div
+            key="setup"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="flex-grow-1"
+          >
+            <SetupMode
+              initialData={isEditMode ? examData : null}
+              onComplete={handleSetupComplete}
+            />
+          </motion.div>
+        )}
 
-      {/* 2. EDITOR MODE (ADMIN) */}
-      {step === "editor" && (
-        <EditorMode
-          examData={examData}
-          setExamData={setExamData}
-          onSave={handleSave}
-          onPreview={() => setShowPreview(true)}
-          onBack={() => {
-            if (window.confirm("Go back to Setup? Unsaved changes in editor are kept in memory but not saved to disk.")) {
-              setStep("setup");
-            }
-          }}
-        />
-      )}
+        {step === "editor" && (
+          <motion.div
+            key="editor"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex-grow-1"
+          >
+            <EditorMode
+              examData={examData}
+              setExamData={setExamData}
+              onSave={handleSave}
+              submitting={submitting}
+              onPreview={() => setShowPreview(true)}
+              onBack={() => {
+                if (window.confirm("Return to configuration? Unsaved editor changes will be lost if you leave this session.")) {
+                  setStep("setup");
+                }
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* 3. PREVIEW MODE (READ ONLY OVERLAY) */}
       {showPreview && (
         <PreviewMode
           examData={examData}

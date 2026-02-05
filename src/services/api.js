@@ -10,8 +10,21 @@ export async function apiFetch(url, options = {}) {
         ...(options.headers || {}),
     };
 
+    const savedUser = localStorage.getItem('auth_user');
+    let tenant = null;
+    if (savedUser) {
+        try {
+            const parsed = JSON.parse(savedUser);
+            tenant = parsed.tenant || parsed.tenantDb;
+        } catch (e) { }
+    }
+
     if (token) {
         headers.Authorization = `Bearer ${token}`;
+    }
+
+    if (tenant) {
+        headers["X-Tenant-DB"] = tenant;
     }
 
     if (options.headers && options.headers["Content-Type"] === null) {
@@ -26,18 +39,13 @@ export async function apiFetch(url, options = {}) {
     });
 
     if (res.status === 401) {
-        // If we're in guest mode/dev mode, don't kick the user out to the login page
-        if (token === "dev-mock-token") {
-            console.warn("Unauthorized API call in Guest Mode. Bypassing redirect.");
-            throw new Error("Unauthorized (Guest Mode)");
-        }
-
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem("auth_user");
-        if (typeof window !== 'undefined') {
-            window.location.href = "/login";
-        }
-        throw new Error("Unauthorized");
+        console.warn("API 401: Demo mode active - Redirect disabled.");
+        // localStorage.removeItem(AUTH_TOKEN_KEY);
+        // localStorage.removeItem("auth_user");
+        // if (typeof window !== 'undefined') {
+        //     window.location.href = "/login";
+        // }
+        throw new Error("Session expired (401). Please check backend connection.");
     }
 
     if (res.status === 403) {

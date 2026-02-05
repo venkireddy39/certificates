@@ -1,68 +1,418 @@
-const EXAMS_KEY = "exams";
-const EXAM_SCHEDULES_KEY = "examSchedules";
+import { apiFetch } from "../../../services/api";
+
+const BASE_URL = "/api";
+const DEBUG = true;
+const MOCK_API_DELAY = 600;
+
+// ================= DEBUG HELPERS =================
+const logApi = (method, endpoint, payload = null, response = null, error = null) => {
+    // Always log errors, log others if DEBUG is true (or temporarily enabled for dev)
+    if (!DEBUG && !error) return;
+    const style = error ? "color: #ff4d4d; font-weight: bold;" : "color: #00bcd4; font-weight: bold;";
+    console.group(`%c[ExamService] ${method} ${endpoint}`, style);
+    if (payload) console.log("Request:", payload);
+    if (response) console.log("Response:", response);
+    if (error) console.error("Error Detail:", error);
+    console.groupEnd();
+};
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// ================= MOCK DATA STORE =================
+const MOCK_STORAGE_KEY = "lms_mock_exams_v2";
+
+const getMockData = () => {
+    try {
+        const stored = localStorage.getItem(MOCK_STORAGE_KEY);
+        if (stored) return JSON.parse(stored);
+    } catch (e) { console.error("Mock storage read failed", e); }
+
+    return [];
+};
+
+const saveMockData = (data) => {
+    try {
+        localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(data));
+    } catch (e) { console.error("Mock storage save failed", e); }
+};
+
+let mockExams = getMockData();
 
 export const ExamService = {
-    // Get all exams
-    getExams: () => {
+    // ================= EXAM CORE (CRUD) =================
+
+    getExams: async () => {
+        const url = `${BASE_URL}/exams`;
+        if (DEBUG) {
+            await delay(MOCK_API_DELAY);
+            return mockExams;
+        }
         try {
-            const exams = localStorage.getItem(EXAMS_KEY);
-            return exams ? JSON.parse(exams) : [];
+            const data = await apiFetch(url);
+            // Map Table 1 snake_case to camelCase for UI consistency
+            return (data || []).map(exam => ({
+                id: exam.exam_id || exam.id,
+                title: exam.title,
+                courseId: exam.course_id,
+                batchId: exam.batch_id,
+                type: exam.exam_type?.toLowerCase(),
+                totalMarks: exam.total_marks,
+                passPercentage: exam.pass_percentage,
+                duration: exam.duration_minutes,
+                status: exam.status,
+                createdAt: exam.created_at
+            }));
         } catch (error) {
-            console.error("Error fetching exams:", error);
+            logApi("GET", url, null, null, error);
             return [];
         }
     },
 
-    // Save a new exam
-    saveExam: (examData) => {
+    getExamsByCourse: async (courseId) => {
+        const url = `${BASE_URL}/exams/course/${courseId}`;
         try {
-            const exams = ExamService.getExams();
-            const newExam = {
-                ...examData,
-                id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-                dateCreated: new Date().toISOString(),
-                status: "upcoming"
-            };
-
-            const updatedExams = [newExam, ...exams];
-            localStorage.setItem(EXAMS_KEY, JSON.stringify(updatedExams));
-            return newExam;
+            const data = await apiFetch(url);
+            logApi("GET", url, null, data);
+            return data;
         } catch (error) {
-            console.error("Error saving exam:", error);
+            logApi("GET", url, null, null, error);
+            return [];
+        }
+    },
+
+    getExamsByBatch: async (batchId) => {
+        const url = `${BASE_URL}/exams/batch/${batchId}`;
+        try {
+            const data = await apiFetch(url);
+            logApi("GET", url, null, data);
+            return data;
+        } catch (error) {
+            logApi("GET", url, null, null, error);
+            return [];
+        }
+    },
+
+    saveExam: async (examData) => {
+        const url = `${BASE_URL}/exams`;
+
+        // Mock Save
+        if (DEBUG) {
+            await delay(MOCK_API_DELAY);
+            const newExam = {
+                id: Math.floor(Math.random() * 10000) + 4,
+                ...examData,
+                status: examData.status || "DRAFT",
+                questions: []
+            };
+            mockExams.push(newExam);
+            saveMockData(mockExams);
+            return newExam;
+        }
+
+        // Payload alignment with Exam.java
+        const payload = {
+            courseId: Number(examData.courseId),
+            batchId: examData.batchId ? Number(examData.batchId) : null,
+            title: examData.title,
+            examType: (examData.examType === "quiz" ? "MCQ" : examData.examType || "MIXED").toUpperCase(),
+            totalMarks: Number(examData.totalMarks),
+            passPercentage: examData.passPercentage || 40.0,
+            durationMinutes: Number(examData.durationMinutes || 60),
+            status: examData.status || "DRAFT",
+            isDeleted: false
+        };
+        try {
+            const data = await apiFetch(url, {
+                method: "POST",
+                body: JSON.stringify(payload)
+            });
+            logApi("POST", url, payload, data);
+            return data;
+        } catch (error) {
+            logApi("POST", url, payload, null, error);
             throw error;
         }
     },
 
-    // Update an exam
-    updateExam: (id, updatedData) => {
-        const exams = ExamService.getExams();
-        const index = exams.findIndex(e => e.id === id);
-        if (index !== -1) {
-            exams[index] = { ...exams[index], ...updatedData };
-            localStorage.setItem(EXAMS_KEY, JSON.stringify(exams));
-            return exams[index];
+    updateExam: async (id, examData) => {
+        const url = `${BASE_URL}/exams/${id}`;
+
+        if (DEBUG) {
+            await delay(MOCK_API_DELAY);
+            const idx = mockExams.findIndex(e => e.id === Number(id));
+            if (idx !== -1) {
+                mockExams[idx] = { ...mockExams[idx], ...examData };
+                saveMockData(mockExams);
+                return mockExams[idx];
+            }
+            return { id, ...examData };
         }
-        return null;
+
+        // Payload alignment with Exam.java
+        const payload = {
+            courseId: Number(examData.courseId),
+            batchId: examData.batchId ? Number(examData.batchId) : null,
+            title: examData.title,
+            examType: (examData.examType === "quiz" ? "MCQ" : examData.examType || "MIXED").toUpperCase(),
+            totalMarks: Number(examData.totalMarks),
+            passPercentage: examData.passPercentage || 40.0,
+            durationMinutes: Number(examData.durationMinutes || 60),
+            status: examData.status || "DRAFT",
+            isDeleted: false
+        };
+        try {
+            const data = await apiFetch(url, {
+                method: "PUT",
+                body: JSON.stringify(payload)
+            });
+            logApi("PUT", url, payload, data);
+            return data;
+        } catch (error) {
+            logApi("PUT", url, payload, null, error);
+            throw error;
+        }
     },
 
-    // Delete an exam
-    deleteExam: (id) => {
-        const exams = ExamService.getExams();
-        const updatedExams = exams.filter(e => e.id !== id);
-        localStorage.setItem(EXAMS_KEY, JSON.stringify(updatedExams));
-        return updatedExams;
+    scheduleExam: async (id, scheduleData) => {
+        const url = `${BASE_URL}/exams/${id}/schedule`;
+        if (DEBUG) return { status: "scheduled", id, ...scheduleData };
+        try {
+            const data = await apiFetch(url, {
+                method: "POST",
+                body: JSON.stringify(scheduleData)
+            });
+            logApi("POST", url, scheduleData, data);
+            return data;
+        } catch (error) {
+            logApi("POST", url, scheduleData, null, error);
+            throw error;
+        }
     },
 
-    // Get Exam by ID
-    getExamById: (id) => {
-        const exams = ExamService.getExams();
-        return exams.find(e => e.id === id);
+    getExamById: async (id) => {
+        const url = `${BASE_URL}/exams/${id}`;
+        if (DEBUG) {
+            await delay(MOCK_API_DELAY);
+            return mockExams.find(e => e.id === Number(id)) || null;
+        }
+        try {
+            const data = await apiFetch(url);
+            logApi("GET", url, null, data);
+            return data;
+        } catch (error) {
+            logApi("GET", url, null, null, error);
+            return null;
+        }
     },
 
-    // Schedule Exam
-    scheduleExam: (scheduleData) => {
-        const schedules = JSON.parse(localStorage.getItem(EXAM_SCHEDULES_KEY)) || [];
-        schedules.push(scheduleData);
-        localStorage.setItem(EXAM_SCHEDULES_KEY, JSON.stringify(schedules));
+    // Status Management
+    publishExam: async (id) => {
+        const url = `${BASE_URL}/exams/${id}/publish`;
+        if (DEBUG) {
+            await delay(MOCK_API_DELAY);
+            const idx = mockExams.findIndex(e => e.id === Number(id));
+            if (idx !== -1) {
+                mockExams[idx].status = "PUBLISHED";
+                saveMockData(mockExams);
+            }
+            return mockExams[idx];
+        }
+        try {
+            return await apiFetch(url, { method: "PUT" });
+        } catch (error) {
+            logApi("PUT", url, null, null, error);
+            throw error;
+        }
+    },
+
+    closeExam: async (id) => {
+        const url = `${BASE_URL}/exams/${id}/close`;
+        if (DEBUG) {
+            await delay(MOCK_API_DELAY);
+            const idx = mockExams.findIndex(e => e.id === Number(id));
+            if (idx !== -1) {
+                mockExams[idx].status = "CLOSED";
+                saveMockData(mockExams);
+            }
+            return mockExams[idx];
+        }
+        try {
+            return await apiFetch(url, { method: "PUT" });
+        } catch (error) {
+            logApi("PUT", url, null, null, error);
+            throw error;
+        }
+    },
+
+    deleteExam: async (id, hard = false) => {
+        const url = `${BASE_URL}/exams/${id}${hard ? "/hard" : ""}`;
+        if (DEBUG) {
+            await delay(MOCK_API_DELAY);
+            mockExams = mockExams.filter(e => e.id !== Number(id));
+            saveMockData(mockExams);
+            return { status: "deleted" };
+        }
+        try {
+            return await apiFetch(url, { method: "DELETE" });
+        } catch (error) {
+            logApi("DELETE", url, null, null, error);
+            throw error;
+        }
+    },
+
+    // ================= QUESTIONS =================
+
+    addExamQuestions: async (examId, questions) => {
+        const url = `${BASE_URL}/exams/${examId}/questions`;
+
+        if (DEBUG) {
+            await delay(MOCK_API_DELAY);
+            const idx = mockExams.findIndex(e => e.id === Number(examId));
+            if (idx !== -1) {
+                // Mock adding questions
+                const mockQuestions = questions.map(q => ({
+                    examQuestionId: Math.floor(Math.random() * 10000),
+                    examId: Number(examId),
+                    questionId: q.id || q.questionId,
+                    marks: q.marks || 1,
+                    questionOrder: q.order || q.questionOrder || 0
+                }));
+                mockExams[idx].questions = [...(mockExams[idx].questions || []), ...mockQuestions];
+                saveMockData(mockExams);
+                return mockQuestions;
+            }
+            return [];
+        }
+
+        // Payload alignment with ExamQuestion.java (Spring Boot expects camelCase default)
+        const payload = questions.map(q => ({
+            examId: Number(examId),
+            questionId: q.id || q.questionId || q.question_id,
+            marks: Number(q.marks || 1),
+            questionOrder: Number(q.order || q.questionOrder || q.question_order || 0)
+        }));
+        try {
+            const data = await apiFetch(url, {
+                method: "POST",
+                body: JSON.stringify(payload)
+            });
+            logApi("POST", url, payload, data);
+            return data;
+        } catch (error) {
+            logApi("POST", url, payload, null, error);
+            throw error;
+        }
+    },
+
+    getExamQuestions: async (examId) => {
+        const url = `${BASE_URL}/exams/${examId}/questions`;
+        if (DEBUG) {
+            await delay(MOCK_API_DELAY);
+            const exam = mockExams.find(e => e.id === Number(examId));
+            return exam ? (exam.questions || []) : [];
+        }
+        try {
+            const data = await apiFetch(url);
+            logApi("GET", url, null, data);
+            return data;
+        } catch (error) {
+            logApi("GET", url, null, null, error);
+            return [];
+        }
+    },
+
+    // ================= STUDENT ATTEMPTS & PERFORMANCE =================
+
+    startAttempt: async (examId, studentId) => {
+        const url = `${BASE_URL}/exams/${examId}/attempts/start?studentId=${studentId}`;
+        if (DEBUG) {
+            await delay(MOCK_API_DELAY);
+            return {
+                id: Math.floor(Math.random() * 10000),
+                examId: Number(examId),
+                studentId: studentId,
+                status: "STARTED",
+                startTime: new Date().toISOString()
+            };
+        }
+        try {
+            const data = await apiFetch(url, { method: "POST" });
+            logApi("POST", url, { studentId }, data);
+            return data;
+        } catch (error) {
+            logApi("POST", url, { studentId }, null, error);
+            throw error;
+        }
+    },
+
+    submitAttempt: async (attemptId, studentId) => {
+        const url = `${BASE_URL}/exams/attempts/${attemptId}/submit?studentId=${studentId}`;
+        if (DEBUG) {
+            await delay(MOCK_API_DELAY);
+            return { status: "submitted", attemptId, studentId };
+        }
+        try {
+            const data = await apiFetch(url, { method: "POST" });
+            logApi("POST", url, { studentId }, data);
+            return data;
+        } catch (error) {
+            logApi("POST", url, { studentId }, null, error);
+            throw error;
+        }
+    },
+
+    submitResponse: async (payload) => {
+        const url = `${BASE_URL}/exams/responses`;
+        if (DEBUG) {
+            // No delay for smoother typing/interaction in mock
+            return { status: "recorded", ...payload };
+        }
+        // Alignment with Table 10: exam_response
+        const schemaPayload = {
+            attempt_id: payload.attemptId,
+            exam_question_id: payload.examQuestionId,
+            selected_option_id: payload.selectedOptionId || null,
+            descriptive_answer: payload.descriptiveAnswer || null,
+            coding_submission_path: payload.codingSubmissionPath || null,
+            evaluation_type: payload.evaluationType || "AUTO"
+        };
+        try {
+            const data = await apiFetch(url, {
+                method: "POST",
+                body: JSON.stringify(schemaPayload)
+            });
+            logApi("POST", url, schemaPayload, data);
+            return data;
+        } catch (error) {
+            logApi("POST", url, schemaPayload, null, error);
+            throw error;
+        }
+    },
+
+    getLeaderboard: async (scope = "global") => {
+        if (DEBUG) {
+            await delay(MOCK_API_DELAY);
+            return [];
+        }
+        return await apiFetch(`${BASE_URL}/leaderboard?scope=${scope}`);
+    },
+
+    getReports: async () => {
+        if (DEBUG) {
+            await delay(MOCK_API_DELAY);
+            return [];
+        }
+        return await apiFetch(`${BASE_URL}/reports/exams`);
+    },
+
+    getExamPaper: async (id) => {
+        try {
+            const exam = await ExamService.getExamById(id);
+            const questions = await ExamService.getExamQuestions(id);
+            return { ...exam, questions };
+        } catch (error) {
+            logApi("COMPOSITE", "getExamPaper", { id }, null, error);
+            return null;
+        }
     }
 };

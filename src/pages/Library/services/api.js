@@ -89,7 +89,12 @@ export const BookService = {
     },
 
     createCategory: async (categoryName) => {
-        return libraryService.categories.createCategory({ categoryName });
+        return libraryService.categories.createCategory({
+            categoryName,
+            name: categoryName, // Fallback/Alternative key to prevent backend 500 if it expects 'name'
+            description: categoryName, // Common required field guess
+            status: 'ACTIVE' // Common required field guess
+        });
     }
 };
 

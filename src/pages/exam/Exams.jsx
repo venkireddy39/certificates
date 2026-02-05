@@ -37,8 +37,8 @@ const Exams = () => {
             <Route path="student/attempt/:id" element={<LearnerExamView />} />
 
             {/* New Simulation Preview (Standalone) */}
-            <Route path="simulation/preview" element={<SectionBasedExamPreview />} />
-            <Route path="simulation/mnc-preview" element={<MNCExamView />} />
+            <Route path="simulation/preview/:id" element={<SectionBasedExamPreview />} />
+            <Route path="simulation/mnc-preview/:id" element={<MNCExamView />} />
         </Routes>
     );
 };

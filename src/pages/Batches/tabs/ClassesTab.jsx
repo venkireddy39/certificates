@@ -65,12 +65,30 @@ const ClassCard = ({ session, onDelete, onEdit, onViewContent, instructorName, b
                     const classId = session.classId || session.sessionId;
                     console.log(`[ClassesTab] Starting attendance for classId: ${classId}`);
 
-                    // userId: 1 (placeholder for current user)
-                    const newAtt = await attendanceService.startSession(classId, courseId, batchId, 1);
+                    // Get real user ID from localStorage
+                    let userId = 1;
+                    try {
+                        const authUser = JSON.parse(localStorage.getItem('auth_user') || '{}');
+                        userId = authUser.userId || authUser.id || 1;
+                    } catch (e) { console.warn("Failed to get userId for startSession", e); }
+
+                    const newAtt = await attendanceService.startSession(classId, courseId, batchId, userId);
                     onAttendanceUpdate(); // Refresh parent state
                     navigate(`/attendance/sessions/${newAtt.id}/live`);
                 } catch (e) {
-                    alert("Failed to start attendance session. Check if backend is running.");
+                    console.error("Attendance Start Error:", e);
+                    // Handle "Already Started" conflict gracefully
+                    if (e.message && (e.message.includes("409") || e.message.includes("already started"))) {
+                        console.log("Session already exists, reloading to find it...");
+                        await onAttendanceUpdate();
+                        // The parent will re-render, and the button should update to "Manage Attendance"
+                        // But since we are inside the click handler, we can try to navigate if we knew the ID.
+                        // Ideally, we just refresh and let user click again, or we try to fetch it.
+                        alert("Session is already active. Refreshing...");
+                        // window.location.reload(); // Too aggressive, onAttendanceUpdate should suffice
+                    } else {
+                        alert(`Failed to start attendance: ${e.message}`);
+                    }
                 }
             }
         } else if (attendance.status === 'ACTIVE') {

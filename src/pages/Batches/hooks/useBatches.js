@@ -46,20 +46,26 @@ export const useBatches = (courses, instructors = []) => {
 
     // Derived batches with status
     const enrichedBatches = useMemo(() => {
-        return batches.map(b => ({
-            ...b,
-            // Assuming backend might not populate status dynamically or we want to ensure frontend logic overrides:
-            // "status" field exists in entity, but let's double check if we need to calculate it.
-            // core entity has status, we can use it or recalculate if needed.
-            // Let's rely on entity status if present, else calculate.
-            // Derive status from dates dynamically for UI consistency
-            // ignoring potentially stale status from backend unless dates are missing
-            status: getBatchStatus(b.startDate, b.endDate),
-            // Map entity fields to UI if needed, usually we keep them same if possible.
-            // UI expects 'id', entity has 'batchId'. Let's normalize.
-            id: b.batchId,
-            name: b.batchName
-        }));
+        return batches.map(b => {
+            // Check for explicit backend status first to prevent overwriting 'Deleted' or 'Archived'
+            let finalStatus;
+            const backendStatus = (b.status || '').toUpperCase();
+
+            if (backendStatus === 'DELETED' || b.deleted) {
+                finalStatus = BATCH_STATUS.DELETED;
+            } else {
+                // Otherwise derive from dates
+                finalStatus = getBatchStatus(b.startDate, b.endDate);
+            }
+
+            return {
+                ...b,
+                status: finalStatus,
+                // Map entity fields to UI if needed
+                id: b.batchId,
+                name: b.batchName
+            };
+        });
     }, [batches]);
 
     // Filters
@@ -69,6 +75,11 @@ export const useBatches = (courses, instructors = []) => {
         // Tab Filter
         if (currentTab !== BATCH_TABS.ALL) {
             result = result.filter(b => b.status === currentTab);
+        } else {
+            // In 'All' tab, usually we hide Deleted unless explicitly requested
+            // But if user wants to see them, maybe we should show them? 
+            // Standard pattern: All = Active (Upcoming + Ongoing + Completed). Deleted is separate.
+            result = result.filter(b => b.status !== BATCH_STATUS.DELETED);
         }
 
         // Dropdown Filters
@@ -98,10 +109,11 @@ export const useBatches = (courses, instructors = []) => {
 
     // Stats
     const stats = useMemo(() => ({
-        total: enrichedBatches.length,
+        total: enrichedBatches.filter(b => b.status !== BATCH_STATUS.DELETED).length, // Total usually excludes deleted
         upcoming: enrichedBatches.filter(b => b.status === BATCH_STATUS.UPCOMING).length,
         ongoing: enrichedBatches.filter(b => b.status === BATCH_STATUS.ONGOING).length,
-        completed: enrichedBatches.filter(b => b.status === BATCH_STATUS.COMPLETED).length
+        completed: enrichedBatches.filter(b => b.status === BATCH_STATUS.COMPLETED).length,
+        deleted: enrichedBatches.filter(b => b.status === BATCH_STATUS.DELETED).length
     }), [enrichedBatches]);
 
     // Form handlers
@@ -205,13 +217,33 @@ export const useBatches = (courses, instructors = []) => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Delete this batch?')) {
+        if (window.confirm('Are you sure you want to move this batch to Trash (Soft Delete)?')) {
             try {
-                await batchService.deleteBatch(id);
-                setBatches(prev => prev.filter(b => b.batchId !== id));
+                // Find the batch to update
+                const batchToDelete = batches.find(b => b.batchId === id);
+                if (!batchToDelete) return;
+
+                // 1. Prepare updated payload with DELETED status
+                const payload = {
+                    ...batchToDelete,
+                    status: 'DELETED',
+                    deleted: true // Optional flag if backend uses it
+                };
+
+                // 2. Call Update API instead of Delete (Soft Delete)
+                await batchService.updateBatch(id, payload);
+
+                // 3. Update Local State: Don't remove, just update status
+                setBatches(prev => prev.map(b =>
+                    b.batchId === id ? { ...b, status: 'DELETED', deleted: true } : b
+                ));
+
+                // Optional: Switch to Deleted tab so user sees where it went? 
+                // Alternatively, just let it vanish from "All/Active" and appear in stats.
+
             } catch (err) {
-                console.error("Delete failed", err);
-                alert("Failed to delete batch.");
+                console.error("Soft delete failed", err);
+                alert("Failed to move batch to trash. " + err.message);
             }
         }
     };

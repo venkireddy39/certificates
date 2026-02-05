@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { EXAM_TEMPLATES } from '../data/constants';
 import { toast } from 'react-toastify';
+import { courseService } from '../../../Courses/services/courseService';
+import { batchService } from '../../../Batches/services/batchService';
 
 const SetupMode = ({ onComplete, initialData }) => {
 
@@ -99,13 +101,56 @@ const SetupMode = ({ onComplete, initialData }) => {
     // Configuration State
     const [config, setConfig] = useState({
         title: '',
-        course: '',
+        courseId: '',
+        batchId: '',
         type: 'mixed',
         totalMarks: 100,
         duration: 60,
         instructions: DEFAULT_INSTRUCTIONS,
         ...initialData
     });
+
+    const [courses, setCourses] = useState([]);
+    const [batches, setBatches] = useState([]);
+    const [loadingData, setLoadingData] = useState(false);
+
+    useEffect(() => {
+        loadInitialData();
+    }, []);
+
+    const loadInitialData = async () => {
+        setLoadingData(true);
+        try {
+            const courseData = await courseService.getCourses();
+            setCourses(courseData || []);
+
+            // Fix: Load batches if course is already selected (e.g. Edit Mode)
+            if (config.courseId) {
+                const batchData = await batchService.getBatchesByCourseId(config.courseId);
+                setBatches(batchData || []);
+            }
+        } catch (error) {
+            console.error("Failed to load data", error);
+        } finally {
+            setLoadingData(false);
+        }
+    };
+
+    const handleCourseChange = async (courseId) => {
+        setConfig(prev => ({ ...prev, courseId, batchId: '' }));
+        if (!courseId) {
+            setBatches([]);
+            return;
+        }
+
+        try {
+            const batchData = await batchService.getBatchesByCourseId(courseId);
+            setBatches(batchData || []);
+        } catch (error) {
+            console.error("Failed to load batches", error);
+            setBatches([]);
+        }
+    };
 
     const [assets, setAssets] = useState({
         logo: null,
@@ -232,8 +277,8 @@ const SetupMode = ({ onComplete, initialData }) => {
     };
 
     const validateAndContinue = () => {
-        if (!config.title.trim() || !config.course.trim()) {
-            toast.error("Please enter Exam Title and Course.");
+        if (!config.title.trim() || !config.courseId) {
+            toast.error("Please enter Exam Title and select a Course.");
             return;
         }
         onComplete({
@@ -381,9 +426,32 @@ const SetupMode = ({ onComplete, initialData }) => {
                                         <option value="coding">Coding</option>
                                     </select>
                                 </div>
-                                <div className="col-md-12">
-                                    <label className="form-label small fw-bold">Course / Subject <span className="text-danger">*</span></label>
-                                    <input className="form-control" value={config.course} onChange={(e) => setConfig({ ...config, course: e.target.value })} placeholder="e.g. Computer Science 101" />
+                                <div className="col-md-6">
+                                    <label className="form-label small fw-bold">Course <span className="text-danger">*</span></label>
+                                    <select
+                                        className="form-select form-select-lg"
+                                        value={config.courseId}
+                                        onChange={(e) => handleCourseChange(e.target.value)}
+                                    >
+                                        <option value="">Select Course</option>
+                                        {courses.map(c => (
+                                            <option key={c.courseId} value={c.courseId}>{c.courseName}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="col-md-6">
+                                    <label className="form-label small fw-bold">Batch <span className="small text-muted">(Optional - Assign Later)</span></label>
+                                    <select
+                                        className="form-select form-select-lg"
+                                        value={config.batchId}
+                                        disabled={!config.courseId}
+                                        onChange={(e) => setConfig({ ...config, batchId: e.target.value })}
+                                    >
+                                        <option value="">Select Batch (All)</option>
+                                        {batches.map(b => (
+                                            <option key={b.batchId} value={b.batchId}>{b.batchName}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div className="col-md-6">
                                     <label className="form-label small fw-bold">Duration (Minutes)</label>

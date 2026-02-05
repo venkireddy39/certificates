@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAttendanceStore } from '../store/attendanceStore';
 import { attendanceService } from '../services/attendanceService';
+import { courseService } from '../../Courses/services/courseService';
+import { batchService } from '../../Batches/services/batchService';
 import { enrollmentService } from '../../Batches/services/enrollmentService';
 import { FiSave, FiFilter, FiRefreshCw, FiTrash2, FiUpload, FiCalendar, FiClock, FiCheckCircle, FiAlertCircle, FiX, FiAlertTriangle, FiDownload } from 'react-icons/fi';
 import AttendanceStats from '../components/AttendanceStats';
@@ -56,13 +58,13 @@ const OfflineSync = () => {
 
     // Fetch Courses
     useEffect(() => {
-        attendanceService.getCourses().then(setCourses).catch(console.error);
+        courseService.getCourses().then(setCourses).catch(console.error);
     }, []);
 
     // Fetch Batches
     useEffect(() => {
         if (selectedCourse) {
-            attendanceService.getBatches(selectedCourse).then(setBatches).catch(console.error);
+            batchService.getBatchesByCourseId(selectedCourse).then(setBatches).catch(console.error);
         } else {
             setBatches([]);
         }

@@ -6,13 +6,15 @@ import { useLiveSessions, useEndedSessions, useDashboardStats } from '../hooks/u
 import { useToast } from '../../Library/context/ToastContext';
 import StatCard from '../components/StatCard';
 import SessionList from '../components/SessionList';
-import StartSessionModal from '../components/StartSessionModal';
+import { CheckCircle } from 'lucide-react';
+
+import { useNavigate } from 'react-router-dom';
 
 const SessionDashboard = () => {
     // 1. State
     const [activeTab, setActiveTab] = useState('live'); // 'live' | 'ended'
     const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
-    const [showStartModal, setShowStartModal] = useState(false);
+    const navigate = useNavigate();
 
     // 2. Hooks
     const { liveSessions, refreshLive } = useLiveSessions();
@@ -25,26 +27,42 @@ const SessionDashboard = () => {
 
     const stats = useDashboardStats(liveSessions, pendingSyncCount);
 
-    // Helper to get current user ID
-    const getCurrentUserId = () => {
+    // Helper to get current user info (ID and Role)
+    const getCurrentUser = () => {
         try {
             const user = JSON.parse(localStorage.getItem('auth_user') || '{}');
-            return user.id || 1; // Fallback to 1 if not found
-        } catch { return 1; }
+            return {
+                id: user.userId || user.id || 1,
+                role: (user.role || '').toUpperCase()
+            };
+        } catch { return { id: 1, role: 'STUDENT' }; }
     };
+
+    const currentUser = getCurrentUser();
 
     // 3. Handlers
     const handleQuickStart = async (session) => {
-        if (!window.confirm(`Start attendance for ${session.title}?`)) return;
+        console.log(`[SessionDashboard] handleQuickStart calling: /api/attendance/session/start`);
         try {
-            await attendanceService.startSession(
+            const res = await attendanceService.startSession(
                 session.classId || session.sessionId,
                 session.courseId,
                 session.batchId,
-                getCurrentUserId()
+                currentUser.id
             );
-            refreshLive();
-            toast.success("Attendance Session Started!");
+
+            const status = (res.status || '').toUpperCase();
+
+            if (status === 'ENDED' || status === 'COMPLETED') {
+                toast.info("Attendance already marked. Opening Report...");
+                navigate(`/attendance/sessions/${res.id}/report`);
+            } else {
+                toast.success("Attendance Session Active!");
+                refreshLive();
+                // Optional: Auto-navigate to live view
+                // navigate(`/attendance/sessions/${res.id}/live`);
+            }
+
         } catch (error) {
             console.error("Start Session Error:", error);
             let msg = error.message;
@@ -72,11 +90,6 @@ const SessionDashboard = () => {
         }
     };
 
-    const handleSessionStarted = () => {
-        refreshLive();
-        setActiveTab('live');
-        toast.success("Attendance Session Started!");
-    };
 
     // 4. Render
     return (
@@ -112,11 +125,11 @@ const SessionDashboard = () => {
                 </div>
                 <div className="col-md-6 col-lg-3">
                     <StatCard
-                        title="Total Active Students"
-                        value={stats.totalStudents}
-                        subValue="Enrolled currently"
+                        title="Completed Today"
+                        value={stats.completedToday || 0}
+                        subValue="Finished sessions"
                         color="primary"
-                        icon={Users}
+                        icon={CheckCircle}
                     />
                 </div>
             </div>
@@ -137,13 +150,6 @@ const SessionDashboard = () => {
                         Ended Sessions
                     </button>
                 </div>
-                <button
-                    className="btn btn-primary rounded-pill px-4 shadow-sm fw-bold d-flex align-items-center gap-2"
-                    onClick={() => setShowStartModal(true)}
-                >
-                    <Activity size={18} />
-                    Start New Session
-                </button>
             </div>
 
             {/* TAB CONTENT: LIVE */}
@@ -162,7 +168,8 @@ const SessionDashboard = () => {
                         type="LIVE"
                         onStart={handleQuickStart}
                         onDelete={handleDelete}
-                        emptyMessage='No live sessions running. Click "Start New Session" to begin.'
+                        userRole={currentUser.role}
+                        emptyMessage="No live sessions or scheduled classes for today."
                     />
                 </div>
             )}
@@ -187,17 +194,12 @@ const SessionDashboard = () => {
                         type="ENDED"
                         onStart={handleQuickStart}
                         onDelete={handleDelete}
+                        userRole={currentUser.role}
                         emptyMessage={`No ended sessions found for ${filterDate}.`}
                     />
                 </div>
             )}
 
-            {/* MODAL */}
-            <StartSessionModal
-                show={showStartModal}
-                onClose={() => setShowStartModal(false)}
-                onSessionStarted={handleSessionStarted}
-            />
         </div>
     );
 };

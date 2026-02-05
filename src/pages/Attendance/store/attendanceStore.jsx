@@ -64,8 +64,20 @@ export const AttendanceProvider = ({ children }) => {
         setAttendanceList([]);
     }, []);
 
-    const stopSession = useCallback(() => {
+    const stopSession = useCallback(async () => {
         console.log("[attendanceStore] Stopping session", session.id);
+
+        // 1. Call backend to persist ended_at in database
+        if (session.id) {
+            try {
+                await attendanceService.endSession(session.id);
+                console.log("[attendanceStore] Session ended in backend successfully");
+            } catch (error) {
+                console.error("[attendanceStore] Failed to end session in backend", error);
+            }
+        }
+
+        // 2. Update local state
         setSession(prev => ({ ...prev, status: 'ENDED', qrData: null }));
     }, [session.id]);
 

@@ -37,7 +37,8 @@ const CourseShareModal = ({ isOpen, onClose, course }) => {
     const handleSocialShare = (platform) => {
         if (!enabled || isCourseDisabled) return;
 
-        const text = `Check out this course: ${course.name || "Course"}`;
+        const desc = course.desc || course.description || "";
+        const text = `Check out this course: ${course.name || "Course"}${desc ? ` - ${desc}` : ""}`;
         let url = "";
 
         if (platform === "whatsapp") {
@@ -79,118 +80,85 @@ const CourseShareModal = ({ isOpen, onClose, course }) => {
 
     return (
         <div className="modal-overlay">
-            <div className="modal-content" style={{ width: 400, textAlign: "center" }}>
-                <div className="modal-header">
-                    <h2>Share Course</h2>
-                    <button className="close-btn" onClick={onClose}>
+            <div className="modal-content shadow-lg p-0" style={{ width: 420, borderRadius: '16px', overflow: 'hidden' }}>
+                <div className="modal-header d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
+                    <h5 className="m-0 fw-bold text-dark">Share Course</h5>
+                    <button className="btn btn-sm btn-icon text-muted" onClick={onClose} style={{ background: 'none', border: 'none' }}>
                         <FiX size={20} />
                     </button>
                 </div>
 
-                <div
-                    className="share-body"
-                    style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: 24,
-                    }}
-                >
+                <div className="modal-body p-4 d-flex flex-column align-items-center gap-4">
                     {/* Status Warning */}
                     {isCourseDisabled && (
-                        <p style={{ fontSize: 13, color: "#dc2626", margin: 0 }}>
-                            Sharing is disabled because this course is inactive.
-                        </p>
+                        <div className="alert alert-danger w-100 py-2 text-center mb-0 text-small">
+                            Sharing disabled: Course is inactive.
+                        </div>
                     )}
 
                     {/* Toggle */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 14, fontWeight: 500 }}>
-                            Enable Sharing
-                        </span>
-                        <label style={{ position: "relative", width: 40, height: 24 }}>
+                    <div className="d-flex align-items-center gap-3 w-100 justify-content-between px-3 py-2 bg-light rounded-3 border">
+                        <span className="fw-semibold text-secondary">Enable Public Sharing</span>
+                        <div className="form-check form-switch">
                             <input
+                                className="form-check-input"
                                 type="checkbox"
+                                role="switch"
                                 checked={enabled}
                                 disabled={isCourseDisabled || loading}
                                 onChange={handleToggle}
-                                style={{ opacity: 0 }}
+                                style={{ transform: 'scale(1.2)', cursor: 'pointer' }}
                             />
-                            <span
-                                style={{
-                                    position: "absolute",
-                                    inset: 0,
-                                    backgroundColor: enabled ? "#2563eb" : "#cbd5f5",
-                                    borderRadius: 34,
-                                    cursor: "pointer",
-                                }}
-                            >
-                                <span
-                                    style={{
-                                        position: "absolute",
-                                        width: 16,
-                                        height: 16,
-                                        left: enabled ? 20 : 4,
-                                        top: 4,
-                                        background: "#fff",
-                                        borderRadius: "50%",
-                                        transition: "0.3s",
-                                    }}
-                                />
-                            </span>
-                        </label>
+                        </div>
                     </div>
 
                     {enabled && !isCourseDisabled ? (
                         <>
-                            <div style={{ opacity: loading ? 0.5 : 1 }}>
-                                <QRCodeCanvas value={shareUrl} size={200} />
+                            <div className="p-3 bg-white border rounded-3 shadow-sm" style={{ opacity: loading ? 0.5 : 1 }}>
+                                <QRCodeCanvas value={shareUrl} size={180} />
                             </div>
 
-                            <div style={{ display: "flex", width: "100%", gap: 8 }}>
-                                <input
-                                    readOnly
-                                    value={shareUrl}
-                                    style={{
-                                        flex: 1,
-                                        padding: 10,
-                                        borderRadius: 8,
-                                        background: "#f1f5f9",
-                                        border: "1px solid #cbd5e1",
-                                        fontSize: 13,
-                                    }}
-                                />
-                                <button onClick={handleCopy}>
-                                    <FiCopy />
+                            <div className="w-100">
+                                <label className="form-label text-muted small fw-bold text-uppercase">Public Share Link</label>
+                                <div className="input-group">
+                                    <input
+                                        type="text"
+                                        className="form-control bg-light text-secondary"
+                                        value={shareUrl}
+                                        readOnly
+                                        style={{ fontSize: '13px' }}
+                                    />
+                                    <button className="btn btn-outline-secondary" type="button" onClick={handleCopy}>
+                                        <FiCopy /> Copy
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="d-flex gap-3 justify-content-center w-100">
+                                <button className="btn btn-success rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ width: 44, height: 44 }} onClick={() => handleSocialShare("whatsapp")} title="Share on WhatsApp">
+                                    <FaWhatsapp size={20} />
+                                </button>
+                                <button className="btn btn-info text-white rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ width: 44, height: 44 }} onClick={() => handleSocialShare("telegram")} title="Share on Telegram">
+                                    <FaTelegramPlane size={20} />
+                                </button>
+                                <button className="btn btn-secondary rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ width: 44, height: 44 }} onClick={() => handleSocialShare("email")} title="Share via Email">
+                                    <FaEnvelope size={20} />
                                 </button>
                             </div>
 
-                            <div style={{ display: "flex", gap: 16 }}>
-                                <button onClick={() => handleSocialShare("whatsapp")}>
-                                    <FaWhatsapp />
-                                </button>
-                                <button onClick={() => handleSocialShare("telegram")}>
-                                    <FaTelegramPlane />
-                                </button>
-                                <button onClick={() => handleSocialShare("email")}>
-                                    <FaEnvelope />
-                                </button>
-                            </div>
-
-                            <p style={{ fontSize: 13, color: "#64748b" }}>
-                                Scan QR or copy link to share.
+                            <p className="text-muted small m-0 text-center">
+                                Scan the QR code or copy the link to share this course.
                             </p>
                         </>
                     ) : (
-                        <p style={{ fontSize: 14, color: "#94a3b8" }}>
-                            Sharing is currently disabled.
-                        </p>
+                        <div className="text-center py-5 text-muted">
+                            <div className="mb-2" style={{ fontSize: '2rem', opacity: 0.3 }}>🚫</div>
+                            <p className="m-0">Sharing is currently disabled.</p>
+                        </div>
                     )}
 
                     {error && (
-                        <p style={{ fontSize: 13, color: "#dc2626", margin: 0 }}>
-                            {error}
-                        </p>
+                        <div className="text-danger small mt-2">{error}</div>
                     )}
                 </div>
             </div>

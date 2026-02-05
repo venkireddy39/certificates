@@ -1,434 +1,402 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaEye, FaEdit, FaTrash, FaPlus } from "react-icons/fa";
-import { FolderX } from "lucide-react";
+import { FaEye, FaEdit, FaTrash, FaPlus, FaSearch, FaFilter } from "react-icons/fa";
+import { FolderX, Loader2, Award, Calendar, BarChart3, Clock } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
-} from 'recharts';
+  PieChart, Pie, Cell, AreaChart, Area,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend, BarChart, Bar
+} from "recharts";
+import { ExamService } from "../services/examService";
+import { toast } from "react-toastify";
 
 const ExamDashboard = () => {
   const [exams, setExams] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("total");
   const [searchTerm, setSearchTerm] = useState("");
   const [animate, setAnimate] = useState(false);
 
-  const handleDelete = (id) => {
-    if (!window.confirm("Are you sure you want to delete this exam?")) return;
-    const updatedExams = exams.filter(exam => exam.id !== id);
-    setExams(updatedExams);
-    localStorage.setItem("exams", JSON.stringify(updatedExams.filter(e => e.id !== "demo-1")));
-  };
-
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("exams") || "[]");
-    const demoId = "demo-1";
-    const hasDemo = saved.some(e => e.id === demoId);
-    let initialExams = [...saved];
-
-    if (!hasDemo) {
-      initialExams.push({
-        id: demoId,
-        title: "Introduction to React",
-        course: "Frontend Masterclass",
-        type: "quiz",
-        dateCreated: "2024-11-15T10:00:00Z",
-        status: "completed",
-        score: 85
-      });
-    }
-    setExams(initialExams.sort((a, b) => new Date(b.dateCreated) - new Date(a.dateCreated)));
-    setTimeout(() => setAnimate(true), 100);
+    fetchData();
+    requestAnimationFrame(() => setAnimate(true));
   }, []);
 
-  // Stats Calculation
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const data = await ExamService.getExams();
+      setExams(Array.isArray(data) ? data.sort((a, b) => new Date(b.dateCreated) - new Date(a.dateCreated)) : []);
+    } catch (error) {
+      toast.error("Failed to fetch exams");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this exam? This action cannot be undone.")) return;
+    try {
+      await ExamService.deleteExam(id);
+      setExams(exams.filter(e => e.id !== id));
+      toast.success("Exam deleted successfully");
+    } catch (error) {
+      toast.error("Failed to delete exam");
+    }
+  };
+
   const stats = useMemo(() => {
-    const total = exams.length;
     const completed = exams.filter(e => e.status === "completed").length;
-    const upcoming = total - completed;
-    return { total, upcoming, completed };
+    const active = exams.filter(e => e.status === "active" || e.status === "ongoing").length;
+    return {
+      total: exams.length,
+      completed,
+      upcoming: exams.length - completed - active,
+      active
+    };
   }, [exams]);
 
-  // Chart Data Preparation
+  const filteredExams = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return exams.filter(exam => {
+      const status = exam.status?.toLowerCase() || "upcoming";
+      const matchesFilter =
+        filter === "total" ||
+        (filter === "completed" && status === "completed") ||
+        (filter === "upcoming" && (status === "upcoming" || status === "scheduled")) ||
+        (filter === "active" && (status === "active" || status === "ongoing"));
+
+      const matchesSearch =
+        exam.title?.toLowerCase().includes(q) ||
+        exam.course?.toLowerCase().includes(q);
+
+      return matchesFilter && matchesSearch;
+    });
+  }, [exams, filter, searchTerm]);
+
   const pieData = [
-    { name: 'Completed', value: stats.completed, color: '#10b981' }, // Success green
-    { name: 'Upcoming', value: stats.upcoming, color: '#f59e0b' },   // Warning orange
+    { name: "Completed", value: stats.completed, color: "#10b981" },
+    { name: "Upcoming", value: stats.upcoming, color: "#f59e0b" },
+    { name: "Active", value: stats.active, color: "#6366f1" },
   ];
 
-  // Mock Trend Data
-  const trendData = [
-    { name: 'Jan', exams: 2, avgScore: 65 },
-    { name: 'Feb', exams: 5, avgScore: 78 },
-    { name: 'Mar', exams: 3, avgScore: 82 },
-    { name: 'Apr', exams: 8, avgScore: 74 },
-    { name: 'May', exams: 6, avgScore: 88 },
-    { name: 'Jun', exams: 10, avgScore: 85 },
-  ];
+  const trendData = useMemo(() => {
+    const map = {};
+    exams.forEach(e => {
+      const date = new Date(e.dateCreated);
+      if (isNaN(date)) return;
+      const m = date.toLocaleString("default", { month: "short" });
+      if (!map[m]) map[m] = { name: m, exams: 0, avgScore: 0, count: 0 };
+      map[m].exams += 1;
+      if (e.avgScore) {
+        map[m].avgScore += e.avgScore;
+        map[m].count += 1;
+      }
+    });
+    return Object.keys(map).length > 0 ? Object.values(map) : [
+      { name: 'Jan', exams: 0 }, { name: 'Feb', exams: 0 }, { name: 'Mar', exams: 0 }
+    ];
+  }, [exams]);
 
-  // Filter Logic
-  const filteredExams = exams.filter(exam => {
-    const status = exam.status || "upcoming";
-    const matchesFilter = filter === "total" ||
-      (filter === "completed" && status === "completed") ||
-      (filter === "upcoming" && status !== "completed");
-    const matchesSearch = exam.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      exam.course.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-100 bg-white text-dark">
+        <div className="text-center">
+          <Loader2 className="animate-spin mb-3 text-primary" size={48} />
+          <h4 className="fw-light">Loading Dashboard Data...</h4>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container-fluid min-vh-100 pb-5 dashboard-bg" style={{ fontFamily: "'Inter', sans-serif" }}>
-      <div className="container pt-4 mb-5">
+    <div className="container-fluid min-vh-100 pb-5 bg-gray-5 text-dark">
+      <style>{`
+        .bg-gray-5 { background: #f8fafc; }
+        .glass-card {
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 16px;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .glass-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .btn-premium {
+          background: linear-gradient(90deg, #6366f1 0%, #a855f7 100%);
+          border: none;
+          color: white;
+          padding: 10px 24px;
+          border-radius: 12px;
+          font-weight: 600;
+          transition: all 0.3s ease;
+          box-shadow: 0 4px 12px rgba(99,102,241,0.2);
+        }
+        .btn-premium:hover {
+          opacity: 0.9;
+          transform: translateY(-1px);
+          color: white;
+          box-shadow: 0 6px 20px rgba(99,102,241,0.3);
+        }
+        .status-badge {
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+        .status-completed { background: #d1fae5; color: #065f46; }
+        .status-upcoming { background: #fef3c7; color: #92400e; }
+        .status-active { background: #e0e7ff; color: #3730a3; }
+        .text-gradient { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+      `}</style>
 
-        {/* --- Header Section --- */}
-        <div className={`d-flex flex-column flex-md-row justify-content-between align-items-center mb-5 gap-3 fade-in ${animate ? 'visible' : ''}`}>
+      <div className="container pt-5">
+        {/* HEADER */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="d-flex justify-content-between align-items-end mb-5"
+        >
           <div>
-            <h2 className="fw-bold text-dark mb-1">Dashboard Overview</h2>
-            <p className="text-secondary mb-0 small">Welcome back! Here's what's happening today.</p>
+            <h1 className="fw-bold mb-1 text-dark">Exam Analytics</h1>
+            <p className="text-muted mb-0">Monitor performance and manage upcoming assessments</p>
           </div>
-          <div className="d-flex gap-2">
-            <Link to="/exams/question-bank" className="btn btn-white text-dark shadow-sm fw-medium d-flex align-items-center gap-2">
-              <i className="bi bi-collection"></i> <span className="d-none d-sm-inline">Question Bank</span>
-            </Link>
+          <Link to="/exams/create-exam" className="btn btn-premium">
+            <FaPlus className="me-2" /> Create New Exam
+          </Link>
+        </motion.div>
 
-            <Link to="/exams/create-exam" className="btn btn-secondary shadow-sm fw-medium d-flex align-items-center gap-2">
-              <FaPlus size={12} /> <span>Create Exam</span>
-            </Link>
-          </div>
+        {/* METRICS */}
+        <div className="row g-4 mb-5">
+          <MetricCard
+            title="Total Exams"
+            value={stats.total}
+            icon={<Award className="text-primary" />}
+            delay={0.1}
+          />
+          <MetricCard
+            title="Active Sessions"
+            value={stats.active}
+            icon={<Clock className="text-indigo-600" />}
+            delay={0.2}
+          />
+          <MetricCard
+            title="Completed"
+            value={stats.completed}
+            icon={<BarChart3 className="text-success" />}
+            delay={0.3}
+          />
+          <MetricCard
+            title="Upcoming"
+            value={stats.upcoming}
+            icon={<Calendar className="text-warning" />}
+            delay={0.4}
+          />
         </div>
 
-        {/* --- Top Metrics Row --- */}
-        <div className="row g-4 mb-4">
-          <div className="col-12 col-md-4">
-            <MetricCard
-              title="Total Exams"
-              value={stats.total}
-              icon="bi-files"
-              trend="+12% this month"
-              trendColor="text-success"
-              delay={0.1}
-              animate={animate}
-              color="#4f46e5"
-            />
-          </div>
-          <div className="col-12 col-md-4">
-            <MetricCard
-              title="Completed"
-              value={stats.completed}
-              icon="bi-check-circle-fill"
-              trend="High completion rate"
-              trendColor="text-primary"
-              delay={0.2}
-              animate={animate}
-              color="#10b981"
-            />
-          </div>
-          <div className="col-12 col-md-4">
-            <MetricCard
-              title="Pending / Upcoming"
-              value={stats.upcoming}
-              icon="bi-hourglass-split"
-              trend="Action required"
-              trendColor="text-warning"
-              delay={0.3}
-              animate={animate}
-              color="#f59e0b"
-            />
-          </div>
-        </div>
-
-        {/* --- Charts Section --- */}
-        <div className="row g-4 mb-4">
-          <div className="col-12 col-lg-8">
-            <div className={`card border-0 shadow-sm rounded-4 h-100 overflow-hidden fade-in-up ${animate ? 'visible' : ''}`} style={{ transitionDelay: '0.4s' }}>
-              <div className="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
-                <h6 className="fw-bold text-dark mb-0">Exam Activity & Performance</h6>
-                <select className="form-select form-select-sm border-0 bg-light w-auto fw-medium text-secondary">
-                  <option>This Year</option>
-                  <option>Last 6 Months</option>
-                </select>
-              </div>
-              <div className="card-body px-2 pb-2" style={{ height: "300px" }}>
+        {/* CHARTS */}
+        <div className="row g-4 mb-5">
+          <div className="col-lg-8">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.5 }}
+              className="glass-card p-4 h-100"
+            >
+              <h5 className="mb-4 fw-bold text-dark">Exam Activity Trend</h5>
+              <div style={{ height: "300px" }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <AreaChart data={trendData}>
                     <defs>
                       <linearGradient id="colorExams" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1} />
-                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1} />
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                    <CartesianGrid vertical={false} stroke="#f3f4f6" />
-                    <Area type="monotone" dataKey="exams" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorExams)" name="Exams Created" />
-                    <Area type="monotone" dataKey="avgScore" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" name="Avg Score" />
-                    <Legend verticalAlign="top" height={36} iconType="circle" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
+                    <YAxis stroke="#64748b" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" }}
+                      itemStyle={{ color: "#1e293b" }}
+                    />
+                    <Area type="monotone" dataKey="exams" stroke="#6366f1" fillOpacity={1} fill="url(#colorExams)" strokeWidth={3} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-            </div>
+            </motion.div>
           </div>
-          <div className="col-12 col-lg-4">
-            <div className={`card border-0 shadow-sm rounded-4 h-100 overflow-hidden fade-in-up ${animate ? 'visible' : ''}`} style={{ transitionDelay: '0.5s' }}>
-              <div className="card-header bg-white border-0 pt-4 px-4 pb-0">
-                <h6 className="fw-bold text-dark mb-0">Status Overview</h6>
+
+          <div className="col-lg-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.6 }}
+              className="glass-card p-4 h-100"
+            >
+              <h5 className="mb-4 fw-bold text-dark">Distribution</h5>
+              <div style={{ height: "300px" }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" }}
+                    />
+                    <Legend verticalAlign="bottom" height={36} />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-              <div className="card-body d-flex flex-column align-items-center justify-content-center position-relative" style={{ height: "300px" }}>
-                {stats.total === 0 ? (
-                  <div className="text-center text-muted">No data available</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={0} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-                {stats.total > 0 && (
-                  <div className="position-absolute text-center" style={{ pointerEvents: 'none' }}>
-                    <div className="h4 fw-bold mb-0">{stats.total}</div>
-                    <div className="small text-muted">Total</div>
-                  </div>
-                )}
-              </div>
-            </div>
+            </motion.div>
           </div>
         </div>
 
-        {/* --- Recent Exams Table Section --- */}
-        <div className={`card border-0 shadow-sm rounded-4 overflow-hidden bg-white fade-in-up ${animate ? 'visible' : ''}`} style={{ transitionDelay: '0.6s' }}>
-          <div className="card-header bg-white border-0 pt-4 px-4 pb-4">
-            <div className="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
-
-              {/* 1. Filter Pills (Left) */}
-              <div className="bg-light p-1 rounded-pill d-inline-flex w-100 w-md-auto justify-content-center justify-content-md-start">
-                {[
-                  { id: 'total', label: 'All' },
-                  { id: 'completed', label: 'Completed' },
-                  { id: 'upcoming', label: 'Upcoming' }
-                ].map((btn) => (
-                  <button
-                    key={btn.id}
-                    onClick={() => setFilter(btn.id)}
-                    className={`btn btn-sm rounded-pill border-0 px-3 fw-medium transition-all ${filter === btn.id
-                      ? 'bg-white text-dark shadow-sm'
-                      : 'text-secondary bg-transparent'
-                      }`}
-                    style={{ minWidth: '80px' }}
-                  >
-                    {btn.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* 2. Search Bar (Right) */}
-              <div className="position-relative w-100 w-md-auto" style={{ minWidth: '240px' }}>
-                <i className="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-secondary opacity-75"></i>
+        {/* LIST TABLE SECTION */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+          className="glass-card"
+        >
+          <div className="p-4 border-bottom border-light d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div className="d-flex align-items-center gap-3 flex-grow-1" style={{ maxWidth: "400px" }}>
+              <div className="position-relative w-100">
+                <FaSearch className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
                 <input
                   type="text"
-                  className="form-control form-control-sm ps-5 bg-light border-0 rounded-pill py-2"
-                  placeholder="Search exams..."
+                  className="form-control bg-light border-light-subtle text-dark ps-5 py-2 rounded-3"
+                  placeholder="Search exams or courses..."
                   value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ border: '1px solid #e2e8f0' }}
                 />
               </div>
             </div>
+            <div className="d-flex gap-2">
+              {['total', 'active', 'upcoming', 'completed'].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`btn btn-sm rounded-pill px-3 transition-all ${filter === f ? 'btn-primary shadow-sm' : 'btn-outline-secondary'}`}
+                >
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="card-body p-0">
-            {/* Desktop Table View - Changed breakpoint to d-sm-block to keep table on tablet/large phone */}
-            <div className="table-responsive d-none d-sm-block">
-              <table className="table table-hover align-middle mb-0">
-                <thead className="bg-light bg-opacity-50">
-                  <tr className="text-secondary small text-uppercase fw-bold ls-1 border-bottom-0">
-                    <th className="ps-4 py-3 border-0" style={{ width: '100px' }}>Student Idpco</th>
-                    <th className="py-3 border-0">Exam Title</th>
-                    <th className="py-3 border-0">Course</th>
-                    <th className="py-3 border-0">Type</th>
-                    <th className="py-3 border-0">Date</th>
-                    <th className="py-3 border-0">Status</th>
-                    <th className="pe-4 py-3 border-0 text-end">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+          <div className="table-responsive">
+            <table className="table table-hover mb-0 align-middle">
+              <thead>
+                <tr className="bg-light">
+                  <th className="ps-4 py-3 text-muted small text-uppercase fw-bold">ID</th>
+                  <th className="py-3 text-muted small text-uppercase fw-bold">Exam Title</th>
+                  <th className="py-3 text-muted small text-uppercase fw-bold">Course & Batch</th>
+                  <th className="py-3 text-muted small text-uppercase fw-bold">Status</th>
+                  <th className="pe-4 py-3 text-end text-muted small text-uppercase fw-bold">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <AnimatePresence mode='popLayout'>
                   {filteredExams.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" className="text-center py-5 text-muted">
-                        <div className="d-flex flex-column align-items-center gap-2">
-                          <FolderX size={32} className="text-secondary opacity-25" />
-                          <small>No exams found.</small>
+                    <motion.tr
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      <td colSpan="5" className="text-center py-5">
+                        <div className="d-flex flex-column align-items-center text-muted">
+                          <FolderX size={48} className="mb-3 opacity-20" />
+                          <p className="mb-0">No records found matching your criteria</p>
                         </div>
                       </td>
-                    </tr>
+                    </motion.tr>
                   ) : (
-                    filteredExams.map((exam) => {
-                      const completed = exam.status === "completed";
-                      return (
-                        <tr key={exam.id} className="group-hover-bg-light transition-colors">
-                          <td className="ps-4 py-3 text-secondary fw-medium">#{exam.id}</td>
-                          <td className="py-3">
-                            <span className="fw-bold text-dark">{exam.title}</span>
-                          </td>
-                          <td className="py-3 text-muted fw-medium">
-                            {exam.course}
-                          </td>
-                          <td>
-                            <span className="badge rounded-pill bg-light text-secondary border fw-normal px-3">
-                              {formatType(exam.type)}
-                            </span>
-                          </td>
-                          <td className="text-muted small fw-medium">
-                            {new Date(exam.dateCreated).toLocaleDateString()}
-                          </td>
-                          <td>
-                            {completed ? (
-                              <span className="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3">Completed</span>
-                            ) : (
-                              <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-3">Upcoming</span>
+                    filteredExams.map((exam, idx) => (
+                      <motion.tr
+                        key={exam.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className="border-bottom border-light"
+                      >
+                        <td className="ps-4 text-muted small">#{String(exam.id || '').slice(-6) || idx + 101}</td>
+                        <td>
+                          <div className="fw-semibold text-dark">{exam.title}</div>
+                          <div className="small text-muted">{exam.duration} mins • {exam.totalQuestions || 0} Questions</div>
+                        </td>
+                        <td className="text-dark">
+                          <div className="fw-medium">{exam.course || 'General'}</div>
+                          <div className="small text-muted">{exam.batch || 'All Batches'}</div>
+                        </td>
+                        <td>
+                          <span className={`status-badge status-${exam.status?.toLowerCase() || 'upcoming'}`}>
+                            {exam.status || 'Upcoming'}
+                          </span>
+                        </td>
+                        <td className="pe-4 text-end">
+                          <div className="d-flex justify-content-end gap-1">
+                            <Link to={`/exams/view-paper/${exam.id}`} className="btn btn-sm btn-icon-light shadow-sm" title="View Details">
+                              <FaEye />
+                            </Link>
+                            {exam.status !== "completed" && (
+                              <>
+                                <Link to={`/exams/edit-exam/${exam.id}`} className="btn btn-sm btn-icon-light shadow-sm text-warning" title="Edit">
+                                  <FaEdit />
+                                </Link>
+                                <button onClick={() => handleDelete(exam.id)} className="btn btn-sm btn-icon-light shadow-sm text-danger" title="Delete">
+                                  <FaTrash />
+                                </button>
+                              </>
                             )}
-                          </td>
-                          <td className="text-end pe-4">
-                            <div className="d-flex justify-content-end gap-2">
-                              <Link to={`/exams/view-paper/${exam.id}`} className="btn btn-icon btn-sm btn-light text-primary" title="Preview">
-                                <FaEye />
-                              </Link>
-                              {!completed && (
-                                <>
-                                  <Link to={`/exams/edit-exam/${exam.id}`} className="btn btn-icon btn-sm btn-light text-secondary" title="Edit">
-                                    <FaEdit />
-                                  </Link>
-                                  <button onClick={() => handleDelete(exam.id)} className="btn btn-icon btn-sm btn-light text-danger" title="Delete">
-                                    <FaTrash />
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))
                   )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Card View (d-sm-none) - Only for VERY small screens (<576px) */}
-            <div className="d-sm-none d-flex flex-column p-3 gap-3">
-              {filteredExams.map((exam) => {
-                const completed = exam.status === "completed";
-                return (
-                  <div key={exam.id} className="card border-0 shadow-sm p-4 rounded-4 bg-white">
-                    <div className="d-flex justify-content-between align-items-start mb-3">
-                      <div className="d-flex align-items-center gap-2">
-                        <span className="badge bg-light text-secondary border fw-normal">ID: {exam.id}</span>
-                        <span className={`badge rounded-pill px-2 border ${completed ? 'bg-success-subtle text-success border-success-subtle' : 'bg-warning-subtle text-warning-emphasis border-warning-subtle'}`}>
-                          {completed ? 'Completed' : 'Upcoming'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <h5 className="fw-bold text-dark mb-1">{exam.title}</h5>
-                    <p className="text-muted small mb-3">{exam.course}</p>
-
-                    <div className="d-flex justify-content-between align-items-center mb-4 p-3 bg-light rounded-3">
-                      <div className="text-center">
-                        <div className="text-secondary small fw-bold text-uppercase" style={{ fontSize: '0.7rem' }}>Type</div>
-                        <div className="fw-medium text-dark">{formatType(exam.type)}</div>
-                      </div>
-                      <div className="vr opacity-25"></div>
-                      <div className="text-center">
-                        <div className="text-secondary small fw-bold text-uppercase" style={{ fontSize: '0.7rem' }}>Date</div>
-                        <div className="fw-medium text-dark">{new Date(exam.dateCreated).toLocaleDateString()}</div>
-                      </div>
-                    </div>
-
-                    <div className="d-flex gap-2 w-100">
-                      <Link to={`/exams/view-paper/${exam.id}`} className="btn btn-light text-primary flex-fill d-flex align-items-center justify-content-center gap-2 py-2" title="Preview">
-                        <FaEye /> <span className="small fw-bold">Preview</span>
-                      </Link>
-                      {!completed && (
-                        <>
-                          <Link to={`/exams/edit-exam/${exam.id}`} className="btn btn-light text-secondary flex-fill d-flex align-items-center justify-content-center gap-2 py-2" title="Edit">
-                            <FaEdit /> <span className="small fw-bold">Edit</span>
-                          </Link>
-                          <button onClick={() => handleDelete(exam.id)} className="btn btn-light text-danger flex-fill d-flex align-items-center justify-content-center gap-2 py-2" title="Delete">
-                            <FaTrash /> <span className="small fw-bold">Delete</span>
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
+                </AnimatePresence>
+              </tbody>
+            </table>
           </div>
-        </div>
-
+        </motion.div>
       </div>
 
-      <style>
-        {`
-                .dashboard-bg { background-color: #f8fafc; }
-                .fade-in { opacity: 0; transition: opacity 0.8s ease-out; }
-                .fade-in.visible { opacity: 1; }
-                .fade-in-up { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
-                .fade-in-up.visible { opacity: 1; transform: translateY(0); }
-                .btn-white { background-color: #ffffff; border: 1px solid #e5e7eb; }
-                .btn-white:hover { background-color: #f9fafb; }
-                .btn-icon { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
-                .bg-indigo-subtle { background-color: #e0e7ff; color: #4338ca; }
-                `}
-      </style>
+      <style>{`
+        .btn-icon-light {
+          width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+          background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; color: #64748b; transition: all 0.2s;
+        }
+        .btn-icon-light:hover { background: #f8fafc; color: #1e293b; transform: translateY(-1px); }
+        .text-indigo-600 { color: #4f46e5; }
+      `}</style>
     </div>
   );
 };
 
-/* --- Helper Components --- */
-
-const MetricCard = ({ title, value, icon, trend, trendColor, delay, animate, color }) => (
-  <div
-    className={`card border-0 shadow-sm rounded-4 h-100 p-4 fade-in-up ${animate ? 'visible' : ''}`}
-    style={{ transitionDelay: `${delay}s`, borderLeft: `4px solid ${color}` }}
-  >
-    <div className="d-flex justify-content-between align-items-start mb-3">
+const MetricCard = ({ title, value, icon, delay }) => (
+  <div className="col-md-3">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      className="glass-card p-4 d-flex align-items-center justify-content-between"
+    >
       <div>
-        <p className="text-muted small text-uppercase fw-bold ls-1 mb-1">{title}</p>
-        <h2 className="fw-bold text-dark mb-0">{value}</h2>
+        <p className="text-muted small mb-1 text-uppercase fw-bold tracking-wider">{title}</p>
+        <h2 className="fw-bold mb-0 text-dark">{value}</h2>
       </div>
-      <div className="rounded-circle p-2 d-flex align-items-center justify-content-center" style={{ width: '48px', height: '48px', backgroundColor: `${color}20`, color: color }}>
-        <i className={`bi ${icon} fs-4`}></i>
+      <div className="p-3 rounded-circle bg-light border border-light-subtle shadow-sm">
+        {icon}
       </div>
-    </div>
-    <div className="mt-auto">
-      <span className={`small fw-medium ${trendColor}`}>
-        {trend}
-      </span>
-    </div>
+    </motion.div>
   </div>
 );
-
-const formatType = type => {
-  if (!type) return "-";
-  if (type === "quiz") return "Multiple Choice";
-  return type.charAt(0).toUpperCase() + type.slice(1);
-};
 
 export default ExamDashboard;

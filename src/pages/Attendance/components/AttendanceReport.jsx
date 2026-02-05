@@ -122,21 +122,23 @@ const AttendanceReport = ({ history = [], students = [] }) => {
 
             {/* Controls Header */}
             <div className="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                <div className="d-flex align-items-center gap-3">
-                    <h6 className="mb-0 fw-bold d-flex align-items-center gap-2">
-                        <FiClock className="text-primary" />
+                <div className="d-flex align-items-center gap-4">
+                    <h6 className="mb-0 fw-bold d-flex align-items-center gap-2 text-dark">
+                        <FiClock className="text-primary" size={18} />
                         Attendance Report
                     </h6>
-                    <div className="btn-group btn-group-sm">
+                    <div className="nav nav-pills bg-light p-1 rounded-3">
                         <button
-                            className={`btn ${viewMode === 'SUMMARY' ? 'btn-primary' : 'btn-outline-primary'}`}
+                            className={`nav-link border-0 py-1 px-3 fw-bold small ${viewMode === 'SUMMARY' ? 'bg-primary text-white shadow-sm' : 'text-secondary bg-transparent'}`}
                             onClick={() => setViewMode('SUMMARY')}
+                            style={{ transition: 'all 0.2s' }}
                         >
                             Student Summary
                         </button>
                         <button
-                            className={`btn ${viewMode === 'LOG' ? 'btn-primary' : 'btn-outline-primary'}`}
+                            className={`nav-link border-0 py-1 px-3 fw-bold small ${viewMode === 'LOG' ? 'bg-primary text-white shadow-sm' : 'text-secondary bg-transparent'}`}
                             onClick={() => setViewMode('LOG')}
+                            style={{ transition: 'all 0.2s' }}
                         >
                             Detailed Log
                         </button>
@@ -165,25 +167,25 @@ const AttendanceReport = ({ history = [], students = [] }) => {
             {/* Data Table */}
             <div className="table-responsive">
                 <table className="table table-hover align-middle mb-0">
-                    <thead className="table-light">
+                    <thead className="bg-light border-bottom">
                         {viewMode === 'SUMMARY' ? (
                             <tr>
-                                <th className="ps-4">Student Name</th>
-                                <th className="text-center">Total Sessions</th>
-                                <th className="text-center">Attended</th>
-                                <th className="text-center">Absent</th>
-                                <th className="text-center">Percentage</th>
-                                <th className="text-center">Status</th>
+                                <th className="ps-4 py-3 text-secondary text-uppercase small fw-bold">Student Name</th>
+                                <th className="text-center py-3 text-secondary text-uppercase small fw-bold">Total Sessions</th>
+                                <th className="text-center py-3 text-secondary text-uppercase small fw-bold">Attended</th>
+                                <th className="text-center py-3 text-secondary text-uppercase small fw-bold">Absent</th>
+                                <th className="text-center py-3 text-secondary text-uppercase small fw-bold">Percentage</th>
+                                <th className="text-center py-3 text-secondary text-uppercase small fw-bold">Status</th>
                             </tr>
                         ) : (
                             <tr>
-                                <th className="ps-4">SL .no</th>
-                                <th>Date</th>
-                                <th>Course/Class</th>
-                                <th>Student Name</th>
-                                <th>Status</th>
-                                <th>Method</th>
-                                <th className="text-center">Attendance (Min)</th>
+                                <th className="ps-4 py-3 text-secondary text-uppercase small fw-bold">SL .no</th>
+                                <th className="py-3 text-secondary text-uppercase small fw-bold">Date</th>
+                                <th className="py-3 text-secondary text-uppercase small fw-bold">Course/Class</th>
+                                <th className="py-3 text-secondary text-uppercase small fw-bold">Student Name</th>
+                                <th className="py-3 text-secondary text-uppercase small fw-bold">Status</th>
+                                <th className="py-3 text-secondary text-uppercase small fw-bold">Method</th>
+                                <th className="text-center py-3 text-secondary text-uppercase small fw-bold">Attendance (Min)</th>
                             </tr>
                         )}
                     </thead>
@@ -203,7 +205,7 @@ const AttendanceReport = ({ history = [], students = [] }) => {
                                                 courseName: student.courseName,
                                                 email: sInfo.email || sInfo.studentEmail || sInfo.userEmail,
                                                 phone: sInfo.phone || sInfo.phoneNumber || sInfo.studentPhone || sInfo.mobile,
-                                                enrolledDate: fullProfile.enrolledAt || fullProfile.enrolledDate || fullProfile.createdAt || sInfo.createdAt
+                                                enrolledDate: fullProfile.joinedAt || fullProfile.enrolledAt || fullProfile.enrolledDate || fullProfile.createdAt || sInfo.createdAt
                                             });
                                         }}
                                         className="cursor-pointer"
@@ -258,7 +260,7 @@ const AttendanceReport = ({ history = [], students = [] }) => {
                                                     courseName: record.courseName || sInfo.courseName,
                                                     email: sInfo.email || sInfo.studentEmail || sInfo.userEmail,
                                                     phone: sInfo.phone || sInfo.phoneNumber || sInfo.studentPhone || sInfo.mobile,
-                                                    enrolledDate: fullProfile.enrolledAt || fullProfile.enrolledDate || fullProfile.createdAt || sInfo.createdAt
+                                                    enrolledDate: fullProfile.joinedAt || fullProfile.enrolledAt || fullProfile.enrolledDate || fullProfile.createdAt || sInfo.createdAt
                                                 });
                                             }}
                                             style={{ cursor: 'pointer' }}

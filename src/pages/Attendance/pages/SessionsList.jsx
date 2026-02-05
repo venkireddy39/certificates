@@ -5,6 +5,8 @@ import {
     FiAlertCircle, FiArrowRight, FiExternalLink, FiClock, FiTrash2
 } from 'react-icons/fi';
 import { attendanceService } from '../services/attendanceService';
+import { courseService } from '../../Courses/services/courseService';
+import { batchService } from '../../Batches/services/batchService';
 import AttendanceStats from '../components/AttendanceStats';
 
 const SessionsList = () => {
@@ -21,7 +23,7 @@ const SessionsList = () => {
 
     // Load Courses
     useEffect(() => {
-        attendanceService.getCourses()
+        courseService.getCourses()
             .then(setCourses)
             .catch(err => console.error("Failed to load courses", err));
     }, []);
@@ -29,7 +31,7 @@ const SessionsList = () => {
     // Load Batches when course changes
     useEffect(() => {
         if (selectedCourse) {
-            attendanceService.getBatches(selectedCourse)
+            batchService.getBatchesByCourseId(selectedCourse)
                 .then(setBatches)
                 .catch(err => console.error("Failed to load batches", err));
         } else {

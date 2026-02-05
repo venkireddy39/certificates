@@ -66,15 +66,22 @@ const BatchBuilder = () => {
                 normalizedRole: (u.role || u.roleName || '').toUpperCase()
             }));
 
-            // Enrich enrolled students with actual User ID (from normalizedUsers)
-            // The enrollment record usually has 'studentId', but we want to show 'userId' (Global ID)
-            const enrichedStudents = (studentsData || []).map(s => {
+            // Filter out TRANSFERRED or INACTIVE students
+            // We interpret explicit non-active statuses as removal grounds.
+            // If status is missing, we assume ACTIVE to support legacy/simple DTOs.
+            const activeStudentsData = (studentsData || []).filter(s => {
+                if (!s.status) return true; // Keep if status is missing
+                const status = String(s.status).toUpperCase();
+                return status === 'ACTIVE' || status === 'ENROLLED';
+            });
+
+            // Enrich enrolled students
+            const enrichedStudents = activeStudentsData.map(s => {
                 const userProfile = normalizedUsers.find(u => String(u.studentId) === String(s.studentId));
                 return {
                     ...s,
                     // Show the actual Student ID - try multiple possible fields
                     displayId: s.studentId || s.student?.studentId || s.student?.userId || s.userId || 'N/A',
-                    // We can also store userId for linking if needed
                     userId: userProfile?.userId || s.student?.userId
                 };
             });
@@ -90,7 +97,11 @@ const BatchBuilder = () => {
                 u.normalizedRole.includes('STUDENT') // Catch-all
             ));
 
-            setOtherBatches((batchesData || []).filter(b => String(b.batchId) !== String(id)));
+            const currentBatchId = String(id);
+            setOtherBatches((batchesData || []).filter(b => {
+                const bId = String(b.batchId || b.id);
+                return bId !== currentBatchId;
+            }));
 
         } catch (error) {
             console.error("Failed to load batch data", error);
@@ -195,29 +206,102 @@ const BatchBuilder = () => {
     const confirmTransfer = async () => {
         if (!selectedTransferBatch || !transferModal.student) return;
 
-        try {
-            const targetBatch = otherBatches.find(b => String(b.batchId) === String(selectedTransferBatch));
+        const targetBatchId = String(selectedTransferBatch);
+        const currentBatchId = String(id);
 
-            // Use the consolidated transfer service call
+        console.log(`Attempting transfer: Current Batch ${currentBatchId} -> Target Batch ${targetBatchId}`);
+
+        if (targetBatchId === currentBatchId) {
+            alert("Cannot transfer to the same batch. Please select a different batch.");
+            return;
+        }
+
+        try {
+            const targetBatch = otherBatches.find(b => String(b.batchId || b.id) === targetBatchId);
+
+            // 1. CAPACITY CHECK: Verify if target batch has space
+            const targetStudents = await enrollmentService.getStudentsByBatch(targetBatchId).catch(e => []);
+            const targetMax = targetBatch?.maxStudents || targetBatch?.capacity || 0;
+            const currentTargetCount = targetStudents.length;
+
+            console.log('Validating Transfer Target Capacity:', {
+                targetName: targetBatch?.batchName,
+                targetMax,
+                currentCount: currentTargetCount
+            });
+
+            if (targetMax > 0 && currentTargetCount >= targetMax) {
+                alert(`Cannot transfer! Target batch "${targetBatch?.batchName}" is full.\n\nCapacity: ${targetMax}\nCurrent Students: ${currentTargetCount}\n\nPlease increase the target batch capacity or choose a different batch.`);
+                return;
+            }
+
+            // 2. DUPLICATE CHECK: Verify if student is ALREADY in the target batch
+            const isAlreadyInTarget = targetStudents.some(s =>
+                String(s.studentId) === String(transferModal.student.studentId)
+            );
+
+            if (isAlreadyInTarget) {
+                // Resolution: Student should be in B, and not in A.
+                if (window.confirm(`Transfer Issue: Student is already active in target batch "${targetBatch?.batchName}".\n\nTo complete the move, do you want to remove them from the CURRENT batch?`)) {
+                    await enrollmentService.removeStudentFromBatch(transferModal.student.studentBatchId);
+                    setEnrolledStudents(prev => prev.filter(s => s.studentBatchId !== transferModal.student.studentBatchId));
+                    setTransferModal({ isOpen: false, student: null });
+                    alert("Completed: Student removed from current batch (already active in target).");
+                }
+                return;
+            }
+
+            // 3. EXECUTE TRANSFER
             await enrollmentService.transferStudent({
-                studentBatchId: transferModal.student.studentBatchId, // ID for removal
+                studentBatchId: transferModal.student.studentBatchId,
                 studentId: transferModal.student.studentId,
                 studentName: transferModal.student.studentName,
                 studentEmail: transferModal.student.studentEmail,
                 courseId: batchDetails.courseId,
-                targetBatchId: Number(selectedTransferBatch), // ID for enrollment
+                targetBatchId: Number(targetBatchId),
                 reason: transferReason || "Administrative Transfer",
                 transferredBy: user?.name || user?.username || "Admin"
             });
 
-            // Update UI: Remove from current batch list locally
-            setEnrolledStudents(prev => prev.filter(s => s.studentBatchId !== transferModal.student.studentBatchId));
+            // Update UI: Remove from current batch list locally to reflect immediate change
+            // Use ID based filtering to be safe against missing logic
+            setEnrolledStudents(prev => prev.filter(s =>
+                String(s.studentId) !== String(transferModal.student.studentId) &&
+                String(s.studentBatchId) !== String(transferModal.student.studentBatchId)
+            ));
+
+            // Reload data to ensure counts and states are perfectly synced with backend
+            // Increased delay to handle potential DB replication/indexing lag
+            setTimeout(() => loadData(), 1000);
+
             setTransferModal({ isOpen: false, student: null });
             alert(`Successfully transferred to ${targetBatch?.batchName}`);
 
         } catch (err) {
-            console.error(err);
-            alert("Transfer failed: " + err.message);
+            console.error("Transfer execution failed:", err);
+
+            let msg = err.message || "Unknown error";
+            try {
+                const parsed = JSON.parse(msg);
+                if (parsed.message) msg = parsed.message;
+            } catch (e) { }
+
+            // Fallback for race conditions where pre-check passed but backend failed
+            if (msg.includes("already active") || msg.includes("Duplicate")) {
+                if (window.confirm(`Transfer Conflict: Student is already in the target batch.\n\nDo you want to remove them from THIS batch to resolve the duplication?`)) {
+                    try {
+                        await enrollmentService.removeStudentFromBatch(transferModal.student.studentBatchId);
+                        setEnrolledStudents(prev => prev.filter(s => s.studentBatchId !== transferModal.student.studentBatchId));
+                        setTransferModal({ isOpen: false, student: null });
+                        alert("Resolved: Student removed from old batch.");
+                    } catch (remErr) {
+                        alert("Failed to remove student: " + remErr.message);
+                    }
+                }
+                return;
+            }
+
+            alert("Transfer failed: " + msg);
         }
     };
 
@@ -315,6 +399,11 @@ const BatchBuilder = () => {
                                                         <div className="rounded-circle bg-success p-1" style={{ width: 6, height: 6 }}></div>
                                                         Enrolled
                                                     </div>
+                                                    {item.joinedAt && (
+                                                        <div className="text-muted" style={{ fontSize: '0.75rem', marginLeft: '14px' }}>
+                                                            {new Date(item.joinedAt).toLocaleDateString()}
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td className="text-end">
                                                     <div className="d-flex justify-content-end gap-2">
@@ -371,53 +460,7 @@ const BatchBuilder = () => {
                         </div>
                         <div className="modal-body">
 
-                            {/* Direct Add by ID */}
-                            <div className="p-3 bg-light rounded mb-4 border">
-                                <label className="form-label small fw-bold text-muted">DIRECT ENROLL BY ID (Manual Link)</label>
-                                <div className="d-flex gap-2">
-                                    <input
-                                        type="number"
-                                        className="form-control"
-                                        placeholder="Enter Generated Student ID"
-                                        id="manualStudentIdInput"
-                                    />
-                                    <button
-                                        className="btn btn-dark text-nowrap"
-                                        onClick={async () => {
-                                            const input = document.getElementById('manualStudentIdInput');
-                                            const val = input.value;
-                                            if (!val) return;
 
-                                            // Check capacity before manual enrollment
-                                            const maxStudents = batchDetails?.maxStudents || batchDetails?.capacity;
-                                            if (maxStudents && enrolledStudents.length >= maxStudents) {
-                                                alert(`Cannot add student: Batch is at maximum capacity (${maxStudents}/${maxStudents})`);
-                                                return;
-                                            }
-
-                                            try {
-                                                await enrollmentService.addStudentToBatch({
-                                                    batchId: Number(id),
-                                                    studentId: Number(val)
-                                                });
-                                                const updated = await enrollmentService.getStudentsByBatch(id);
-                                                setEnrolledStudents(updated);
-                                                input.value = '';
-                                                alert(`Successfully linked Student ID #${val}`);
-                                            } catch (e) {
-                                                alert("Failed: " + e.message);
-                                            }
-                                        }}
-                                    >
-                                        <FiPlus /> Link ID
-                                    </button>
-                                </div>
-                                <small className="text-muted" style={{ fontSize: '0.7rem' }}>
-                                    Use this if the student exists in the Admin DB but isn't showing in the list below yet.
-                                </small>
-                            </div>
-
-                            <hr className="my-4" style={{ opacity: 0.1 }} />
 
                             <div className="search-bar mb-3">
                                 <FiSearch className="search-icon" />
@@ -489,7 +532,7 @@ const BatchBuilder = () => {
                             <div className="form-group mb-3">
                                 <label className="mb-2 d-block fw-bold text-sm">Select Target Batch</label>
                                 <select
-                                    className="w-100 p-2 border rounded"
+                                    className="w-100 p-2 border rounded form-select"
                                     value={selectedTransferBatch}
                                     onChange={(e) => setSelectedTransferBatch(e.target.value)}
                                 >
@@ -500,6 +543,17 @@ const BatchBuilder = () => {
                                         </option>
                                     ))}
                                 </select>
+                            </div>
+
+                            <div className="form-group mb-3">
+                                <label className="mb-2 d-block fw-bold text-sm">Transfer Reason / Description</label>
+                                <textarea
+                                    className="w-100 p-2 border rounded form-control"
+                                    rows="3"
+                                    placeholder="Enter reason for transfer (optional)..."
+                                    value={transferReason}
+                                    onChange={(e) => setTransferReason(e.target.value)}
+                                ></textarea>
                             </div>
                         </div>
                         <div className="modal-footer">

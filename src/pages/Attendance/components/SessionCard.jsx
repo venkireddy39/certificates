@@ -2,10 +2,18 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Clock, Users, Activity, CheckCircle, FileText, Trash2 as FiTrash2 } from 'lucide-react';
 
-const SessionCard = ({ session, type, onStart, onDelete }) => {
+const SessionCard = ({ session, type, onStart, onDelete, userRole }) => {
     // type: 'LIVE' or 'ENDED'
     const isAttendance = session.isAttendance;
     const isLive = type === 'LIVE';
+
+    // Check if user has permission to manage attendance
+    const canManageAlias = (role) => {
+        if (!role) return true; // Default to true if not provided (dev mode)
+        const r = String(role).toUpperCase();
+        return r.includes('ADMIN') || r.includes('INSTRUCTOR') || r.includes('STAFF');
+    };
+    const canManage = canManageAlias(userRole);
 
     const getStatusBadge = () => {
         if (isLive) {
@@ -49,10 +57,17 @@ const SessionCard = ({ session, type, onStart, onDelete }) => {
                             <Clock size={16} />
                             {session.startTime} – {session.endTime}
                         </span>
-                        <span className="d-flex align-items-center gap-1">
-                            <Users size={16} />
-                            {session.students} {isAttendance ? (isLive ? 'Joined' : 'Attended') : 'Enrolled'}
-                        </span>
+                        {isAttendance ? (
+                            <span className="d-flex align-items-center gap-1 text-success fw-medium">
+                                <CheckCircle size={16} />
+                                {session.students} Present
+                            </span>
+                        ) : (
+                            <span className="d-flex align-items-center gap-1">
+                                <Users size={16} />
+                                {session.students} Enrolled
+                            </span>
+                        )}
                     </div>
 
                     <div className="d-flex gap-2">
@@ -65,23 +80,32 @@ const SessionCard = ({ session, type, onStart, onDelete }) => {
                                 {isLive ? 'Manage' : 'View Report'}
                             </Link>
                         ) : (
-                            <button
-                                onClick={() => onStart(session)}
-                                className={`btn ${isLive ? 'btn-warning' : 'btn-outline-danger'} btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-2 ${isLive ? 'fw-bold' : ''}`}
-                            >
-                                <CheckCircle size={14} />
-                                {isLive ? 'Start Attendance' : 'Mark Attendance'}
-                            </button>
+                            // Only show Start button if user has permission
+                            canManage ? (
+                                <button
+                                    onClick={() => onStart(session)}
+                                    className={`btn ${isLive ? 'btn-warning' : 'btn-outline-danger'} btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-2 ${isLive ? 'fw-bold' : ''}`}
+                                >
+                                    <CheckCircle size={14} />
+                                    {isLive ? 'Start Attendance' : 'Mark Attendance'}
+                                </button>
+                            ) : (
+                                <div className="text-secondary small d-flex align-items-center justify-content-center flex-grow-1 border rounded py-1 bg-light">
+                                    Attendance Pending
+                                </div>
+                            )
                         )}
 
-                        <button
-                            onClick={() => onDelete(session.id)}
-                            className="btn btn-outline-danger btn-sm px-3"
-                            title="Delete Session"
-                            disabled={!isAttendance}
-                        >
-                            <FiTrash2 size={14} />
-                        </button>
+                        {canManage && (
+                            <button
+                                onClick={() => onDelete(session.id)}
+                                className="btn btn-outline-danger btn-sm px-3"
+                                title="Delete Session"
+                                disabled={!isAttendance}
+                            >
+                                <FiTrash2 size={14} />
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

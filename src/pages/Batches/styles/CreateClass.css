@@ -198,3 +198,100 @@
     font-weight: 600;
     color: #64748b;
 }
+
+/* Preview Card Styles */
+.preview-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+
+.preview-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.preview-card-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.preview-card-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.preview-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-edit-inline {
+    border: none;
+    background: transparent;
+    color: #3b82f6;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0;
+}
+
+.btn-edit-inline:hover {
+    text-decoration: underline;
+}
+
+.preview-card-details {
+    font-size: 13px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.preview-card-link {
+    font-size: 12px;
+    color: #3b82f6;
+    display: block;
+    margin-top: 4px;
+    text-decoration: none;
+}
+
+.preview-card-link:hover {
+    text-decoration: underline;
+}
+
+.btn-icon-plain {
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.2s;
+}
+
+.btn-icon-plain:hover {
+    background: #fff;
+    color: #3b82f6;
+    border-color: #3b82f6;
+}
