@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FiPlus, FiBarChart2, FiEdit, FiTrendingDown, FiTrendingUp, FiEye, FiCheck, FiPause, FiArchive, FiTag, FiDollarSign, FiGlobe } from 'react-icons/fi';
 
-import { marketingService } from '../../../services/marketingService';
-import { useAuth } from '../../../../src/pages/Library/context/AuthContext';
+import { marketingService } from '../../../services/marketingService'; // Corrected Path
+import { useAuth } from '../../../pages/Library/context/AuthContext'; // Corrected Path
 
 const Campaigns = ({ role = 'MANAGER', startWizard = false }) => {
     // --- STATE ---

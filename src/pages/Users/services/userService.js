@@ -22,7 +22,6 @@ export const userService = {
 
     // Get Single Student by studentId (includes nested user data with email, phone)
     getStudentById: (studentId) => apiFetch(`/api/students/${studentId}`),
-
     // Get all students (Joined Data)
     getAllStudents: () => apiFetch(`${BASE_URL}/getstudents`),
 

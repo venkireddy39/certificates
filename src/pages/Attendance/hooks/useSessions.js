@@ -128,7 +128,7 @@ const hydrateWithDetails = async (sessions) => {
                     if (acadId) {
                         const acadDetails = await sessionService.getSessionById(acadId).catch(() => null);
                         if (acadDetails) {
-                            const foundDuration = acadDetails.duration || acadDetails.durationMinutes || acadDetails.length || 60;
+                            const foundDuration = acadDetails.duration || acadDetails.durationMinutes || acadDetails.length || acadDetails.sessionDuration || 60;
                             updatedS.duration = foundDuration;
                             updatedS.title = acadDetails.sessionName || acadDetails.title || s.title || s.sessionName;
                         }

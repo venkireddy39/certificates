@@ -208,7 +208,6 @@ const BatchBuilder = () => {
 
         const targetBatchId = String(selectedTransferBatch);
         const currentBatchId = String(id);
-
         console.log(`Attempting transfer: Current Batch ${currentBatchId} -> Target Batch ${targetBatchId}`);
 
         if (targetBatchId === currentBatchId) {

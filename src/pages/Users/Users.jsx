@@ -30,35 +30,51 @@ const Users = () => {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      // Fetch users from new userService, keep batch/enrollments for enrichment
-      const [data, enrollments, batches] = await Promise.all([
+      // Fetch users and extra linked data
+      const [data, enrollments, batches, students, instructors] = await Promise.all([
         userService.getAllUsers(),
         enrollmentService.getAllEnrollments(),
-        batchService.getAllBatches()
+        batchService.getAllBatches(),
+        userService.getAllStudents().catch(() => []),
+        userService.getAllInstructors().catch(() => [])
       ]);
 
       const usersList = Array.isArray(data) ? data : [];
 
-      // Enrich users with batch info
+      // Create maps for detailed lookup
+      const studentMap = {};
+      if (Array.isArray(students)) {
+        students.forEach(s => { if (s.user?.userId || s.userId) studentMap[s.user?.userId || s.userId] = s; });
+      }
+      const instructorMap = {};
+      if (Array.isArray(instructors)) {
+        instructors.forEach(i => { if (i.user?.userId || i.userId) instructorMap[i.user?.userId || i.userId] = i; });
+      }
+
+      // Enrich users with batch info and robust date parsing
       const enrichedUsers = usersList.map(u => {
-        // Backend User entity has userId, frontend often uses id. Standardize to id.
         const uId = u.userId || u.id;
+
+        // Fetch detailed record if available
+        const detail = studentMap[uId] || instructorMap[uId] || {};
 
         // Construct display name if missing
         let displayName = u.name;
         if (!displayName && (u.firstName || u.lastName)) {
           displayName = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+        } else if (!displayName && (detail.user?.firstName || detail.user?.lastName)) {
+          displayName = `${detail.user?.firstName || ''} ${detail.user?.lastName || ''}`.trim();
         }
 
         const normalizedUser = { ...u, id: uId, name: displayName || 'Unknown' };
 
-        // Map backend 'enabled' to frontend 'status' if needed
+        // Map status
         if (typeof u.enabled !== 'undefined') {
           normalizedUser.status = u.enabled ? 'Active' : 'Inactive';
         }
 
-        // Map backend 'roleName' to frontend 'role'
-        if (u.roleName) {
+        // Map role
+        if (u.roleName || detail.roleName) {
           const roleMap = {
             'ROLE_STUDENT': 'Student',
             'ROLE_INSTRUCTOR': 'Instructor',
@@ -66,7 +82,8 @@ const Users = () => {
             'ROLE_ADMIN': 'Admin',
             'ROLE_SUPER_ADMIN': 'Super Admin'
           };
-          normalizedUser.role = roleMap[u.roleName] || u.roleName;
+          const rName = u.roleName || detail.roleName;
+          normalizedUser.role = roleMap[rName] || rName;
         }
 
         const userEnrollments = Array.isArray(enrollments) ? enrollments.filter(e => String(e.studentId) === String(uId)) : [];
@@ -75,15 +92,7 @@ const Users = () => {
           return b ? { id: b.batchId, name: b.batchName } : null;
         }).filter(Boolean);
 
-        // Format joined date
-        const joinedDate = u.createdAt || u.createdDate || u.joiningDate || u.dateJoined;
-        const formattedJoined = joinedDate ? new Date(joinedDate).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        }) : '-';
-
-        return { ...normalizedUser, batches: userBatchInfos, joined: formattedJoined };
+        return { ...normalizedUser, batches: userBatchInfos };
       });
 
       setUsers(enrichedUsers);

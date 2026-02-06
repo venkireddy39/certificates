@@ -96,7 +96,7 @@ export const enrollmentService = {
                 studentId: transferData.studentId,
                 courseId: transferData.courseId,
                 toBatchId: transferData.targetBatchId || transferData.toBatchId,
-                reason: transferData.reason || ""
+                reason: transferData.reason || "Administrative Transfer"
             });
 
             return await apiFetch(`/api/student-batch-transfers/transfer?${queryParams.toString()}`, {

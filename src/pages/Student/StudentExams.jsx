@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { examService } from '../../services/examService';
+import { studentService } from '../../services/studentService';
 import {
     Clock,
     Calendar,
@@ -19,7 +19,7 @@ const StudentExams = () => {
     useEffect(() => {
         const fetchExams = async () => {
             try {
-                const data = await examService.getMyExams();
+                const data = await studentService.getMyExams();
                 setExams(data || []);
             } catch (error) {
                 console.error("Failed to fetch exams", error);

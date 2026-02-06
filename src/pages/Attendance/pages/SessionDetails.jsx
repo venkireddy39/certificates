@@ -43,7 +43,6 @@ const LiveView = () => {
         // UNLESS force is true
         if (!force && String(session.id) === String(sessionId) && students.length > 0) {
             setLoading(false);
-            return;
         }
 
         try {

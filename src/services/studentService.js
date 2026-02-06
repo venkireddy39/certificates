@@ -241,6 +241,45 @@ export const studentService = {
         };
     },
 
+    // 10. Get Exams (Mocked)
+    getMyExams: async () => {
+        return [
+            {
+                id: "e1",
+                title: "Advanced React Patterns Final",
+                courseName: "Advanced Full Stack Development",
+                date: "2024-03-15",
+                startTime: "10:00 AM",
+                duration: "2 Hours",
+                totalMarks: 100,
+                status: "Scheduled",
+                type: "Online"
+            },
+            {
+                id: "e2",
+                title: "UI/UX Design Principles Quiz",
+                courseName: "UI/UX Design Masterclass",
+                date: "2024-02-10",
+                startTime: "02:00 PM",
+                duration: "45 Mins",
+                totalMarks: 50,
+                obtainedMarks: 42,
+                status: "Completed",
+                type: "Online"
+            },
+            {
+                id: "e3",
+                title: "Database Normalization Midterm",
+                courseName: "Database Management Systems",
+                date: "2024-03-20",
+                startTime: "09:00 AM",
+                duration: "1.5 Hours",
+                totalMarks: 75,
+                status: "Scheduled",
+                type: "Offline"
+            }
+        ];
+    },
 
     // 11. Get Assignments (Mocked)
     getMyAssignments: async () => {

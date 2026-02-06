@@ -122,6 +122,7 @@ const StudentAttendanceProfile = ({ student, studentHistory = [], onClose }) => 
 
     const studentPhone = extendedDetails?.phone || extendedDetails?.mobile || extendedDetails?.phoneNumber || extendedDetails?.contact || student.phone || student.contact || 'N/A';
     const studentCourse = extendedDetails?.courseName || student.courseName || student.batchName || "N/A";
+    const studentEnrolled = extendedDetails?.enrolledDate || student.enrolledDate || student.joinDate;
 
     return (
         <div className="position-fixed top-0 start-0 w-100 h-100 overflow-y-auto"
@@ -178,7 +179,7 @@ const StudentAttendanceProfile = ({ student, studentHistory = [], onClose }) => 
                                     </div>
                                     <div className="col-md-6">
                                         <DetailRow icon={FiBook} label="Course/Batch" value={studentCourse} />
-                                        <DetailRow icon={FiCalendar} label="Enrolled Date" value={student.enrolledDate ? (new Date(student.enrolledDate).toString() !== 'Invalid Date' ? new Date(student.enrolledDate).toLocaleDateString() : student.enrolledDate) : 'N/A'} />
+                                        <DetailRow icon={FiCalendar} label="Enrolled Date" value={studentEnrolled ? (new Date(studentEnrolled).toString() !== 'Invalid Date' ? new Date(studentEnrolled).toLocaleDateString() : studentEnrolled) : 'N/A'} />
                                     </div>
                                 </div>
                             </>

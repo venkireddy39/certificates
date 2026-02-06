@@ -84,7 +84,6 @@ const UserList = ({ users, onDelete, onToggleStatus, onEdit, hideRoleFilter, bat
               <th>Role</th>
               <th>Status</th>
               <th>Batch</th>
-              <th>Joined Date</th>
               <th style={{ textAlign: "right" }}>Actions</th>
             </tr>
           </thead>
@@ -92,7 +91,7 @@ const UserList = ({ users, onDelete, onToggleStatus, onEdit, hideRoleFilter, bat
           <tbody>
             {filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan="7">
+                <td colSpan="6">
                   <div className="empty-state-list">
                     <div className="empty-icon">
                       <FiUserX />
@@ -146,7 +145,7 @@ const UserList = ({ users, onDelete, onToggleStatus, onEdit, hideRoleFilter, bat
                     )}
                   </td>
 
-                  <td>{user.joined || "-"}</td>
+
 
                   <td style={{ textAlign: "right" }}>
                     <button className="icon-btn" title="Edit" onClick={() => onEdit(user)}>

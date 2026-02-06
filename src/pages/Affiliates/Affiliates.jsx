@@ -181,7 +181,6 @@ const Affiliates = () => {
                 <tr>
                   <th className="ps-4">Name</th>
                   <th>Type</th>
-                  <th>Joined</th>
                   <th>Referrals</th>
                   <th>Risk</th>
                   <th>Status</th>
@@ -205,8 +204,8 @@ const Affiliates = () => {
                         </div>
                       </td>
                       <td><span className="badge bg-light text-dark border fw-normal">{aff.type}</span></td>
-                      <td className="text-muted small">{aff.joined}</td>
-                      <td className="text-muted small">{aff.joined}</td>
+
+
                       <td className="fw-bold">{aff.referrals}</td>
                       <td>
                         {aff.riskLevel === 'High' && <span className="badge bg-danger bg-opacity-10 text-danger border-0"><FiAlertTriangle className="me-1" /> High</span>}

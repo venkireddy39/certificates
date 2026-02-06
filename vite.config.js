@@ -35,11 +35,21 @@ export default defineConfig({
         target: 'http://192.168.1.34:8081',
         changeOrigin: true,
         secure: false,
+        bypass: (req, res, options) => {
+          if (req.headers.accept && req.headers.accept.indexOf('html') !== -1 || req.url.includes('.jsx') || req.url.includes('.js')) {
+            return req.url;
+          }
+        }
       },
       '/student': {
         target: 'http://192.168.1.34:8081',
         changeOrigin: true,
         secure: false,
+        bypass: (req, res, options) => {
+          if (req.headers.accept && req.headers.accept.indexOf('html') !== -1 || req.url.includes('.jsx') || req.url.includes('.js')) {
+            return req.url;
+          }
+        }
       },
       '/auth': {
         target: 'http://192.168.1.34:8081',

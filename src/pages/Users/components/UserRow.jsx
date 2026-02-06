@@ -37,7 +37,7 @@ const UserRow = ({
 
       <td>{user.status}</td>
 
-      <td>{user.joined}</td>
+
 
       <td style={{ textAlign: "right" }}>
         <button className="icon-btn" title="Edit">
