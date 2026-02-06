@@ -252,14 +252,14 @@ const SessionsList = () => {
                                             <div className="d-flex justify-content-end gap-2">
                                                 {session.status === 'ACTIVE' ? (
                                                     <Link
-                                                        to={`/attendance/sessions/${session.id}/live`}
+                                                        to={`/admin/attendance/sessions/${session.id}/live`}
                                                         className="btn btn-primary btn-sm rounded-pill px-3"
                                                     >
                                                         Manage <FiArrowRight className="ms-1" />
                                                     </Link>
                                                 ) : (
                                                     <Link
-                                                        to={`/attendance/sessions/${session.id}/report`}
+                                                        to={`/admin/attendance/sessions/${session.id}/report`}
                                                         className="btn btn-outline-secondary btn-sm rounded-pill px-3"
                                                     >
                                                         Details <FiExternalLink className="ms-1" />

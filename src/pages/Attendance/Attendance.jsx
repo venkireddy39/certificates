@@ -30,7 +30,7 @@ const Attendance = () => (
             <Route path="reports" element={<ReportPage />} />
             <Route path="settings" element={<AttendanceSettings />} />
             <Route path="offline-sync" element={<OfflineSync />} />
-            <Route path="*" element={<Navigate to="/attendance/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/admin/attendance/dashboard" replace />} />
         </Route>
     </Routes>
 );

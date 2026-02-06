@@ -73,7 +73,7 @@ const SessionCard = ({ session, type, onStart, onDelete, userRole }) => {
                     <div className="d-flex gap-2">
                         {isAttendance ? (
                             <Link
-                                to={isLive ? `/attendance/sessions/${session.id}/live` : `/attendance/sessions/${session.id}/report`}
+                                to={isLive ? `/admin/attendance/sessions/${session.id}/live` : `/admin/attendance/sessions/${session.id}/report`}
                                 className={`btn ${isLive ? 'btn-primary' : 'btn-outline-primary'} btn-sm flex-grow-1 d-flex align-items-center justify-content-center gap-2`}
                             >
                                 {isLive ? <Activity size={14} /> : <FileText size={14} />}

@@ -55,7 +55,7 @@ const SessionDashboard = () => {
 
             if (status === 'ENDED' || status === 'COMPLETED') {
                 toast.info("Attendance already marked. Opening Report...");
-                navigate(`/attendance/sessions/${res.id}/report`);
+                navigate(`/admin/attendance/sessions/${res.id}/report`);
             } else {
                 toast.success("Attendance Session Active!");
                 refreshLive();

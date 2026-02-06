@@ -15,14 +15,14 @@ const AttendanceLayout = () => {
                 </header>
 
                 <div className="d-flex gap-2 mb-4 border-bottom pb-3 overflow-auto">
-                    <Tab to="/attendance/dashboard">Dashboard</Tab>
-                    <Tab to="/attendance/sessions">Sessions</Tab>
-                    <Tab to="/attendance/offline-sync">
+                    <Tab to="/admin/attendance/dashboard">Dashboard</Tab>
+                    <Tab to="/admin/attendance/sessions">Sessions</Tab>
+                    <Tab to="/admin/attendance/offline-sync">
                         Sync & Manual
                         <PendingSyncBadge />
                     </Tab>
-                    <Tab to="/attendance/reports">Reports</Tab>
-                    <Tab to="/attendance/settings">Settings</Tab>
+                    <Tab to="/admin/attendance/reports">Reports</Tab>
+                    <Tab to="/admin/attendance/settings">Settings</Tab>
                 </div>
 
                 <Outlet />

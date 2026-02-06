@@ -287,7 +287,7 @@ const LiveView = () => {
     // Redirect if session is locked/ended
     // Only check if we have an active session in context
     if (isSessionLocked()) {
-        return <Navigate to={`/attendance/sessions/${sessionId}/report`} replace />;
+        return <Navigate to={`/admin/attendance/sessions/${sessionId}/report`} replace />;
     }
 
     return (
@@ -329,7 +329,7 @@ const LiveView = () => {
                         onClick={() => {
                             if (window.confirm('End Session? This will finalize all records.')) {
                                 stopSession();
-                                navigate(`/attendance/sessions/${sessionId}/report`);
+                                navigate(`/admin/attendance/sessions/${sessionId}/report`);
                             }
                         }}
                     >
