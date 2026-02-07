@@ -48,12 +48,14 @@ const AddEditResourceModal = ({
             setCategoriesLoading(true);
             try {
                 const data = await BookService.getAllCategories();
-                setCategories(data);
+                // Ensure data is an array (handle Page<> response or direct array)
+                const list = Array.isArray(data) ? data : (data.content || []);
+                setCategories(list);
 
                 // If editing, set search text to existing category name
                 if (resource?.category) {
-                    const matched = data.find(c => c.id === (resource.category.id || resource.category));
-                    if (matched) setCategorySearch(matched.categoryName);
+                    const matched = list.find(c => c.id === (resource.category.id || resource.category));
+                    if (matched) setCategorySearch(matched.categoryName || matched.name);
                 }
             } catch (err) {
                 console.error('Failed to fetch categories:', err);

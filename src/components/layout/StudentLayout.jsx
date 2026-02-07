@@ -11,7 +11,7 @@ const StudentLayout = () => {
 
     if (loading) {
         return (
-            <div className="d-flex justify-content-center align-items-center vh-100 bg-dark">
+            <div className="d-flex justify-content-center align-items-center vh-100" style={{ backgroundColor: 'var(--bg)' }}>
                 <div className="spinner-border text-primary" role="status">
                     <span className="visually-hidden">Loading...</span>
                 </div>
@@ -27,7 +27,7 @@ const StudentLayout = () => {
     const toggleSidebar = () => setIsSidebarCollapsed(!isSidebarCollapsed);
 
     return (
-        <div className="d-flex" style={{ height: '100vh', backgroundColor: '#020617' }}>
+        <div className="d-flex" style={{ height: '100vh', backgroundColor: 'var(--bg)' }}>
             {/* VERTICAL SIDEBAR */}
             <StudentSidebar isCollapsed={isSidebarCollapsed} />
 

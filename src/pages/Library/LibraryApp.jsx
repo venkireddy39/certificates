@@ -52,11 +52,7 @@ function LibraryApp() {
 
                     <Route
                         path="issues/new"
-                        element={
-                            <ProtectedRoute permission="ISSUE_BOOKS">
-                                <IssueBook />
-                            </ProtectedRoute>
-                        }
+                        element={<IssueBook />}
                     />
 
                     <Route

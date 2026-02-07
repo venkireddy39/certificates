@@ -1,23 +1,24 @@
 /* Student Dashboard Premium Styles */
 
 :root {
-    --student-primary: #6366f1;
+    --student-primary: var(--primary, #6366f1);
     --student-secondary: #a855f7;
     --student-success: #10b981;
     --student-warning: #f59e0b;
     --student-danger: #ef4444;
-    --student-bg: #0f172a;
-    --student-card-bg: rgba(30, 41, 59, 0.7);
-    --student-border: rgba(255, 255, 255, 0.1);
+    --student-bg: var(--bg, #f8fafc);
+    --student-card-bg: var(--card-bg, #ffffff);
+    --student-border: var(--border, rgba(0, 0, 0, 0.1));
 }
 
-.student-dashboard {
-    color: #f8fafc;
-    min-height: 100vh;
+.student-dashboard-page {
+    color: var(--text-color);
     padding-bottom: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
-/* Glass Card */
+/* Glass Card - Adapted for Bootstrap */
 .glass-card {
     background: var(--student-card-bg);
     backdrop-filter: blur(12px);
@@ -28,8 +29,9 @@
 }
 
 .glass-card:hover {
-    border-color: rgba(99, 102, 241, 0.4);
-    transform: translateY(-2px);
+    border-color: var(--student-primary);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.1);
 }
 
 /* Stats Cards */
@@ -51,7 +53,7 @@
 }
 
 .stat-label {
-    color: #94a3b8;
+    color: var(--muted, #64748b);
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -62,11 +64,12 @@
 .stat-value {
     font-size: 1.5rem;
     font-weight: 700;
+    color: var(--text-color);
 }
 
 /* Quick Action Buttons */
 .quick-action-btn {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--hover-bg, rgba(0, 0, 0, 0.02));
     border: 1px solid var(--student-border);
     border-radius: 1rem;
     padding: 1.25rem;
@@ -76,22 +79,24 @@
     gap: 0.75rem;
     transition: all 0.2s ease;
     width: 100%;
-    color: #cbd5e1;
+    color: var(--text-color);
 }
 
 .quick-action-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--hover-bg, rgba(0, 0, 0, 0.05));
     border-color: var(--student-primary);
-    color: white;
+    transform: translateY(-2px);
+    color: var(--student-primary);
 }
 
 .action-icon {
     width: 2.5rem;
     height: 2.5rem;
-    border-radius: 50%;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
+    margin-bottom: 0.25rem;
 }
 
 /* Course Card Enhanced */
@@ -113,7 +118,7 @@
 
 .progress-bar-premium {
     height: 0.5rem;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--hover-bg, rgba(0, 0, 0, 0.05));
     border-radius: 1rem;
     overflow: hidden;
 }
@@ -151,22 +156,24 @@
     width: 1rem;
     height: 1rem;
     border-radius: 50%;
-    background: #1e293b;
+    background: var(--card-bg);
     border: 2px solid var(--student-primary);
     z-index: 1;
 }
 
 /* Gamification */
 .xp-widget {
-    background: linear-gradient(135deg, rgba(88, 28, 135, 0.4) 0%, rgba(49, 46, 129, 0.4) 100%);
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+    border: 1px solid var(--student-primary);
+    opacity: 0.9;
 }
 
 .badge-item {
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--hover-bg, rgba(0, 0, 0, 0.05));
     border-radius: 0.75rem;
     padding: 0.5rem;
     text-align: center;
+    border: 1px solid var(--student-border);
 }
 
 /* Responsive Overrides */
@@ -174,4 +181,53 @@
     .stat-card {
         padding: 1rem;
     }
+}
+
+/* Premium Utilities */
+.transition-all {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-translate-y:hover {
+    transform: translateY(-5px);
+}
+
+.hover-translate-x:hover {
+    transform: translateX(5px);
+}
+
+.hover-scale:hover {
+    transform: scale(1.05);
+}
+
+.hover-scale-sm:hover {
+    transform: scale(1.02);
+}
+
+.shadow-glow {
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+}
+
+.shadow-primary {
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+}
+
+.uppercase {
+    text-transform: uppercase;
+}
+
+.letter-spacing-1 {
+    letter-spacing: 1px;
+}
+
+.smaller {
+    font-size: 0.75rem;
+}
+
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-clamp: 2;
+    overflow: hidden;
 }

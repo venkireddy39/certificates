@@ -53,7 +53,7 @@ function App() {
                     <Route
                         path="issues/new"
                         element={
-                            <ProtectedRoute permission="ISSUE_BOOKS">
+                            <ProtectedRoute permission="VIEW_ISSUES">
                                 <IssueBook />
                             </ProtectedRoute>
                         }

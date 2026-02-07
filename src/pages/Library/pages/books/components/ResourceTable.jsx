@@ -59,11 +59,8 @@ const ResourceTable = ({
 
                     {!loading &&
                         resources.map((res) => {
-                            const totalCopies = res.copies?.length || res.totalCopies || 0;
-                            const availableCopies =
-                                res.copies?.filter(c => c.status === 'AVAILABLE').length ??
-                                res.availableCopies ??
-                                0;
+                            const totalCopies = res.totalCopies ?? res.copies?.length ?? 0;
+                            const availableCopies = res.availableCopies ?? res.copies?.filter(c => c.status === 'AVAILABLE').length ?? 0;
 
                             return (
                                 <tr key={res.id}>

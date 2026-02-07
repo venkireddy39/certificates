@@ -19,12 +19,21 @@ export const libraryService = {
     issues: {
         getAllIssues: () => apiFetch(`${BASE}/issues`),
         issueBook: (bookId, userId, memberRole) =>
-            apiFetch(`${BASE}/books/issue?bookId=${bookId}&userId=${userId}&memberRole=${memberRole}`, { method: "POST" }),
+            apiFetch(`${BASE}/issue`, {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bookId, userId, userCategory: memberRole })
+            }),
         issueBookWithBarcode: (bookId, userId, barcode, memberRole) =>
-            apiFetch(`${BASE}/books/issue/copy?bookId=${bookId}&userId=${userId}&barcode=${encodeURIComponent(barcode)}&memberRole=${memberRole}`, { method: "POST" }),
+            // Backend currently operates on bookId/userId via IssueRequest. We send barcode to ensure it is recorded.
+            apiFetch(`${BASE}/issue`, {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bookId, userId, userCategory: memberRole, barcode })
+            }),
         checkEligibility: (userId, memberRole) =>
             apiFetch(`${BASE}/members/${userId}/eligibility?memberRole=${memberRole}`),
-        returnBook: (issueId) => apiFetch(`${BASE}/books/return/${issueId}`, { method: "PUT" }),
+        returnBook: (issueId) => apiFetch(`${BASE}/return/${issueId}`, { method: "PUT" }),
         patchIssue: (id, updates) => apiFetch(`${BASE}/issues/${id}`, { method: "PATCH", body: JSON.stringify(updates) }),
     },
     reservations: {

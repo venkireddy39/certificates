@@ -28,27 +28,27 @@ const CreateFee = lazy(() => import('../pages/FeeManagement/CreateFee'));
 const LibraryApp = lazy(() => import('../pages/Library/App'));
 const AffiliateRegister = lazy(() => import('../pages/Affiliates/AffiliateRegister'));
 const AffiliatePortal = lazy(() => import('../pages/Affiliates/AffiliatePortal'));
-const StudentDashboard = lazy(() => import('../pages/Student/StudentDashboard'));
+const StudentDashboard = lazy(() => import('../pages/Student/Dashboard/StudentDashboard'));
 const LoginPage = lazy(() => import('../pages/Login/LoginPage'));
-const StudentCourses = lazy(() => import('../pages/Student/StudentCourses'));
-const StudentBatches = lazy(() => import('../pages/Student/StudentBatches'));
-const StudentAttendance = lazy(() => import('../pages/Student/StudentAttendance'));
-const StudentLibrary = lazy(() => import('../pages/Student/StudentLibrary'));
-const LearningContent = lazy(() => import('../pages/Student/LearningContent'));
+const StudentCourses = lazy(() => import('../pages/Student/Courses/StudentCourses'));
+const StudentBatches = lazy(() => import('../pages/Student/Batches/StudentBatches'));
+const StudentAttendance = lazy(() => import('../pages/Student/Attendance/StudentAttendance'));
+const StudentLibrary = lazy(() => import('../pages/Student/Library/StudentLibrary'));
+const LearningContent = lazy(() => import('../pages/Student/LearningContent/LearningContent'));
 const StudentLayout = lazy(() => import('../components/layout/StudentLayout'));
-const StudentAssignments = lazy(() => import('../pages/Student/StudentAssignments'));
-const StudentGrades = lazy(() => import('../pages/Student/StudentGrades'));
-const StudentCertificates = lazy(() => import('../pages/Student/StudentCertificates'));
-const StudentProfile = lazy(() => import('../pages/Student/StudentProfile'));
-const StudentCalendar = lazy(() => import('../pages/Student/StudentCalendar'));
-const StudentExams = lazy(() => import('../pages/Student/StudentExams'));
-const StudentNotifications = lazy(() => import('../pages/Student/StudentNotifications'));
-const StudentWebinars = lazy(() => import('../pages/Student/StudentWebinars'));
-const StudentTransport = lazy(() => import('../pages/Student/StudentTransport'));
-const StudentHostel = lazy(() => import('../pages/Student/StudentHostel'));
-const StudentCommunication = lazy(() => import('../pages/Student/StudentCommunication'));
-const StudentReports = lazy(() => import('../pages/Student/StudentReports'));
-const StudentHelpDesk = lazy(() => import('../pages/Student/StudentHelpDesk'));
+const StudentAssignments = lazy(() => import('../pages/Student/Assignments/StudentAssignments'));
+const StudentGrades = lazy(() => import('../pages/Student/Grades/StudentGrades'));
+const StudentCertificates = lazy(() => import('../pages/Student/Certificates/StudentCertificates'));
+const StudentProfile = lazy(() => import('../pages/Student/Profile/StudentProfile'));
+const StudentCalendar = lazy(() => import('../pages/Student/Calendar/StudentCalendar'));
+const StudentExams = lazy(() => import('../pages/Student/Exams/StudentExams'));
+const StudentNotifications = lazy(() => import('../pages/Student/Notifications/StudentNotifications'));
+const StudentWebinars = lazy(() => import('../pages/Student/Webinars/StudentWebinars'));
+const StudentTransport = lazy(() => import('../pages/Student/Transport/StudentTransport'));
+const StudentHostel = lazy(() => import('../pages/Student/Hostel/StudentHostel'));
+const StudentCommunication = lazy(() => import('../pages/Student/Communication/StudentCommunication'));
+const StudentReports = lazy(() => import('../pages/Student/Reports/StudentReports'));
+const StudentHelpDesk = lazy(() => import('../pages/Student/HelpDesk/StudentHelpDesk'));
 const AutomationDashboard = lazy(() => import('../pages/Automation/AutomationDashboard'));
 
 const RootRedirect = () => {
@@ -88,7 +88,7 @@ const AppRoutes = () => {
             <Route path="batches" element={<StudentBatches />} />
             <Route path="attendance" element={<StudentAttendance />} />
             <Route path="library" element={<StudentLibrary />} />
-            <Route path="content" element={<LearningContent />} />
+            <Route path="content/:id?" element={<LearningContent />} />
             <Route path="assignments" element={<StudentAssignments />} />
             <Route path="grades" element={<StudentGrades />} />
             <Route path="exams" element={<StudentExams />} />

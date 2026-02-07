@@ -15,7 +15,7 @@ import {
 import './Sidebar.css';
 import { useAuth } from '../../context/AuthContext';
 
-const Sidebar = ({ mobileOpen, onClose }) => {
+const Sidebar = ({ mobileOpen, onClose, className = '' }) => {
     const { user, hasPermission, logout } = useAuth();
 
     // Permission Flags (Visibility based on VIEW rights)
@@ -25,7 +25,7 @@ const Sidebar = ({ mobileOpen, onClose }) => {
     const showSettings = hasPermission('SYSTEM_SETTINGS');
 
     return (
-        <aside className={`sidebar ${mobileOpen ? 'show' : ''}`}>
+        <aside className={`sidebar ${className} ${mobileOpen ? 'show' : ''}`}>
             <div className="sidebar-header justify-content-between">
                 <div className="logo-container">
                     <BookOpen className="logo-icon" size={28} />
@@ -41,20 +41,20 @@ const Sidebar = ({ mobileOpen, onClose }) => {
                     <span className="nav-label">Core</span>
 
                     {/* Everyone sees Dashboard if logged in */}
-                    <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
+                    <NavLink to="/admin/library" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
                         <LayoutDashboard size={20} />
                         <span>Dashboard</span>
                     </NavLink>
 
                     {showBooks && (
-                        <NavLink to="/books" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
+                        <NavLink to="/admin/library/books" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
                             <BookOpen size={20} />
                             <span>Books Catalog</span>
                         </NavLink>
                     )}
 
                     {showMembers && (
-                        <NavLink to="/members" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
+                        <NavLink to="/admin/library/members" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
                             <Users size={20} />
                             <span>Members</span>
                         </NavLink>
@@ -64,15 +64,15 @@ const Sidebar = ({ mobileOpen, onClose }) => {
                 {showOperations && (
                     <div className="nav-section">
                         <span className="nav-label">Operations</span>
-                        <NavLink to="/issues" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
+                        <NavLink to="/admin/library/issues" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
                             <ClipboardList size={20} />
                             <span>Issue & Return</span>
                         </NavLink>
-                        <NavLink to="/reservations" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
+                        <NavLink to="/admin/library/reservations" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
                             <CalendarClock size={20} />
                             <span>Reservations</span>
                         </NavLink>
-                        <NavLink to="/fines" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
+                        <NavLink to="/admin/library/fines" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
                             <DollarSign size={20} />
                             <span>Fine Management</span>
                         </NavLink>
@@ -82,24 +82,19 @@ const Sidebar = ({ mobileOpen, onClose }) => {
                 {showSettings && (
                     <div className="nav-section">
                         <span className="nav-label">Administration</span>
-                        <NavLink to="/circulation-rules" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
+                        <NavLink to="/admin/library/circulation-rules" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
                             <ShieldCheck size={20} />
                             <span>Circulation Rules</span>
                         </NavLink>
-                        {/* Roles & Permissions typically part of Settings or separate if advanced */}
-                        {/* <NavLink to="/roles" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
-                            <Users size={20} />
-                            <span>Roles & Permissions</span>
-                        </NavLink> */}
-                        <NavLink to="/audit-logs" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
+                        <NavLink to="/admin/library/audit-logs" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
                             <ClipboardList size={20} />
                             <span>Audit Logs</span>
                         </NavLink>
-                        <NavLink to="/reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
+                        <NavLink to="/admin/library/reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
                             <ClipboardList size={20} />
                             <span>Reports</span>
                         </NavLink>
-                        <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
+                        <NavLink to="/admin/library/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={onClose}>
                             <Settings size={20} />
                             <span>Settings</span>
                         </NavLink>

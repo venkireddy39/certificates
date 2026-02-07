@@ -143,7 +143,10 @@ export const AuthProvider = ({ children }) => {
     };
 
     const hasPermission = (permission) => {
-        if (!user) return false;
+        if (!user) {
+            console.warn("hasPermission: No user logged in");
+            return false;
+        }
 
         // 1. Check explicit permissions array from JWT
         if (user.permissions && user.permissions.includes(permission)) {
@@ -151,10 +154,16 @@ export const AuthProvider = ({ children }) => {
         }
 
         // 2. Fallback to Role-based checks
-        if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') return true;
+        if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+            return true;
+        }
 
         // 3. Optional: Hardcoded mapping fallback
-        return (ROLE_PERMISSIONS[user.role] || []).includes(permission);
+        const allowed = (ROLE_PERMISSIONS[user.role] || []).includes(permission);
+        if (!allowed) {
+            console.warn(`Permission Denied: User role ${user.role} missing ${permission}`);
+        }
+        return allowed;
     };
 
     return (

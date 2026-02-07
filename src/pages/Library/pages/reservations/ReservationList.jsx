@@ -106,7 +106,7 @@ const ReservationList = () => {
 
         if (resource && user) {
             // Navigate to Issue Wizard with pre-selected data
-            navigate('/library/issues/new', {
+            navigate('/admin/library/issues/new', {
                 state: {
                     preSelectedMember: user,
                     preSelectedBook: resource

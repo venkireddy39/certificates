@@ -1,0 +1,52 @@
+/* src/pages/Library/components/Layout/LibraryLayout.css */
+
+/*
+   We need to ensure the library sidebar (which has position:fixed in Sidebar.css)
+   is positioned correctly relative to the Admin Layout TopNavbar.
+   
+   Typically TopNavbar height is around 64px or 4rem.
+   We override the sidebar's top and height to fit below the navbar.
+*/
+
+:root {
+    --navbar-height: 64px;
+    /* Adjust if TopNavbar height differs */
+    --sidebar-width: 260px;
+}
+
+/* Override existing Sidebar.css styles for this context */
+.library-layout-wrapper .sidebar,
+.library-sidebar-container .sidebar {
+    top: var(--navbar-height, 64px) !important;
+    /* Push down by navbar height */
+    height: calc(100vh - var(--navbar-height, 64px)) !important;
+    /* Adjust height */
+    z-index: 40;
+    /* Lower than TopNavbar (usually 50+) */
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Ensure the main content is pushed to the right to not be covered by fixed sidebar */
+.library-main-content {
+    margin-left: var(--sidebar-width, 260px);
+    width: calc(100% - var(--sidebar-width, 260px));
+    padding: 1.5rem;
+    transition: margin-left 0.3s ease;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 991.98px) {
+    .library-main-content {
+        margin-left: 0;
+        width: 100%;
+        padding: 1rem;
+    }
+
+    .library-sidebar-container .sidebar {
+        top: 0 !important;
+        /* Mobile Sidebar usually overlays from top */
+        height: 100vh !important;
+        z-index: 1050;
+        /* High z-index for mobile overlay */
+    }
+}

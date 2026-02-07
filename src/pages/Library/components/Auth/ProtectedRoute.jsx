@@ -11,7 +11,7 @@ export default function ProtectedRoute({ permission, children }) {
     }
 
     if (permission && !hasPermission(permission)) {
-        return <Navigate to="/" replace />;
+        return <Navigate to="/admin" replace />;
     }
 
     return children;

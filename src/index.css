@@ -22,6 +22,26 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Custom Scrollbar Global */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+  border: 2px solid var(--bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
 /* THEME VARIABLES - Required for theme switching */
 [data-theme="dark"] {
   --primary: #7c3aed;
@@ -59,9 +79,19 @@ body {
   color: var(--primary) !important;
 }
 
+.text-body {
+  color: var(--text-color) !important;
+}
+
+.text-muted,
+.text-secondary {
+  color: var(--muted) !important;
+}
+
 .btn-primary {
   background-color: var(--primary) !important;
   border-color: transparent !important;
+  color: #ffffff !important;
   transition: all 0.3s ease;
 }
 
@@ -69,6 +99,19 @@ body {
   background-color: color-mix(in srgb, var(--primary) 80%, black 20%) !important;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.btn-secondary {
+  background-color: #a855f7 !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+  background-color: #9333ea !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
 }
 
 .card {
@@ -136,12 +179,6 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   /* IE and Edge */
-
-  /* Context Nav Hover Effects */
-  .transition-smooth {
-    transition: all 0.3s ease;
-  }
-
 }
 
 /* Context Nav Hover Effects */
@@ -155,7 +192,7 @@ body {
 }
 
 .context-nav-hover:hover {
-  background-color: #e2e8f0 !important;
+  background-color: var(--hover-bg) !important;
   color: var(--primary) !important;
   transform: translateY(-3px);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -166,31 +203,26 @@ body {
    ========================================= */
 
 /* 1. TOP NAVBAR - Strongest Layer */
-/* Target the first header wrapper in dashboard layout */
 .d-flex.flex-column>.flex-shrink-0:first-child>div {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
   z-index: 1040;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
 /* 2. SUB NAV (ContextNav) - Secondary Layer */
-/* Target the second wrapper (ContextNav) */
 .d-flex.flex-column>.flex-shrink-0:nth-child(2)>div,
 .d-flex.flex-column>.flex-shrink-0:nth-child(2) .bg-white.border-bottom {
-  border-bottom-color: rgba(0, 0, 0, 0.04) !important;
-  /* Softer border */
+  border-bottom-color: var(--border) !important;
   box-shadow: none !important;
 }
 
 /* Level 3 Nav soft style */
 .d-flex.flex-column>.flex-shrink-0:nth-child(2) .bg-light.border-bottom {
-  background-color: #f8fafc !important;
-  /* Match page bg or very light slate */
-  border-bottom: 1px solid rgba(0, 0, 0, 0.02) !important;
+  background-color: var(--bg) !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
 /* 3. PAGE HEADERS - "Like Content" */
-/* Remove borders/shadows from common header classes to blend them */
 .batches-header-premium,
 .create-header,
 .webinar-header,
@@ -199,19 +231,16 @@ body {
   box-shadow: none !important;
   border-bottom: none !important;
   background-color: transparent !important;
-  /* Blend with page */
   padding-left: 0 !important;
   padding-right: 0 !important;
   margin-bottom: 1.5rem !important;
-  /* Ensure spacing remains */
 }
 
 /* Ensure sticky headers still work but look integrated */
 .sticky-lg-top {
-  background: rgba(255, 255, 255, 0.95) !important;
+  background: var(--surface) !important;
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  /* Very subtle if sticky */
+  border-bottom: 1px solid var(--border);
 }
 
 /* Reduce Vertical Spacing in Content Area */
@@ -223,5 +252,48 @@ main.flex-grow-1>div.container-fluid.py-4 {
 /* Refine Sub-Nav Items for "Attached" look */
 .sub-nav-item-circle {
   margin-bottom: 0.25rem !important;
-  /* Tighten icon-label gap further if needed, but flex gap logic handles it */
+}
+
+/* =========================================
+   BOOTSTRAP THEME ADAPTATIONS
+   ========================================= */
+
+/* Fix close button visibility in dark mode */
+[data-theme="dark"] .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Standardize form controls for dark mode */
+[data-theme="dark"] .form-select,
+[data-theme="dark"] .form-control {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .form-select:focus,
+[data-theme="dark"] .form-control:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 0.25rem rgba(124, 58, 237, 0.25) !important;
+}
+
+/* Modal and Table dark mode adaptations */
+[data-theme="dark"] .modal-content {
+  background-color: var(--surface);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer {
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .table {
+  color: var(--text-color);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .table-light {
+  --bs-table-bg: var(--hover-bg);
+  --bs-table-color: var(--text-color);
 }

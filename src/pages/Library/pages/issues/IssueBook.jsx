@@ -17,7 +17,9 @@ const IssueBook = () => {
         confirmIssue, resetWizard
     } = useIssue();
 
-    // Auto-focus logic can be added here with refs if desired
+    useEffect(() => {
+        console.log("IssueBook Component Mounted");
+    }, []);
 
     return (
         <div className="container-fluid p-4">
@@ -140,7 +142,7 @@ const IssueBook = () => {
                                                 <div className="small text-muted">{b.author} • {b.isbn}</div>
                                             </div>
                                             <span className="badge bg-secondary ms-auto">
-                                                {b.copies?.filter(c => c.status === 'AVAILABLE').length} Available
+                                                {b.availableCopies ?? b.copies?.filter(c => c.status === 'AVAILABLE').length} Available
                                             </span>
                                         </button>
                                     ))}

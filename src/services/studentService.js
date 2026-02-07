@@ -32,7 +32,13 @@ export const studentService = {
                 thumbnail: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&auto=format&fit=crop&q=60",
                 category: "Programming",
                 totalLessons: 24,
-                completedLessons: 16
+                completedLessons: 16,
+                instructor: "Dr. Sarah Johnson",
+                lastAccessed: "2 hours ago",
+                description: "Master modern web development from database to frontend with React, Node, and AWS.",
+                rating: 4.8,
+                duration: "40 Hours",
+                level: "Advanced"
             },
             {
                 id: "course-205",
@@ -43,7 +49,64 @@ export const studentService = {
                 thumbnail: "https://images.unsplash.com/photo-1558655146-d09347e92766?w=800&auto=format&fit=crop&q=60",
                 category: "Design",
                 totalLessons: 18,
-                completedLessons: 5
+                completedLessons: 5,
+                instructor: "Alex Rivera",
+                lastAccessed: "1 day ago",
+                description: "Deep dive into user-centric design, prototyping, and design systems.",
+                rating: 4.9,
+                duration: "25 Hours",
+                level: "Intermediate"
+            },
+            {
+                id: "course-208",
+                courseId: "course-208",
+                title: "Data Science with Python",
+                courseName: "Data Science with Python",
+                progress: 100,
+                thumbnail: "https://images.unsplash.com/photo-1551288049-bbda485efb2b?w=800&auto=format&fit=crop&q=60",
+                category: "Data Science",
+                totalLessons: 32,
+                completedLessons: 32,
+                instructor: "Michael Chen",
+                lastAccessed: "3 days ago",
+                description: "End-to-end data analysis, visualization, and machine learning using Python.",
+                rating: 4.7,
+                duration: "55 Hours",
+                level: "Intermediate"
+            },
+            {
+                id: "course-210",
+                courseId: "course-210",
+                title: "Cloud Architecture on AWS",
+                courseName: "Cloud Architecture on AWS",
+                progress: 15,
+                thumbnail: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=60",
+                category: "Cloud",
+                totalLessons: 20,
+                completedLessons: 3,
+                instructor: "Sarah Jenkins",
+                lastAccessed: "Just now",
+                description: "Learn to design scalable, resilient, and secure applications on AWS Cloud.",
+                rating: 4.9,
+                duration: "30 Hours",
+                level: "Expert"
+            },
+            {
+                id: "course-212",
+                courseId: "course-212",
+                title: "Cybersecurity Fundamentals",
+                courseName: "Cybersecurity Fundamentals",
+                progress: 0,
+                thumbnail: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&fit=crop&q=60",
+                category: "Security",
+                totalLessons: 15,
+                completedLessons: 0,
+                instructor: "Robert Fox",
+                lastAccessed: "Never",
+                description: "Protect systems and networks from digital attacks and data breaches.",
+                rating: 4.6,
+                duration: "20 Hours",
+                level: "Beginner"
             }
         ];
     },
@@ -393,6 +456,104 @@ export const studentService = {
                 thumbnail: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&auto=format&fit=crop&q=60",
                 attendees: 85,
                 recordingUrl: "demo.mp4"
+            }
+        ];
+    },
+
+    // 14. Get Hostel Data (Mocked)
+    getHostelData: async () => {
+        return {
+            roomInfo: {
+                block: "Block A",
+                roomNumber: "302",
+                type: "2 Sharing, AC",
+                floor: "3rd Floor",
+                hostelName: "North Campus Residency"
+            },
+            roommates: [
+                { id: 1, name: "Arjun Mehta", department: "Computer Science", year: "3rd Year" },
+                { id: 2, name: "Rahul Sharma", department: "Mechanical Engg", year: "2nd Year" }
+            ],
+            messMenu: [
+                { day: "Today", breakfast: "Poha, Tea, Fruit", lunch: "Paneer Curry, Dal, Roti, Rice", dinner: "Veg Pulao, Curd, Sweet" },
+                { day: "Tomorrow", breakfast: "Idli, Sambar, Coffee", lunch: "Mix Veg, Dal Tadka, Rice", dinner: "Chana Masala, Paratha, Salad" }
+            ],
+            recentRequests: [
+                { id: 1, type: "Maintenance", title: "AC Repair", status: "Resolved", date: "2 Feb 2024" },
+                { id: 2, type: "Leave", title: "Weekend Leave Request", status: "Pending", date: "4 Feb 2024" },
+                { id: 3, type: "Maintenance", title: "WiFi Connectivity Issue", status: "Pending", date: "7 Feb 2024" },
+                { id: 4, type: "Maintenance", title: "Room Cleaning", status: "Resolved", date: "5 Feb 2024" }
+            ],
+            feeHistory: [
+                { id: "FH-101", month: "February 2024", amount: "12,500", status: "Paid", date: "Feb 01, 2024", ref: "TXN-88291" },
+                { id: "FH-100", month: "January 2024", amount: "12,500", status: "Paid", date: "Jan 03, 2024", ref: "TXN-77382" },
+                { id: "FH-099", month: "December 2023", amount: "12,500", status: "Paid", date: "Dec 02, 2023", ref: "TXN-66291" }
+            ]
+        };
+    },
+
+    // 15. Submit Maintenance Ticket
+    submitMaintenanceTicket: async (data) => {
+        console.log("Submitting Maintenance Ticket:", data);
+        return { success: true };
+    },
+
+    // 16. Submit Outpass Application
+    submitOutpassApplication: async (data) => {
+        console.log("Submitting Outpass Application:", data);
+        return { success: true };
+    },
+
+    // 17. Download Hostel Receipt
+    downloadHostelReceipt: async (month) => {
+        console.log("Downloading receipt for:", month);
+        return { success: true, url: "/mock-receipt.pdf" }; // Return a mock URL
+    },
+
+    // 18. Get Library Books (Mocked)
+    getMyLibraryBooks: async () => {
+        return [
+            {
+                id: 'lib-1',
+                title: 'Clean Code: A Handbook of Agile Software Craftsmanship',
+                author: 'Robert C. Martin',
+                cover: 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=400&q=80',
+                issueDate: '05 Feb 2024',
+                dueDate: '19 Feb 2024',
+                status: 'Issued'
+            },
+            {
+                id: 'lib-2',
+                title: 'You Don\'t Know JS Yet: Get Started',
+                author: 'Kyle Simpson',
+                cover: 'https://images.unsplash.com/photo-1544640808-32ca72ac7f37?w=400&q=80',
+                issueDate: '01 Feb 2024',
+                dueDate: '08 Feb 2024',
+                status: 'Overdue'
+            }
+        ];
+    },
+
+    // 19. Get Library History (Mocked)
+    getLibraryHistory: async () => {
+        return [
+            {
+                id: 'hist-1',
+                title: 'The Pragmatic Programmer',
+                author: 'Andrew Hunt & David Thomas',
+                cover: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=400&q=80',
+                issueDate: '10 Jan 2024',
+                returnDate: '24 Jan 2024',
+                status: 'Returned'
+            },
+            {
+                id: 'hist-2',
+                title: 'Design Patterns: Elements of Reusable Object-Oriented Software',
+                author: 'Erich Gamma et al.',
+                cover: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=400&q=80',
+                issueDate: '01 Dec 2023',
+                returnDate: '15 Dec 2023',
+                status: 'Returned'
             }
         ];
     }

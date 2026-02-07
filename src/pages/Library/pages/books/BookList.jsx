@@ -78,7 +78,7 @@ const BookList = () => {
     };
 
     const handleIssueBook = (resource) => {
-        navigate('/library/issues/new', {
+        navigate('/admin/library/issues/new', {
             state: { preSelectedBook: resource }
         });
     };

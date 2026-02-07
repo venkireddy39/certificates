@@ -23,8 +23,8 @@ const ReturnModal = ({ isOpen, loading, data, processing, onConfirm, onClose }) 
                                 {/* Book & Member Summary */}
                                 <div className="card bg-light border-0 mb-3">
                                     <div className="card-body">
-                                        <h6 className="fw-bold mb-1">{data.issue.resourceTitle || 'Unknown Title'}</h6>
-                                        <div className="small text-muted mb-2">Barcode: {data.issue.barcode}</div>
+                                        <h6 className="fw-bold mb-1">{data.issue.book?.title || data.issue.resourceTitle || 'Unknown Title'}</h6>
+                                        <div className="small text-muted mb-2">Barcode: {data.issue.barcode || data.issue.barcodeValue || data.issue.book?.isbn || 'N/A'}</div>
                                         <div className="d-flex align-items-center">
                                             <div className="badge bg-secondary me-2">Borrowed by User {data.issue.userId}</div>
                                             {/* Note: In real app, name is typically populated in issue or fetched */}

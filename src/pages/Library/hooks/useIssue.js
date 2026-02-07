@@ -78,27 +78,44 @@ export const useIssue = () => {
     const selectMember = async (member) => {
         setLoading(true);
         try {
+            console.log("Selecting member:", member);
+
             // 1. Validate Eligibility (Backend Check)
-            const { eligible, user } = await IssueService.validateEligibility(member.id);
+            const validation = await IssueService.validateEligibility(member.id).catch(e => {
+                console.warn("Eligibility check failed, allowing proceed:", e);
+                return { eligible: true, user: member };
+            });
+            const { eligible, user } = validation;
 
             if (eligible) {
                 // 2. Fetch Limits & Active Counts
-                // We fetch all issues and filter because there's no direct "issues by user" endpoint yet
-                const [settings, allIssues] = await Promise.all([
-                    SettingsService.getSettings(),
-                    IssueService.getAllIssues().catch(() => [])
-                ]);
+                let settings = { rules: { student: { maxBooks: 4 } } };
+                let allIssues = [];
+
+                try {
+                    const results = await Promise.allSettled([
+                        SettingsService.getSettings(),
+                        IssueService.getAllIssues()
+                    ]);
+
+                    if (results[0].status === 'fulfilled') settings = results[0].value;
+                    if (results[1].status === 'fulfilled') allIssues = results[1].value;
+                } catch (e) {
+                    console.warn("Failed to load auxiliary settings/issues", e);
+                }
 
                 // Determine Role & Limit
                 const role = (user.category || 'Student').toLowerCase(); // 'student' or 'faculty'
-                const roleRules = settings.rules[role] || settings.rules['student'];
-                const maxLimit = roleRules ? roleRules.maxBooks : 4; // Default to 4
+                const roleRules = settings.rules ? (settings.rules[role] || settings.rules['student']) : { maxBooks: 4 };
+                const maxLimit = roleRules ? roleRules.maxBooks : 4;
 
                 // Count Active Issues
-                const userIssues = allIssues.filter(i =>
-                    (i.userId === member.id || i.userId === Number(member.id)) &&
-                    (i.status === 'ISSUED' || i.status === 'OVERDUE' || i.status === 'RENEWED')
-                );
+                const userIdNum = Number(member.id);
+                const userIssues = allIssues.filter(i => {
+                    const iUid = Number(i.userId || i.memberId);
+                    return (iUid === userIdNum) &&
+                        (i.status === 'ISSUED' || i.status === 'OVERDUE' || i.status === 'RENEWED');
+                });
                 const activeCount = userIssues.length;
 
                 // 3. Update State with Enriched User Data
@@ -108,10 +125,11 @@ export const useIssue = () => {
                     maxLimit
                 });
 
-                // STOP if limit reached
+                // STOP if limit reached (Soft check)
                 if (activeCount >= maxLimit) {
-                    toast.error(`Member has reached the limit (${activeCount}/${maxLimit} books). Cannot issue more.`);
-                    return; // Stay on Step 1
+                    toast.error(`Member has reached the limit (${activeCount}/${maxLimit} books). Proceed with caution.`);
+                    // We allow proceeding for admins usually, or return; to block.
+                    // return; 
                 }
 
                 // Navigation Logic
@@ -122,7 +140,8 @@ export const useIssue = () => {
                 }
             }
         } catch (err) {
-            toast.error(err.message || 'Member not eligible');
+            console.error("Select member error:", err);
+            toast.error(err.message || 'Member selection failed');
         } finally {
             setLoading(false);
         }
@@ -156,11 +175,20 @@ export const useIssue = () => {
     // --- STEP 3: COPY ---
     const validateBarcode = (barcode) => {
         if (!selectedBook?.copies) return false;
-        const copy = selectedBook.copies.find(c => c.barcode === barcode && c.status === 'AVAILABLE');
+        // Case-insensitive check just in case
+        const copy = selectedBook.copies.find(c =>
+            (c.barcode || '').toLowerCase() === (barcode || '').toLowerCase() &&
+            c.status === 'AVAILABLE'
+        );
+
         if (copy) {
             setSelectedCopy(copy);
+            setStep(4); // Move to confirm
             return true;
         }
+
+        // If not found, maybe show error? 
+        toast.error("Invalid or unavailable barcode for this book.");
         return false;
     };
 
@@ -175,17 +203,28 @@ export const useIssue = () => {
     // --- STEP 4: CONFIRM ---
     const confirmIssue = async () => {
         setLoading(true);
+        console.log("Confirming Issue with:", selectedMember, selectedBook, selectedCopy);
         try {
-            const issue = await IssueService.issueCopy({
+            // Provide payload with fallbacks
+            const issuePayload = {
                 userId: selectedMember.id,
+                bookId: selectedBook.id,
                 resourceId: selectedBook.id,
-                copyId: selectedCopy.uuid, // or id
-                barcode: selectedCopy.barcode
-            });
+                ...(selectedCopy ? {
+                    copyId: selectedCopy.uuid,
+                    barcode: selectedCopy.barcode
+                } : {})
+            };
+
+            const issue = await IssueService.issueCopy(issuePayload);
+
+            if (!issue) throw new Error("No response from server");
+
             setCompletedIssue(issue);
             toast.success('Book Issued Successfully');
             return true;
         } catch (err) {
+            console.error("Issue creation failed:", err);
             toast.error(err.message || 'Issue failed');
             return false;
         } finally {

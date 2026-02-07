@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Search, RotateCcw, PlusCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { IssueService } from '../../services/api';
+import { IssueService, MemberService } from '../../services/api'; // Added MemberService
 import { useToast } from '../../context/ToastContext';
 import { useReturnPreview } from '../../hooks/useReturnPreview';
 import ReturnModal from './components/ReturnModal';
@@ -15,20 +15,28 @@ const IssueList = () => {
     } = useReturnPreview();
 
     const [issues, setIssues] = useState([]);
+    const [allMembers, setAllMembers] = useState([]); // Store members
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
-        loadIssues();
+        console.log("IssueList Component Mounted");
+        loadData();
     }, []);
 
-    const loadIssues = async () => {
+    const loadData = async () => {
         setLoading(true);
         try {
-            const data = await IssueService.getAllIssues();
+            const [issuesData, membersData] = await Promise.all([
+                IssueService.getAllIssues(),
+                MemberService.getAllMembers().catch(() => [])
+            ]);
+
             // Filter only 'ISSUED' transactions for the active list
-            setIssues(data.filter(i => i.status?.toUpperCase() === 'ISSUED'));
-        } catch {
+            setIssues(issuesData.filter(i => i.status?.toUpperCase() === 'ISSUED'));
+            setAllMembers(membersData);
+        } catch (error) {
+            console.error("Failed to load issues:", error);
             toast.error('Failed to load issues');
         } finally {
             setLoading(false);
@@ -38,19 +46,48 @@ const IssueList = () => {
     const handleReturnConfirm = async (waiveFine) => {
         const success = await confirmReturn(waiveFine);
         if (success) {
-            loadIssues(); // Refresh list after successful return
+            loadData(); // Refresh list after successful return
         }
     };
 
+    // Create a map for quick member lookup by ID
+    const memberMap = useMemo(() => {
+        const map = {};
+        allMembers.forEach(m => {
+            map[m.id] = m;
+        });
+        return map;
+    }, [allMembers]);
+
     const filteredIssues = useMemo(() => {
         const q = searchTerm.toLowerCase();
-        return issues.filter(i =>
-            i.book?.title?.toLowerCase().includes(q) ||
-            i.book?.isbn?.toLowerCase().includes(q) ||
-            i.barcode?.toLowerCase().includes(q) || // Search by Issue/Copy Barcode
-            (i.userId || i.memberId || i.member?.id || '').toString().includes(q)
-        );
-    }, [issues, searchTerm]);
+
+        // Helper to safely stringify
+        const safeStr = (val) => (val || '').toString().toLowerCase();
+
+        return issues.filter(i => {
+            // Resolve member object from issue or map
+            const memberObj = i.member || i.user || memberMap[i.userId || i.memberId];
+            const memberName = safeStr(memberObj?.name) || safeStr(i.userName);
+            const memberId = safeStr(i.userId || i.memberId || memberObj?.id);
+            const memberEmail = safeStr(memberObj?.email);
+
+            const bookTitle = safeStr(i.book?.title);
+            const bookIsbn = safeStr(i.book?.isbn);
+            const bookAuthor = safeStr(i.book?.author);
+            const barcode = safeStr(i.barcode || i.barcodeValue);
+
+            const matches = bookTitle.includes(q) ||
+                bookIsbn.includes(q) ||
+                bookAuthor.includes(q) ||
+                barcode.includes(q) ||
+                memberId.includes(q) ||
+                memberName.includes(q) ||
+                memberEmail.includes(q);
+
+            return matches;
+        });
+    }, [issues, allMembers, memberMap, searchTerm]);
 
     const isOverdue = (dateStr) => {
         return new Date(dateStr) < new Date();
@@ -60,7 +97,7 @@ const IssueList = () => {
         <div className="container-fluid p-4">
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h3 className="mb-0">Active Issues & Returns</h3>
-                <Link to="/library/issues/new" className="btn btn-primary d-flex align-items-center">
+                <Link to="/admin/library/issues/new" className="btn btn-primary d-flex align-items-center">
                     <PlusCircle size={18} className="me-2" />
                     Issue Book
                 </Link>
@@ -75,7 +112,7 @@ const IssueList = () => {
                                 <span className="input-group-text"><Search size={16} /></span>
                                 <input
                                     className="form-control"
-                                    placeholder="Search by Book Title, Barcode or Member ID..."
+                                    placeholder="Search by Book Title, Barcode or Member ID/Name..."
                                     value={searchTerm}
                                     onChange={e => setSearchTerm(e.target.value)}
                                 />
@@ -103,7 +140,11 @@ const IssueList = () => {
                                 ) : (
                                     filteredIssues.map(issue => {
                                         const overdue = isOverdue(issue.dueDate);
-                                        const memberIdHelper = issue.userId || issue.memberId || issue.member?.id || issue.user?.id || 'N/A';
+
+                                        // Resolve member for display
+                                        const memberObj = issue.member || issue.user || memberMap[issue.userId || issue.memberId];
+                                        const memberDisplayName = memberObj?.name ? `${memberObj.name} (${memberObj.id})` : `User ${issue.userId || issue.memberId}`;
+
                                         return (
                                             <tr key={issue.issueId || issue.id} className={overdue ? 'table-danger-subtle' : ''}>
                                                 <td>
@@ -115,7 +156,7 @@ const IssueList = () => {
                                                 </td>
                                                 <td>
                                                     <span className="badge bg-light text-dark border">
-                                                        User {memberIdHelper}
+                                                        {memberDisplayName}
                                                     </span>
                                                 </td>
                                                 <td>{new Date(issue.issueDate).toLocaleDateString()}</td>

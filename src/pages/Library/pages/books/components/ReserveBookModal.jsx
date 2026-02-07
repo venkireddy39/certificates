@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, User, Search, Clock } from 'lucide-react';
-import { ReservationService, MemberService } from '../../../services/api';
+import { ReservationService, MemberService, SettingsService } from '../../../services/api';
 import { useToast } from '../../../context/ToastContext';
 
 const ReserveBookModal = ({ book, onClose, onReserved }) => {
@@ -36,12 +36,26 @@ const ReserveBookModal = ({ book, onClose, onReserved }) => {
 
         setSubmitting(true);
         try {
-            // Using unified ReservationService
+            // Fetch reservation settings
+            const settingsObj = await SettingsService.getSettings();
+            const role = (selectedMember.category || 'Student').toLowerCase();
+            const rule = settingsObj.rules[role] || settingsObj.rules['student'];
+            const duration = rule ? (rule.reservationDays || 2) : 2;
+
+            const now = new Date();
+            const until = new Date(now);
+            until.setDate(until.getDate() + duration);
+
             const payload = {
                 bookId: book.id,
-                userId: selectedMember.id, // Normalized ID
-                status: 'RESERVED'
+                userId: selectedMember.id,
+                status: 'RESERVED',
+                reservationDate: now.toISOString().split('T')[0],
+                reserveUntil: until.toISOString().split('T')[0]
             };
+
+            console.log('Sending Reservation:', payload);
+
             await ReservationService.createReservation(payload);
             toast.success('Book reserved successfully');
             onReserved && onReserved();
