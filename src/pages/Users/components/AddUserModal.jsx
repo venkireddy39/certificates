@@ -5,6 +5,7 @@ import AdminForm from "./forms/AdminForm";
 import InstructorForm from "./forms/InstructorForm";
 import AffiliateForm from "../../Affiliates/components/AffiliateForm";
 import ParentForm from "./forms/ParentForm";
+import TransportForm from "./forms/TransportForm";
 import "./styles/AddUserModal.css";
 
 const AddUserModal = ({ setIsModalOpen, onAddUser, initialUser }) => {
@@ -35,6 +36,8 @@ const AddUserModal = ({ setIsModalOpen, onAddUser, initialUser }) => {
     { id: 'Instructor', label: 'Add instructor', icon: <FiUsers /> },
     { id: 'Affiliate', label: 'Add affiliate', icon: <FiTrendingUp /> },
     { id: 'Parent', label: 'Add parent', icon: <FiSmile /> },
+    { id: 'Driver', label: 'Add driver', icon: <FiUser /> },
+    { id: 'Conductor', label: 'Add conductor', icon: <FiUser /> },
   ];
 
   return (
@@ -72,6 +75,8 @@ const AddUserModal = ({ setIsModalOpen, onAddUser, initialUser }) => {
             {selectedRole === 'Instructor' && <InstructorForm onSubmit={handleAdd} onCancel={() => setIsModalOpen(false)} initialValues={initialUser} />}
             {selectedRole === 'Affiliate' && <AffiliateForm onSubmit={handleAdd} onCancel={() => setIsModalOpen(false)} initialValues={initialUser} />}
             {selectedRole === 'Parent' && <ParentForm onSubmit={handleAdd} onCancel={() => setIsModalOpen(false)} initialValues={initialUser} />}
+            {selectedRole === 'Driver' && <TransportForm type="Driver" onSubmit={handleAdd} onCancel={() => setIsModalOpen(false)} initialValues={initialUser} />}
+            {selectedRole === 'Conductor' && <TransportForm type="Conductor" onSubmit={handleAdd} onCancel={() => setIsModalOpen(false)} initialValues={initialUser} />}
           </div>
         </div>
 

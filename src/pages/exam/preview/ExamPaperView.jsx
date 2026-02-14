@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
 import { Clock, ChevronLeft, ChevronRight, Send, AlertCircle, CheckCircle, FileText, Layout, Eye } from "lucide-react";
-import { ExamService } from "../services/examService";
+import { examService } from "../services/examService";
 import { Loader2 } from "lucide-react";
 
 const ExamPaperView = () => {
@@ -24,17 +24,21 @@ const ExamPaperView = () => {
     const timerRef = useRef(null);
 
     useEffect(() => {
-        fetchExam();
+        if (id && id !== "undefined") {
+            fetchExam();
+        } else {
+            setLoading(false);
+        }
     }, [id]);
 
     const fetchExam = async () => {
         setLoading(true);
         try {
-            const data = await ExamService.getExamPaper(id);
+            const data = await examService.getExamPaper(id);
             if (!data) throw new Error("No data");
 
             setExam(data);
-            setTimeLeft(data.durationMinutes * 60);
+            setTimeLeft((data.duration || 60) * 60);
 
             const initAnswers = {};
             data.questions.forEach((q, i) => {
@@ -131,6 +135,12 @@ const ExamPaperView = () => {
                 </div>
 
                 <div className="d-flex align-items-center gap-4">
+                    <button
+                        className="btn btn-outline-secondary btn-sm rounded-pill px-3 d-flex align-items-center gap-2"
+                        onClick={() => window.open(`/admin/exams/full-paper/${id}`, '_blank')}
+                    >
+                        <Eye size={16} /> Full Paper
+                    </button>
                     <div className="d-flex align-items-center gap-2 bg-light px-3 py-1 rounded-pill border border-light-subtle shadow-sm">
                         <Clock size={16} className={timeLeft < 300 ? "text-danger animate-pulse" : "text-primary"} />
                         <span className={`fw-mono fs-5 ${timeLeft < 300 ? "text-danger" : "text-dark"}`}>{formatTime(timeLeft)}</span>

@@ -5,19 +5,22 @@ import { useAuth } from '../../pages/Library/context/AuthContext';
 import './AdminSidebar.css';
 
 const AdminSidebar = ({ isOpen, toggleSidebar, isMobile }) => {
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light')
     const [showUserMenu, setShowUserMenu] = useState(false);
 
+    const role = user?.role?.toUpperCase();
+
     // Group States
     const [groups, setGroups] = useState({
         academics: true,
-        users: true,
+        users: ['ADMIN', 'SUPER_ADMIN'].includes(role),
         finance: false,
         marketing: false,
         affiliates: false,
-        system: false
+        system: false,
+        transport: false
     });
 
     const toggleGroup = (group) => {
@@ -29,6 +32,14 @@ const AdminSidebar = ({ isOpen, toggleSidebar, isMobile }) => {
         document.body.setAttribute('data-theme', theme)
         localStorage.setItem('theme', theme)
     }, [theme])
+
+    // Role-based visibility logic
+    const canSeeUsers = ['ADMIN', 'SUPER_ADMIN'].includes(role);
+    const canSeeFinance = ['ADMIN', 'SUPER_ADMIN', 'FINANCE'].includes(role);
+    const canSeeMarketing = ['ADMIN', 'SUPER_ADMIN', 'MARKETING_MANAGER'].includes(role);
+    const canSeeAcademics = ['ADMIN', 'SUPER_ADMIN', 'INSTRUCTOR'].includes(role);
+    const canSeeAdministration = ['ADMIN', 'SUPER_ADMIN'].includes(role);
+    const canSeeTransport = ['ADMIN', 'SUPER_ADMIN', 'DRIVER', 'CONDUCTOR'].includes(role);
 
     return (
         <>
@@ -75,47 +86,68 @@ const AdminSidebar = ({ isOpen, toggleSidebar, isMobile }) => {
                         <SidebarItem to="/admin/dashboard" icon="FiLayout" label="Dashboard" isOpen={isOpen} onClick={() => !isOpen && toggleSidebar()} />
 
                         {/* ACADEMICS GROUP */}
-                        <MenuGroup title="Academics" icon="FiBookOpen" isOpen={isOpen} expanded={groups.academics} onToggle={() => toggleGroup('academics')}>
-                            <SidebarItem to="/admin/courses" icon="FiBook" label="Courses" isOpen={isOpen} isSub />
-                            <SidebarItem to="/admin/batches" icon="FiUsers" label="Batches" isOpen={isOpen} isSub />
-                            <SidebarItem to="/admin/webinar" icon="FiVideo" label="Webinars" isOpen={isOpen} isSub />
-                            <SidebarItem to="/admin/exams" icon="FiEdit" label="Exams" isOpen={isOpen} isSub />
-                            <SidebarItem to="/admin/certificates" icon="FiAward" label="Certificates" isOpen={isOpen} isSub />
-                            <SidebarItem to="/admin/attendance" icon="FiCalendar" label="Attendance" isOpen={isOpen} isSub />
-                            <SidebarItem to="/admin/library" icon="FiBook" label="Library" isOpen={isOpen} isSub />
-                        </MenuGroup>
+                        {canSeeAcademics && (
+                            <MenuGroup title="Academics" icon="FiBookOpen" isOpen={isOpen} expanded={groups.academics} onToggle={() => toggleGroup('academics')}>
+                                <SidebarItem to="/admin/courses" icon="FiBook" label="Courses" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/batches" icon="FiUsers" label="Batches" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/webinar" icon="FiVideo" label="Webinars" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/exams" icon="FiEdit" label="Exams" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/certificates" icon="FiAward" label="Certificates" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/attendance" icon="FiCalendar" label="Attendance" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/library" icon="FiBook" label="Library" isOpen={isOpen} isSub />
+                            </MenuGroup>
+                        )}
 
                         {/* USERS GROUP */}
-                        <MenuGroup title="User Management" icon="FiUsers" isOpen={isOpen} expanded={groups.users} onToggle={() => toggleGroup('users')}>
-                            <SidebarItem to="/admin/users" icon="FiUser" label="All Users" isOpen={isOpen} isSub />
-                            <SidebarItem to="/admin/users?tab=instructors" icon="FiUserCheck" label="Instructors" isOpen={isOpen} isSub />
-                        </MenuGroup>
+                        {canSeeUsers && (
+                            <MenuGroup title="User Management" icon="FiUsers" isOpen={isOpen} expanded={groups.users} onToggle={() => toggleGroup('users')}>
+                                <SidebarItem to="/admin/users" icon="FiUser" label="All Users" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/users?tab=instructors" icon="FiUserCheck" label="Instructors" isOpen={isOpen} isSub />
+                            </MenuGroup>
+                        )}
+
+                        {/* TRANSPORT GROUP */}
+                        {canSeeTransport && (
+                            <MenuGroup title="Transport" icon="FiTruck" isOpen={isOpen} expanded={groups.transport} onToggle={() => toggleGroup('transport')}>
+                                <SidebarItem to="/admin/transport/vehicles" icon="FiTruck" label="Vehicles" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/transport/routes" icon="FiMap" label="Routes" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/transport/attendance" icon="FiCheckSquare" label="Transport Attd." isOpen={isOpen} isSub />
+                            </MenuGroup>
+                        )}
 
                         {/* MARKETING GROUP */}
-                        <MenuGroup title="Marketing" icon="FiMegaphone" isOpen={isOpen} expanded={groups.marketing} onToggle={() => toggleGroup('marketing')}>
-                            <SidebarItem to="/admin/marketing" icon="FiBarChart2" label="Marketing Hub" isOpen={isOpen} isSub />
-                            <SidebarItem to="/admin/websites" icon="FiGlobe" label="Website Builder" isOpen={isOpen} isSub />
-                            <SidebarItem to="/admin/myapp" icon="FiSmartphone" label="Mobile App" isOpen={isOpen} isSub />
-                        </MenuGroup>
+                        {canSeeMarketing && (
+                            <MenuGroup title="Marketing" icon="FiMegaphone" isOpen={isOpen} expanded={groups.marketing} onToggle={() => toggleGroup('marketing')}>
+                                <SidebarItem to="/admin/marketing" icon="FiBarChart2" label="Marketing Hub" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/websites" icon="FiGlobe" label="Website Builder" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/myapp" icon="FiSmartphone" label="Mobile App" isOpen={isOpen} isSub />
+                            </MenuGroup>
+                        )}
 
                         {/* AFFILIATES GROUP */}
-                        <MenuGroup title="Affiliates" icon="FiShare2" isOpen={isOpen} expanded={groups.affiliates} onToggle={() => toggleGroup('affiliates')}>
-                            <SidebarItem to="/admin/affiliates" icon="FiUsers" label="All Affiliates" isOpen={isOpen} isSub />
-                            <SidebarItem to="/admin/affiliate/portal" icon="FiLayout" label="Partner Portal" isOpen={isOpen} isSub />
-                        </MenuGroup>
+                        {canSeeUsers && (
+                            <MenuGroup title="Affiliates" icon="FiShare2" isOpen={isOpen} expanded={groups.affiliates} onToggle={() => toggleGroup('affiliates')}>
+                                <SidebarItem to="/admin/affiliates" icon="FiUsers" label="All Affiliates" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/affiliate/portal" icon="FiLayout" label="Partner Portal" isOpen={isOpen} isSub />
+                            </MenuGroup>
+                        )}
 
                         {/* FINANCE GROUP */}
-                        <MenuGroup title="Finance" icon="FiDollarSign" isOpen={isOpen} expanded={groups.finance} onToggle={() => toggleGroup('finance')}>
-                            <SidebarItem to="/admin/fee" icon="FiCreditCard" label="Fee Management" isOpen={isOpen} isSub />
-                            <SidebarItem to="/admin/invoices" icon="FiFileText" label="Invoices" isOpen={isOpen} isSub />
-                        </MenuGroup>
+                        {canSeeFinance && (
+                            <MenuGroup title="Finance" icon="FiDollarSign" isOpen={isOpen} expanded={groups.finance} onToggle={() => toggleGroup('finance')}>
+                                <SidebarItem to="/admin/fee" icon="FiCreditCard" label="Fee Management" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/invoices" icon="FiFileText" label="Invoices" isOpen={isOpen} isSub />
+                            </MenuGroup>
+                        )}
 
                         {/* ADMINISTRATION GROUP */}
-                        <MenuGroup title="Administration" icon="FiShield" isOpen={isOpen} expanded={groups.system} onToggle={() => toggleGroup('system')}>
-                            <SidebarItem to="/admin/automation" icon="FiCpu" label="Automation & AI" isOpen={isOpen} isSub />
-                            <SidebarItem to="/admin/audit-logs" icon="FiClipboard" label="Audit Logs" isOpen={isOpen} isSub />
-                            <SidebarItem to="/admin/settings" icon="FiSettings" label="Settings" isOpen={isOpen} isSub />
-                        </MenuGroup>
+                        {canSeeAdministration && (
+                            <MenuGroup title="Administration" icon="FiShield" isOpen={isOpen} expanded={groups.system} onToggle={() => toggleGroup('system')}>
+                                <SidebarItem to="/admin/automation" icon="FiCpu" label="Automation & AI" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/audit-logs" icon="FiClipboard" label="Audit Logs" isOpen={isOpen} isSub />
+                                <SidebarItem to="/admin/settings" icon="FiSettings" label="Settings" isOpen={isOpen} isSub />
+                            </MenuGroup>
+                        )}
                     </ul>
                 </nav>
 

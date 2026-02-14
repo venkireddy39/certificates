@@ -72,11 +72,6 @@ export const ExamSettingsService = {
         if (designData.instituteLogo) formData.append("instituteLogo", designData.instituteLogo);
         if (designData.backgroundImage) formData.append("backgroundImage", designData.backgroundImage);
 
-        if (DEBUG) {
-            logApi("POST (Design) [MOCK]", url, designData, { status: "uploaded" });
-            return { status: "success", message: "Design assets uploaded (mock)" };
-        }
-
         try {
             const data = await apiFetch(url, {
                 method: "POST",

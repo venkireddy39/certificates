@@ -106,7 +106,7 @@ const CreateClass = () => {
                 // Keep existing ID and potentially status
                 await sessionService.updateSession(editId, sessionData);
             } else {
-                await sessionService.createSession(sessionData);
+                await sessionService.createSession(batchId, sessionData);
             }
 
             resetForm();

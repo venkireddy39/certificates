@@ -57,45 +57,52 @@ const BatchBuilder = () => {
                 batchService.getAllBatches().catch(e => [])
             ]);
 
-            // Normalize users for easier consumption
-            const normalizedUsers = (usersData || []).map(u => ({
-                ...u,
-                // Create a unified 'name' property if missing
-                name: u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'Unknown User',
+            // Normalize users for easier consumption (Handle both flat and nested structures)
+            const normalizedUsers = (usersData || []).map(u => {
+                const core = u.user || u;
                 // Normalize role to check both role and roleName
-                normalizedRole: (u.role || u.roleName || '').toUpperCase()
-            }));
+                const rawRole = u.role || u.roleName || core.role || core.roleName || '';
+                const normalizedRole = String(rawRole).toUpperCase();
+
+                return {
+                    ...u,
+                    // Extract fields with nested-aware fallback
+                    name: u.name || core.name || `${u.firstName || core.firstName || ''} ${u.lastName || core.lastName || ''}`.trim() || u.username || core.username || 'Unknown User',
+                    email: u.email || core.email,
+                    studentId: u.studentId || core.studentId || u.userId || core.userId || u.id || core.id,
+                    userId: u.userId || core.userId || u.id || core.id,
+                    normalizedRole: normalizedRole.replace('ROLE_', '') // Remove prefix for easier filtering
+                };
+            });
 
             // Filter out TRANSFERRED or INACTIVE students
-            // We interpret explicit non-active statuses as removal grounds.
-            // If status is missing, we assume ACTIVE to support legacy/simple DTOs.
             const activeStudentsData = (studentsData || []).filter(s => {
-                if (!s.status) return true; // Keep if status is missing
+                if (!s.status) return true;
                 const status = String(s.status).toUpperCase();
                 return status === 'ACTIVE' || status === 'ENROLLED';
             });
 
             // Enrich enrolled students
             const enrichedStudents = activeStudentsData.map(s => {
-                const userProfile = normalizedUsers.find(u => String(u.studentId) === String(s.studentId));
+                const userProfile = normalizedUsers.find(u => String(u.studentId || u.userId) === String(s.studentId || s.userId));
                 return {
                     ...s,
-                    // Show the actual Student ID - try multiple possible fields
                     displayId: s.studentId || s.student?.studentId || s.student?.userId || s.userId || 'N/A',
-                    userId: userProfile?.userId || s.student?.userId
+                    userId: userProfile?.userId || s.student?.userId || s.userId
                 };
             });
 
             setEnrolledStudents(enrichedStudents);
             setBatchDetails(batch);
 
-            // Filter for Students
-            setAllUsers(normalizedUsers.filter(u =>
-                !u.normalizedRole ||
+            // Filter for Students - Allow ROLE_STUDENT or STUDENT
+            const studentUsers = normalizedUsers.filter(u =>
                 u.normalizedRole === 'STUDENT' ||
                 u.normalizedRole === 'ROLE_STUDENT' ||
-                u.normalizedRole.includes('STUDENT') // Catch-all
-            ));
+                !u.normalizedRole // Fallback if role is completely missing
+            );
+
+            setAllUsers(studentUsers);
 
             const currentBatchId = String(id);
             setOtherBatches((batchesData || []).filter(b => {
@@ -112,14 +119,22 @@ const BatchBuilder = () => {
 
     // Filter available students (Students who are NOT already enrolled)
     const availableStudents = allUsers.filter(u => {
-        const isEnrolled = enrolledStudents.some(e => String(e.studentId) === String(u.userId || u.id || u.user_id));
+        // Robust ID check for enrollment status
+        const uId = String(u.studentId || u.userId || u.id || '');
+        const isEnrolled = enrolledStudents.some(e => {
+            const eId = String(e.studentId || e.userId || e.id || e.user_id || '');
+            return eId === uId && uId !== '';
+        });
+
         const term = searchQuery.toLowerCase().trim();
-        const displayId = u.studentId || u.userId || u.id; // Correct ID reference
+        if (!term) return !isEnrolled;
 
         const matchesSearch =
             (u.name || '').toLowerCase().includes(term) ||
             (u.email || '').toLowerCase().includes(term) ||
-            (displayId && String(displayId).includes(term));
+            (u.username || '').toLowerCase().includes(term) ||
+            (u.phoneNumber || u.mobile || u.phone || '').includes(term) ||
+            (uId && uId.includes(term));
 
         return !isEnrolled && matchesSearch;
     });
@@ -257,7 +272,7 @@ const BatchBuilder = () => {
                 studentName: transferModal.student.studentName,
                 studentEmail: transferModal.student.studentEmail,
                 courseId: batchDetails.courseId,
-                targetBatchId: Number(targetBatchId),
+                toBatchId: Number(targetBatchId),
                 reason: transferReason || "Administrative Transfer",
                 transferredBy: user?.name || user?.username || "Admin"
             });

@@ -27,10 +27,12 @@ const CourseCard = ({
     const DEFAULT_IMAGE =
         "https://images.unsplash.com/photo-1517694712202-14dd9538aa97";
 
+    const imageUrl = course?.courseImageUrl || course?.imageUrl || course?.img || course?.image;
+
     const displayImage =
-        imgError || !course?.img?.trim()
+        imgError || !imageUrl?.trim()
             ? DEFAULT_IMAGE
-            : course.img;
+            : imageUrl;
 
     return (
         <div className="course-card-item">

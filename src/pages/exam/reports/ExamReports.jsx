@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area
 } from "recharts";
-import { ExamService } from "../services/examService";
+import { examService } from "../services/examService";
 import { toast, ToastContainer } from "react-toastify";
 import { Loader2 } from "lucide-react";
 
@@ -21,7 +21,7 @@ const ExamReports = () => {
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const data = await ExamService.getReports();
+      const data = await examService.getReports();
       setResults(data || []);
     } catch (error) {
       toast.error("Failed to load analytics data");
@@ -111,7 +111,7 @@ const ExamReports = () => {
                 <div className="text-muted small">Frequency per range</div>
               </div>
               <div style={{ width: '100%', height: 350 }}>
-                <ResponsiveContainer width="99%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <AreaChart data={stats.ranges}>
                     <defs>
                       <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">

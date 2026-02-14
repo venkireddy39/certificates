@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FaEye, FaEdit, FaTrash, FaPlus, FaSearch, FaFilter } from "react-icons/fa";
-import { FolderX, Loader2, Award, Calendar, BarChart3, Clock } from "lucide-react";
+import { FolderX, Loader2, Award, Calendar, BarChart3, Clock, FileText, Rocket } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   PieChart, Pie, Cell, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend, BarChart, Bar
 } from "recharts";
-import { ExamService } from "../services/examService";
+import { examService } from "../services/examService";
 import { toast } from "react-toastify";
 
 const ExamDashboard = () => {
@@ -26,8 +26,17 @@ const ExamDashboard = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const data = await ExamService.getExams();
-      setExams(Array.isArray(data) ? data.sort((a, b) => new Date(b.dateCreated) - new Date(a.dateCreated)) : []);
+      const data = await examService.getAllExams();
+      const list = Array.isArray(data) ? data : [];
+
+      // Real DB sorting: Newest first. Handle cases where date might be null.
+      list.sort((a, b) => {
+        const dateA = a.dateCreated ? new Date(a.dateCreated).getTime() : 0;
+        const dateB = b.dateCreated ? new Date(b.dateCreated).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      setExams(list);
     } catch (error) {
       toast.error("Failed to fetch exams");
     } finally {
@@ -38,7 +47,7 @@ const ExamDashboard = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this exam? This action cannot be undone.")) return;
     try {
-      await ExamService.deleteExam(id);
+      await examService.deleteExam(id);
       setExams(exams.filter(e => e.id !== id));
       toast.success("Exam deleted successfully");
     } catch (error) {
@@ -94,9 +103,7 @@ const ExamDashboard = () => {
         map[m].count += 1;
       }
     });
-    return Object.keys(map).length > 0 ? Object.values(map) : [
-      { name: 'Jan', exams: 0 }, { name: 'Feb', exams: 0 }, { name: 'Mar', exams: 0 }
-    ];
+    return Object.values(map);
   }, [exams]);
 
   if (loading) {
@@ -208,8 +215,8 @@ const ExamDashboard = () => {
               className="glass-card p-4 h-100"
             >
               <h5 className="mb-4 fw-bold text-dark">Exam Activity Trend</h5>
-              <div style={{ height: "300px" }}>
-                <ResponsiveContainer width="100%" height="100%">
+              <div style={{ height: "300px", width: "100%", minHeight: "300px" }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <AreaChart data={trendData}>
                     <defs>
                       <linearGradient id="colorExams" x1="0" y1="0" x2="0" y2="1">
@@ -239,8 +246,8 @@ const ExamDashboard = () => {
               className="glass-card p-4 h-100"
             >
               <h5 className="mb-4 fw-bold text-dark">Distribution</h5>
-              <div style={{ height: "300px" }}>
-                <ResponsiveContainer width="100%" height="100%">
+              <div style={{ height: "300px", width: "100%", minHeight: "300px" }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <PieChart>
                     <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
                       {pieData.map((entry, index) => (
@@ -307,6 +314,7 @@ const ExamDashboard = () => {
                 <AnimatePresence mode='popLayout'>
                   {filteredExams.length === 0 ? (
                     <motion.tr
+                      key="no-data"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
@@ -321,13 +329,13 @@ const ExamDashboard = () => {
                   ) : (
                     filteredExams.map((exam, idx) => (
                       <motion.tr
-                        key={exam.id}
+                        key={exam.id || idx}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: idx * 0.05 }}
                         className="border-bottom border-light"
                       >
-                        <td className="ps-4 text-muted small">#{String(exam.id || '').slice(-6) || idx + 101}</td>
+                        <td className="ps-4 text-muted small">{exam.id ? `#${String(exam.id).slice(-6)}` : 'N/A'}</td>
                         <td>
                           <div className="fw-semibold text-dark">{exam.title}</div>
                           <div className="small text-muted">{exam.duration} mins • {exam.totalQuestions || 0} Questions</div>
@@ -343,8 +351,8 @@ const ExamDashboard = () => {
                         </td>
                         <td className="pe-4 text-end">
                           <div className="d-flex justify-content-end gap-1">
-                            <Link to={`/admin/exams/view-paper/${exam.id}`} className="btn btn-sm btn-icon-light shadow-sm" title="View Details">
-                              <FaEye />
+                            <Link to={`/admin/exams/simulation/mnc-preview/${exam.id}`} className="btn btn-sm btn-icon-light shadow-sm text-primary" title="Preview Exam">
+                              <Rocket size={16} />
                             </Link>
                             {exam.status !== "completed" && (
                               <>

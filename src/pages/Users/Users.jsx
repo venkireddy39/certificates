@@ -32,9 +32,9 @@ const Users = () => {
     try {
       // Fetch users and extra linked data
       const [data, enrollments, batches, students, instructors] = await Promise.all([
-        userService.getAllUsers(),
-        enrollmentService.getAllEnrollments(),
-        batchService.getAllBatches(),
+        userService.getAllUsers().catch(() => []),
+        enrollmentService.getAllEnrollments().catch(() => []),
+        batchService.getAllBatches().catch(() => []),
         userService.getAllStudents().catch(() => []),
         userService.getAllInstructors().catch(() => [])
       ]);
@@ -183,6 +183,21 @@ const Users = () => {
             (u.role === 'Instructor' || u.roleName === 'ROLE_INSTRUCTOR')
           ).length}</span>
         </button>
+        <button className={`u-tab ${activeTab === 'parents' ? 'active' : ''}`} onClick={() => setActiveTab('parents')}>
+          Parents <span className="u-badge">{users.filter(u =>
+            (u.role === 'Parent' || u.roleName === 'ROLE_PARENT')
+          ).length}</span>
+        </button>
+        <button className={`u-tab ${activeTab === 'drivers' ? 'active' : ''}`} onClick={() => setActiveTab('drivers')}>
+          Drivers <span className="u-badge">{users.filter(u =>
+            (u.role === 'Driver' || u.roleName === 'ROLE_DRIVER')
+          ).length}</span>
+        </button>
+        <button className={`u-tab ${activeTab === 'conductors' ? 'active' : ''}`} onClick={() => setActiveTab('conductors')}>
+          Conductors <span className="u-badge">{users.filter(u =>
+            (u.role === 'Conductor' || u.roleName === 'ROLE_CONDUCTOR')
+          ).length}</span>
+        </button>
         <button className={`u-tab ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
           Activity Logs
         </button>
@@ -202,7 +217,40 @@ const Users = () => {
         )}
         {activeTab === 'instructors' && (
           <UserList
-            users={users.filter(u => u.role === 'Instructor')}
+            users={users.filter(u => u.role === 'Instructor' || u.roleName === 'ROLE_INSTRUCTOR')}
+            setUsers={setUsers}
+            onDelete={handleDeleteUser}
+            onToggleStatus={handleToggleStatus}
+            onEdit={handleEditUser}
+            hideRoleFilter={true}
+            batches={allBatchesList}
+          />
+        )}
+        {activeTab === 'parents' && (
+          <UserList
+            users={users.filter(u => u.role === 'Parent' || u.roleName === 'ROLE_PARENT')}
+            setUsers={setUsers}
+            onDelete={handleDeleteUser}
+            onToggleStatus={handleToggleStatus}
+            onEdit={handleEditUser}
+            hideRoleFilter={true}
+            batches={allBatchesList}
+          />
+        )}
+        {activeTab === 'drivers' && (
+          <UserList
+            users={users.filter(u => u.role === 'Driver' || u.roleName === 'ROLE_DRIVER')}
+            setUsers={setUsers}
+            onDelete={handleDeleteUser}
+            onToggleStatus={handleToggleStatus}
+            onEdit={handleEditUser}
+            hideRoleFilter={true}
+            batches={allBatchesList}
+          />
+        )}
+        {activeTab === 'conductors' && (
+          <UserList
+            users={users.filter(u => u.role === 'Conductor' || u.roleName === 'ROLE_CONDUCTOR')}
             setUsers={setUsers}
             onDelete={handleDeleteUser}
             onToggleStatus={handleToggleStatus}

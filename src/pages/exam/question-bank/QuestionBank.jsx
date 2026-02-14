@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { QuestionService } from "../services/questionService";
-import { ExamService } from "../services/examService";
+import { examService } from "../services/examService";
 import { Eye, Trash2, Database, Search, FileText, Loader2, Play, BookOpen } from "lucide-react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -22,10 +21,10 @@ const QuestionBank = () => {
     setLoading(true);
     try {
       if (viewMode === "exams") {
-        const exams = await ExamService.getExams();
+        const exams = await examService.getAllExams();
         setData(exams || []);
       } else {
-        const questions = await QuestionService.getQuestions();
+        const questions = await examService.getAllQuestions();
         setData(questions || []);
       }
     } catch (error) {
@@ -41,9 +40,9 @@ const QuestionBank = () => {
 
     try {
       if (viewMode === "exams") {
-        await ExamService.deleteExam(id);
+        await examService.deleteExam(id);
       } else {
-        await QuestionService.deleteQuestion(id);
+        await examService.deleteQuestion(id);
       }
       setData(prev => prev.filter(item => (item.id || item.questionId) !== id));
       toast.success(`${itemType.charAt(0).toUpperCase() + itemType.slice(1)} deleted successfully`);
@@ -196,8 +195,8 @@ const QuestionBank = () => {
                           </td>
                           <td className="text-center">
                             <span className={`badge rounded-pill px-3 py-2 border border-opacity-10 ${viewMode === 'exams'
-                                ? (typeLabel === 'PUBLISHED' ? 'bg-success bg-opacity-10 text-success border-success' : 'bg-warning bg-opacity-10 text-warning border-warning')
-                                : (typeLabel === "CODING" ? "bg-dark text-white border-white" : "bg-primary bg-opacity-10 text-primary border-primary")
+                              ? (typeLabel === 'PUBLISHED' ? 'bg-success bg-opacity-10 text-success border-success' : 'bg-warning bg-opacity-10 text-warning border-warning')
+                              : (typeLabel === "CODING" ? "bg-dark text-white border-white" : "bg-primary bg-opacity-10 text-primary border-primary")
                               }`}>
                               {typeLabel}
                             </span>

@@ -30,11 +30,11 @@ const ExamLayout = () => {
     return (
         <div className="exam-module-container min-vh-100 bg-light">
             {/* Sub-Navigation Bar */}
-            <div className="sticky-top bg-white border-bottom shadow-sm z-index-1000">
+            <div className="sticky-top bg-white border-bottom shadow-sm" style={{ zIndex: 10, top: '0' }}>
                 <div className="container-fluid px-4">
                     <div className="d-flex align-items-center justify-content-between py-2">
                         <div className="d-flex align-items-center gap-2 me-4">
-                            <div className="p-2 bg-primary rounded-3 text-white">
+                            <div className="p-2 bg-primary rounded-3 text-white shadow-sm">
                                 <BarChart3 size={20} />
                             </div>
                             <h5 className="mb-0 fw-bold text-dark d-none d-lg-block">Exams Control Center</h5>
@@ -55,14 +55,6 @@ const ExamLayout = () => {
                                         >
                                             <item.icon size={16} />
                                             <span>{item.label}</span>
-                                            {location.pathname === item.to && (
-                                                <motion.div
-                                                    layoutId="activeTab"
-                                                    className="position-absolute bottom-0 start-0 end-0"
-                                                    initial={false}
-                                                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                                />
-                                            )}
                                         </NavLink>
                                     </li>
                                 ))}
@@ -73,7 +65,7 @@ const ExamLayout = () => {
             </div>
 
             {/* Main Content Area */}
-            <main className={`${isFullscreenEditor ? '' : 'py-4'}`}>
+            <main className={`${isFullscreenEditor ? '' : 'py-4 mt-2'}`}>
                 <div className={isFullscreenEditor ? '' : 'container-fluid px-4'}>
                     <Outlet />
                 </div>
@@ -84,7 +76,6 @@ const ExamLayout = () => {
                 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
                 .hover-bg-light:hover { background-color: #f8fafc; color: #0f172a; }
                 .transition-all { transition: all 0.2s ease-in-out; }
-                .z-index-1000 { z-index: 1000; }
                 .btn-premium {
                     background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
                     color: white;

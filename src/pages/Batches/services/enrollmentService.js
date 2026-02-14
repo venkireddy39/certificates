@@ -1,143 +1,85 @@
 import { apiFetch } from "../../../services/api";
 
-const STORAGE_KEYS = {
-    STUDENT_BATCHES: 'lms_student_batches',
-    USERS: 'lms_mock_users'
-};
-
-const getStorage = (key, defaultVal = []) => {
-    try {
-        const item = localStorage.getItem(key);
-        return item ? JSON.parse(item) : defaultVal;
-    } catch {
-        return defaultVal;
-    }
-};
-
-const setStorage = (key, val) => {
-    localStorage.setItem(key, JSON.stringify(val));
-};
-
-export const API_BASE_URL_SB = "/api/student-batches";
+const BASE_URL = "/api/student-batches";
 
 export const enrollmentService = {
-    // Get students in a specific batch
-    getStudentsByBatch: async (batchId) => {
-        try {
-            const data = await apiFetch(`${API_BASE_URL_SB}/batch/${batchId}`, {
-                headers: { "Cache-Control": "no-cache" }
-            });
-            if (Array.isArray(data)) {
-                // Filter out non-active students (Status: TRANSFERRED, DROPPED, or active=false)
-                const activeStudents = data.filter(s => {
-                    const status = (s.status || 'ACTIVE').toUpperCase();
-                    const isActive = s.active !== false; // Assume true if missing
-                    return isActive && !['TRANSFERRED', 'DROPPED', 'INACTIVE', 'COMPLETED'].includes(status);
-                });
-
-                // Update specific batch in storage for later offline use
-                const all = getStorage(STORAGE_KEYS.STUDENT_BATCHES);
-                const other = all.filter(e => String(e.batchId) !== String(batchId));
-                setStorage(STORAGE_KEYS.STUDENT_BATCHES, [...other, ...activeStudents]);
-
-                return activeStudents;
-            }
-            // Fallback: Filter storage as well
-            const stored = getStorage(STORAGE_KEYS.STUDENT_BATCHES).filter(e => String(e.batchId) === String(batchId));
-            return stored.filter(s => {
-                const status = (s.status || 'ACTIVE').toUpperCase();
-                return s.active !== false && !['TRANSFERRED', 'DROPPED', 'INACTIVE'].includes(status);
-            });
-        } catch (error) {
-            console.error("API failed to get students, using storage fallback", error);
-            const stored = getStorage(STORAGE_KEYS.STUDENT_BATCHES).filter(e => String(e.batchId) === String(batchId));
-            return stored.filter(s => {
-                const status = (s.status || 'ACTIVE').toUpperCase();
-                return s.active !== false && !['TRANSFERRED', 'DROPPED', 'INACTIVE'].includes(status);
-            });
-        }
+    // Note: Backend has no "Get All" endpoint. 
+    // We return empty array to prevent frontend errors until a proper endpoint exists.
+    getAllEnrollments: async () => {
+        console.warn("getAllEnrollments called but backend 'StudentBatchController' has no 'list all' endpoint.");
+        return [];
     },
 
-    // Add student to a batch (Enroll)
-    addStudentToBatch: async (enrollmentData) => {
-        return apiFetch(`${API_BASE_URL_SB}/enroll`, {
+    getStudentsByBatch: (batchId) => apiFetch(`${BASE_URL}/batch/${batchId}`),
+
+    addStudentToBatch: (data) => {
+        console.log("Enrollment Payload (Routing to Management Service):", data);
+        // Sending to StudentBatchController
+        return apiFetch(`${BASE_URL}/enroll`, {
             method: "POST",
-            body: JSON.stringify(enrollmentData)
+            body: JSON.stringify(data)
         });
     },
 
-    // Remove student from batch (Unenroll)
-    removeStudentFromBatch: async (studentBatchId) => {
-        return apiFetch(`${API_BASE_URL_SB}/${studentBatchId}`, { method: "DELETE" });
+    removeStudentFromBatch: (id) => apiFetch(`${BASE_URL}/${id}`, {
+        method: "DELETE"
+    }),
+
+    /* 
+       Note: The backend endpoint '/api/student-batch-transfers/transfer' uses Query Params
+       as per Controller: @RequestParam studentId, @RequestParam courseId, ...
+    */
+    transferStudent: ({ studentId, courseId, toBatchId, reason }) => {
+        const queryParams = new URLSearchParams({
+            studentId,
+            courseId,
+            toBatchId,
+            reason
+        }).toString();
+
+        return apiFetch(`/api/student-batch-transfers/transfer?${queryParams}`, {
+            method: "POST"
+        });
     },
-
-    // Get all enrollments
-    getAllEnrollments: async () => {
-        try {
-            const data = await apiFetch(API_BASE_URL_SB);
-            if (Array.isArray(data)) {
-                setStorage(STORAGE_KEYS.STUDENT_BATCHES, data);
-                return data;
-            }
-            return getStorage(STORAGE_KEYS.STUDENT_BATCHES);
-        } catch (e) {
-            console.warn("API failed to get all enrollments, using storage fallback", e);
-            return getStorage(STORAGE_KEYS.STUDENT_BATCHES);
-        }
-    },
-
-    // ================= TRANSFERS =================
-
-    transferStudent: async (transferData) => {
-        try {
-            // New endpoint using StudentBatchTransferController
-            // Expects params: studentId, courseId, toBatchId, reason
-            const queryParams = new URLSearchParams({
-                studentId: transferData.studentId,
-                courseId: transferData.courseId,
-                toBatchId: transferData.targetBatchId || transferData.toBatchId,
-                reason: transferData.reason || "Administrative Transfer"
-            });
-
-            return await apiFetch(`/api/student-batch-transfers/transfer?${queryParams.toString()}`, {
-                method: "POST"
-            });
-        } catch (error) {
-            console.error("Transfer Failed in Service:", error);
-            throw error;
-        }
-    },
-
-    // ================= USERS =================
 
     getAllUsers: async () => {
-        try {
-            const { userService } = await import('../../Users/services/userService');
-            const students = await userService.getAllStudents();
+        const fetchResource = async (url, explicitRole = null) => {
+            try {
+                const data = await apiFetch(url);
+                let results = [];
+                if (Array.isArray(data)) results = data;
+                else if (data && data.content) results = data.content;
+                else if (data && data.data) results = data.data;
 
-            if (!students || students.length === 0) return [];
+                if (results.length > 0 && explicitRole) {
+                    return results.map(u => ({ ...u, role: u.role || explicitRole }));
+                }
+                return results;
+            } catch (e) {
+                console.warn(`Fetch failed for ${url}`, e);
+                return [];
+            }
+        };
 
-            return students.map(s => ({
-                userId: s.user?.userId,
-                studentId: s.studentId,
-                firstName: s.user?.firstName,
-                lastName: s.user?.lastName,
-                email: s.user?.email,
-                role: 'Student',
-                name: `${s.user?.firstName || ''} ${s.user?.lastName || ''}`.trim()
-            }));
-        } catch (e) {
-            console.warn("Failed to fetch students via userService", e);
-            return [];
-        }
-    },
+        // Fetch from multiple sources to be absolutely sure we get everyone
+        const [identityUsers, adminUsers, adminStudents] = await Promise.all([
+            fetchResource('/api-identity/users').catch(() => []),
+            fetchResource('/admin/users').catch(() => []),
+            fetchResource('/admin/getstudents', 'STUDENT').catch(() => [])
+        ]);
 
-    getInstructors: async () => {
-        const users = await enrollmentService.getAllUsers();
-        return users.filter(u =>
-            u.role === 'Instructor' ||
-            u.role === 'INSTRUCTOR' ||
-            u.role?.name === 'Instructor'
-        );
+        // Merge and deduplicate
+        const allFetched = [...identityUsers, ...adminUsers, ...adminStudents];
+        const uniqueMap = new Map();
+
+        allFetched.forEach(u => {
+            const core = u.user || u;
+            const id = core.userId || core.id || u.userId || u.id || u.studentId;
+            if (id && !uniqueMap.has(String(id))) {
+                uniqueMap.set(String(id), u);
+            }
+        });
+
+        return Array.from(uniqueMap.values());
     }
 };

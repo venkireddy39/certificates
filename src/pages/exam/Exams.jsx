@@ -9,10 +9,7 @@ import ReattemptRules from "./reattempt/ReattemptRules";
 import ExamReports from "./reports/ExamReports";
 import Leaderboard from "./leaderboard/Leaderboard";
 import ExamSettings from "./settings/ExamSettings";
-import ExamPaperView from "./preview/ExamPaperView";
-import LearnerExamView from "./learner/LearnerExamView";
 import StudentExamDashboard from "./student/StudentExamDashboard";
-import SectionBasedExamPreview from "./preview/SectionBasedExamPreview";
 import MNCExamView from "./learner/MNCExamView";
 
 const Exams = () => {
@@ -29,15 +26,14 @@ const Exams = () => {
                 <Route path="reports" element={<ExamReports />} />
                 <Route path="leaderboard" element={<Leaderboard />} />
                 <Route path="settings" element={<ExamSettings />} />
-                <Route path="view-paper/:id" element={<ExamPaperView />} />
+                <Route path="preview/:id" element={<MNCExamView />} />
             </Route>
 
             {/* Learner/Student View (Standalone) */}
             <Route path="student/dashboard" element={<StudentExamDashboard />} />
-            <Route path="student/attempt/:id" element={<LearnerExamView />} />
+            <Route path="student/attempt/:id" element={<MNCExamView />} />
 
-            {/* New Simulation Preview (Standalone) */}
-            <Route path="simulation/preview/:id" element={<SectionBasedExamPreview />} />
+            {/* Unified Preview (Standalone) */}
             <Route path="simulation/mnc-preview/:id" element={<MNCExamView />} />
         </Routes>
     );

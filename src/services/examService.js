@@ -1,132 +1,48 @@
 import { apiFetch } from "./api";
 
-/**
- * EXAM SERVICE
- * 
- * Handles all exam-related API calls for Admin, Instructors, and Students.
- */
-export const examService = {
-    // --- Admin / Instructor Endpoints ---
+// Matches Java Controller @RequestMapping("/api/exams")
+const BASE_URL = "/api/exams";
 
-    /**
-     * Get all exams (for admin/instructor dashboard)
-     */
+export const examService = {
+    // Matches @GetMapping("")
     getAllExams: async () => {
         try {
-            return await apiFetch('/api/exams');
+            // The controller has @GetMapping returning List<Exam> directly on '/'
+            const data = await apiFetch(BASE_URL);
+            return Array.isArray(data) ? data : (data || []);
         } catch (error) {
-            console.error("Failed to fetch all exams:", error);
-            // Return empty array instead of failing completely for UI stability
+            console.error("Exam fetch error:", error);
             return [];
         }
     },
 
-    /**
-     * Get a specific exam by ID
-     */
-    getExamById: async (id) => {
-        return await apiFetch(`/api/exams/${id}`);
-    },
+    // Matches @GetMapping("/{examId}")
+    getExamById: (id) => apiFetch(`${BASE_URL}/${id}`),
 
-    /**
-     * Create a new exam
-     */
-    createExam: async (examData) => {
-        return await apiFetch('/api/exams', {
-            method: 'POST',
-            body: JSON.stringify(examData)
-        });
-    },
+    // Matches @GetMapping("/course/{courseId}")
+    getExamsByCourseId: (courseId) => apiFetch(`${BASE_URL}/course/${courseId}`),
 
-    /**
-     * Update an existing exam
-     */
-    updateExam: async (id, examData) => {
-        return await apiFetch(`/api/exams/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(examData)
-        });
-    },
+    // Matches @GetMapping("/batch/{batchId}")
+    getExamsByBatchId: (batchId) => apiFetch(`${BASE_URL}/batch/${batchId}`),
 
-    /**
-     * Delete an exam
-     */
-    deleteExam: async (id) => {
-        return await apiFetch(`/api/exams/${id}`, {
-            method: 'DELETE'
-        });
-    },
+    // Matches @PostMapping("")
+    createExam: (examData) => apiFetch(BASE_URL, {
+        method: "POST",
+        body: JSON.stringify(examData),
+    }),
 
-    // --- Student Endpoints ---
+    // Matches @PutMapping("/{examId}/publish")
+    publishExam: (id) => apiFetch(`${BASE_URL}/${id}/publish`, { method: "PUT" }),
 
-    /**
-     * Get exams for the logged-in student
-     */
-    getMyExams: async () => {
-        try {
-            // Adjusting endpoint if needed - commonly /api/student/exams or filtered /api/exams
-            return await apiFetch('/api/exams/my-exams');
-        } catch (error) {
-            console.error("Failed to fetch student exams:", error);
-            return [];
-        }
-    },
+    // Matches @PutMapping("/{examId}/close")
+    closeExam: (id) => apiFetch(`${BASE_URL}/${id}/close`, { method: "PUT" }),
 
-    /**
-     * Start/Attempt an exam
-     */
-    startExam: async (examId) => {
-        return await apiFetch(`/api/exams/${examId}/start`, {
-            method: 'POST'
-        });
-    },
+    // Matches @DeleteMapping("/{examId}") - SOFT DELETE
+    deleteExam: (id) => apiFetch(`${BASE_URL}/${id}`, { method: "DELETE" }),
 
-    /**
-     * Submit an exam attempt
-     */
-    submitExam: async (examId, responses) => {
-        return await apiFetch(`/api/exams/${examId}/submit`, {
-            method: 'POST',
-            body: JSON.stringify({ responses })
-        });
-    },
+    // Matches @PutMapping("/{examId}/restore")
+    restoreExam: (id) => apiFetch(`${BASE_URL}/${id}/restore`, { method: "PUT" }),
 
-    /**
-     * Get exam result/report
-     */
-    /**
-     * Get exam result/report
-     */
-    getExamResult: async (examId) => {
-        return await apiFetch(`/api/exams/${examId}/result`);
-    },
-
-    /**
-     * Get all exam reports (for admin/instructor)
-     */
-    getExamReports: async () => {
-        try {
-            return await apiFetch('/api/exams/reports');
-        } catch (error) {
-            console.error("Failed to fetch exam reports:", error);
-            return [];
-        }
-    },
-
-    /**
-     * Schedule an exam
-     */
-    scheduleExam: async (scheduleData) => {
-        return await apiFetch('/api/exams/schedule', {
-            method: 'POST',
-            body: JSON.stringify(scheduleData)
-        });
-    },
-
-    /**
-     * Get exam paper view (questions)
-     */
-    viewExamPaper: async (examId) => {
-        return await apiFetch(`/api/exams/${examId}/questions/view`);
-    }
+    // Matches @DeleteMapping("/{examId}/hard")
+    hardDeleteExam: (id) => apiFetch(`${BASE_URL}/${id}/hard`, { method: "DELETE" })
 };

@@ -1,67 +1,93 @@
+import axios from "axios";
 import { AUTH_TOKEN_KEY } from "./auth.constants";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
-export async function apiFetch(url, options = {}) {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY);
-
-    const headers = {
+const api = axios.create({
+    baseURL: API_BASE,
+    headers: {
         "Content-Type": "application/json",
-        ...(options.headers || {}),
-    };
+        "Accept": "application/json",
+    },
+});
 
-    const savedUser = localStorage.getItem('auth_user');
-    let tenant = null;
-    if (savedUser) {
+// Request Interceptor
+api.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem(AUTH_TOKEN_KEY);
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+
+        const savedUser = localStorage.getItem('auth_user');
+        if (savedUser) {
+            try {
+                const parsed = JSON.parse(savedUser);
+                const tenant = parsed.tenant || parsed.tenantDb;
+                if (tenant) {
+                    config.headers["X-Tenant-DB"] = tenant;
+                }
+            } catch (e) {
+                // Ignore parse errors
+            }
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
+// Response Interceptor
+api.interceptors.response.use(
+    (response) => response.data,
+    (error) => {
+        const { response } = error;
+        if (response) {
+            if (response.status === 401) {
+                console.warn("API 401: Session expired.");
+            }
+
+            let errorMsg = "An error occurred";
+            if (response.data) {
+                // Handle different error structures from backend
+                if (typeof response.data === 'string') {
+                    errorMsg = response.data;
+                } else {
+                    errorMsg = response.data.message || response.data.error || JSON.stringify(response.data);
+                }
+            }
+
+            return Promise.reject(new Error(errorMsg));
+        }
+        return Promise.reject(error);
+    }
+);
+
+/**
+ * Backward compatibility wrapper for apiFetch using axios
+ */
+export async function apiFetch(url, options = {}) {
+    const method = options.method || "GET";
+    let data = options.body;
+    if (typeof data === "string") {
         try {
-            const parsed = JSON.parse(savedUser);
-            tenant = parsed.tenant || parsed.tenantDb;
-        } catch (e) { }
+            data = JSON.parse(data);
+        } catch (e) {
+            // Keep as string if not JSON
+        }
     }
 
-    if (token) {
-        headers.Authorization = `Bearer ${token}`;
+    try {
+        const response = await api({
+            url,
+            method,
+            data,
+            headers: options.headers,
+            params: options.params
+        });
+        return response;
+    } catch (error) {
+        throw error;
     }
-
-    if (tenant) {
-        headers["X-Tenant-DB"] = tenant;
-    }
-
-    if (options.headers && options.headers["Content-Type"] === null) {
-        delete headers["Content-Type"];
-    }
-
-    const fullUrl = url.startsWith('http') ? url : (API_BASE + url);
-
-    const res = await fetch(fullUrl, {
-        ...options,
-        headers,
-    });
-
-    if (res.status === 401) {
-        console.warn("API 401: Demo mode active - Redirect disabled.");
-        // localStorage.removeItem(AUTH_TOKEN_KEY);
-        // localStorage.removeItem("auth_user");
-        // if (typeof window !== 'undefined') {
-        //     window.location.href = "/login";
-        // }
-        throw new Error("Session expired (401). Please check backend connection.");
-    }
-
-    if (res.status === 403) {
-        throw new Error("Access Denied: You do not have permission to perform this action.");
-    }
-
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "API error");
-    }
-
-    if (res.status === 204) return null;
-
-    const contentType = res.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-        return res.json();
-    }
-    return res.text();
 }
+
+export default api;

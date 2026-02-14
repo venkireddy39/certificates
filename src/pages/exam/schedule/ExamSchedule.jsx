@@ -3,7 +3,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { motion } from "framer-motion";
 import { Calendar, Clock, Mail, ChevronRight, Loader2, Info } from "lucide-react";
-import { ExamService } from "../services/examService";
+import { examService } from "../services/examService";
 
 const ExamSchedule = () => {
   const [exams, setExams] = useState([]);
@@ -24,7 +24,7 @@ const ExamSchedule = () => {
   const fetchExams = async () => {
     setLoading(true);
     try {
-      const data = await ExamService.getExams();
+      const data = await examService.getAllExams();
       setExams(Array.isArray(data) ? data : []);
     } catch (error) {
       toast.error("Failed to load exams");
@@ -48,7 +48,7 @@ const ExamSchedule = () => {
 
     setSubmitting(true);
     try {
-      await ExamService.scheduleExam({
+      await examService.scheduleExam({
         examId: selectedExam,
         ...scheduleData
       });

@@ -137,7 +137,13 @@ const SetupMode = ({ onComplete, initialData }) => {
     };
 
     const handleCourseChange = async (courseId) => {
-        setConfig(prev => ({ ...prev, courseId, batchId: '' }));
+        const selectedCourse = courses.find(c => String(c.courseId) === String(courseId));
+        setConfig(prev => ({
+            ...prev,
+            courseId,
+            course: selectedCourse ? selectedCourse.courseName : '',
+            batchId: ''
+        }));
         if (!courseId) {
             setBatches([]);
             return;

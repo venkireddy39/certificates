@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
 import { Clock, AlertTriangle, CheckCircle, Code, Cpu, MessageSquare, User, Monitor, ChevronRight, Play, Layout, Zap, ShieldCheck } from "lucide-react";
-import { ExamService } from "../services/examService";
+import { examService } from "../services/examService";
 import { Loader2 } from "lucide-react";
 
 const SectionBasedExamPreview = () => {
@@ -25,10 +25,11 @@ const SectionBasedExamPreview = () => {
     const fetchExam = async () => {
         setLoading(true);
         try {
-            // Using getExamById for the simulation as well
-            const data = await ExamService.getExamById(id);
+            // Using getExamPaper for the simulation to ensure questions are loaded
+            const data = await examService.getExamPaper(id);
             setExam(data);
         } catch (error) {
+            console.error("Simulation load failed:", error);
             toast.error("Simulation load failed");
         } finally {
             setLoading(false);

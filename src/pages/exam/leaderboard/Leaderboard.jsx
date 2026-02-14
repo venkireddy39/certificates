@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Award, Medal, Users, TrendingUp, Search } from "lucide-react";
-import { ExamService } from "../services/examService";
+import { examService } from "../services/examService";
 import { Loader2 } from "lucide-react";
 
 const Leaderboard = () => {

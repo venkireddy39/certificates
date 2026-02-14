@@ -12,7 +12,7 @@ import {
     FiInfo,
     FiChevronRight
 } from "react-icons/fi";
-import { ExamSettingsService } from "../services/examSettingsService";
+import { examService } from "../services/examService";
 import { Loader2 } from "lucide-react";
 
 /* ================= DEFAULT SETTINGS ================= */
@@ -48,7 +48,7 @@ const ExamSettings = () => {
     const loadSettings = async () => {
         setLoading(true);
         try {
-            const data = await ExamSettingsService.getGlobalSettings();
+            const data = await examService.getGlobalSettings();
             if (data) {
                 setSettings(prev => ({ ...prev, ...data }));
             }
@@ -62,7 +62,7 @@ const ExamSettings = () => {
     const handleSave = async () => {
         setSaving(true);
         try {
-            await ExamSettingsService.saveGlobalSettings(settings);
+            await examService.saveGlobalSettings(settings);
             toast.success("Global exam settings updated successfully!");
         } catch (error) {
             toast.error("Failed to save settings. Please try again.");

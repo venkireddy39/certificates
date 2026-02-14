@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, CheckCircle, AlertCircle, Play, FileText, Calendar, ChevronRight, GraduationCap } from 'lucide-react';
-import { ExamService } from '../services/examService';
+import { examService } from '../services/examService';
 import { Loader2 } from 'lucide-react';
 
 const StudentExamDashboard = () => {
@@ -17,7 +17,7 @@ const StudentExamDashboard = () => {
     const fetchStudentExams = async () => {
         setLoading(true);
         try {
-            const data = await ExamService.getStudentExams();
+            const data = await examService.getMyExams();
             setExams(data || []);
         } catch (error) {
             console.error("Failed to load student dashboard");

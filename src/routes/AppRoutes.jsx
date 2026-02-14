@@ -61,7 +61,7 @@ const RootRedirect = () => {
   if (role === 'STUDENT') {
     return <Navigate to="/student/dashboard" replace />;
   }
-  if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'LIBRARIAN' || role === 'MARKETING_MANAGER' || role === 'INSTRUCTOR') {
+  if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'LIBRARIAN' || role === 'MARKETING_MANAGER' || role === 'INSTRUCTOR' || role === 'PARENT' || role === 'DRIVER' || role === 'CONDUCTOR') {
     return <Navigate to="/admin/dashboard" replace />;
   }
   return <Navigate to="/login" replace />;

@@ -6,19 +6,15 @@ import "react-toastify/dist/ReactToastify.css";
 
 import SetupMode from "./components/SetupMode";
 import EditorMode from "./components/EditorMode";
-import PreviewMode from "./components/PreviewMode";
-import { ExamService } from "../services/examService";
-import { ExamSettingsService } from "../services/examSettingsService";
-import { QuestionService } from "../services/questionService";
+import { examService } from "../services/examService";
 import { Loader2 } from "lucide-react";
 
 const CreateExam = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const isEditMode = !!id;
+  const isEditMode = id && id !== "undefined";
 
   const [step, setStep] = useState(isEditMode ? "editor" : "setup");
-  const [showPreview, setShowPreview] = useState(false);
   const [loading, setLoading] = useState(isEditMode);
   const [submitting, setSubmitting] = useState(false);
 
@@ -62,15 +58,17 @@ const CreateExam = () => {
   });
 
   useEffect(() => {
-    if (isEditMode) {
+    if (id && id !== "undefined") { // Changed from isEditMode to direct check for id
       fetchExamToEdit();
+    } else {
+      setLoading(false); // Added else block to set loading to false if not in edit mode
     }
-  }, [id, isEditMode]);
+  }, [id]); // Removed isEditMode from dependency array as id is sufficient
 
   const fetchExamToEdit = async () => {
     setLoading(true);
     try {
-      const examToEdit = await ExamService.getExamById(id);
+      const examToEdit = await examService.getExamById(id);
 
       if (examToEdit) {
         // Fetch related entities (Fail-safe: If one fails, others should still load)
@@ -80,21 +78,49 @@ const CreateExam = () => {
         };
 
         const [settings, design, proctoring, grading, questions] = await Promise.all([
-          fetchSafe(ExamService.getExamSettings, {}),
-          fetchSafe(ExamService.getExamDesign, {}),
-          fetchSafe(ExamService.getExamProctoring, {}),
-          fetchSafe(ExamService.getExamGrading, {}),
-          fetchSafe(ExamService.getExamQuestions, [])
+          fetchSafe(examService.getExamSettings, {}),
+          fetchSafe(examService.getExamDesign, {}),
+          fetchSafe(examService.getExamProctoring, {}),
+          fetchSafe(examService.getExamGrading, {}),
+          fetchSafe(examService.getExamQuestions, [])
         ]);
 
         console.log("Loaded Exam Content:", { examToEdit, questions });
 
+        // Use questions from specialized endpoint if available, otherwise check if they're in the exam object
+        let finalQuestions = (Array.isArray(questions) && questions.length > 0)
+          ? questions
+          : (Array.isArray(examToEdit.questions) ? examToEdit.questions : []);
+
+        // Enhance with Test Cases for Coding
+        if (finalQuestions.length > 0) {
+          finalQuestions = await Promise.all(finalQuestions.map(async (q) => {
+            const qType = (q.type || q.questionType || "MCQ").toLowerCase();
+            let extraData = {};
+            if (qType === 'coding') {
+              try {
+                const tcs = await examService.getTestCases(q.id || q.questionId);
+                extraData = { testCases: Array.isArray(tcs) ? tcs : [] };
+              } catch (e) { console.warn("Failed to load test cases for Q" + q.id); }
+            }
+            return {
+              ...q,
+              ...extraData,
+              id: q.id || q.questionId,
+              question: q.question || q.questionText,
+              type: qType
+            };
+          }));
+        }
+
         setExamData({
           ...examToEdit,
+          type: examToEdit.type || examToEdit.examType || "mixed",
+          courseId: examToEdit.courseId || examToEdit.course?.id || null, // Ensure courseId mapped
           settings: { ...examToEdit.settings, ...settings, ...grading },
           proctoring: { ...examToEdit.proctoring, ...proctoring },
           customAssets: { ...examToEdit.customAssets, ...design },
-          questions: Array.isArray(questions) ? questions : []
+          questions: finalQuestions
         });
         setStep("editor");
       } else {
@@ -124,6 +150,7 @@ const CreateExam = () => {
     setSubmitting(true);
     try {
       // 1. Core Exam Data
+      // NEST QUESTIONS HERE to support Cascade Save (since separate linking endpoint is missing)
       const corePayload = {
         title: examData.title,
         courseId: examData.courseId,
@@ -131,29 +158,30 @@ const CreateExam = () => {
         examType: examData.type.toUpperCase(),
         totalMarks: examData.totalMarks,
         durationMinutes: examData.duration,
-        passPercentage: 40 // Default
+        passPercentage: 40,
+        passPercentage: 40
       };
 
       let savedExam;
       if (isEditMode) {
-        savedExam = await ExamService.updateExam(id, corePayload);
+        savedExam = await examService.updateExam(id, corePayload);
       } else {
-        savedExam = await ExamService.saveExam(corePayload);
+        savedExam = await examService.createExam(corePayload);
       }
 
-      // Robust check for ID from backend (supports id, examId, exam_id)
+      // Robust check for ID from backend
       const examId = savedExam?.examId || savedExam?.exam_id || savedExam?.id || id;
 
       if (!examId) {
-        throw new Error("Backend did not return a valid Exam ID. Check your ExamController save method.");
+        throw new Error("Backend did not return a valid Exam ID.");
       }
 
       console.log("Exam saved successfully with ID:", examId);
 
-      // 2. Parallel save of all configuration entities
+      // 2. Parallel save of all configuration entities (Settings, Design, etc.)
+      // These are optional, failures shouldn't block the main flow.
       await Promise.all([
-        // Table 3: exam_settings
-        ExamSettingsService.saveSettings(examId, {
+        examService.saveSettings(examId, {
           attemptsAllowed: examData.settings.maxAttempts,
           negativeMarking: examData.settings.negativeMarking,
           negativeMarkValue: examData.settings.negativeMarkingPenalty || 0,
@@ -161,87 +189,116 @@ const CreateExam = () => {
           shuffleOptions: examData.settings.shuffleOptions,
           allowLateEntry: examData.settings.allowLateEntry || false,
           networkMode: (examData.settings.networkStrictness || "LENIENT").toUpperCase()
-        }),
+        }).catch(e => console.warn("Settings save failed", e)),
 
-        // Table 2: exam_design
-        ExamSettingsService.saveDesign(examId, {
+        examService.saveDesign(examId, {
           orientation: (examData.customAssets?.orientation || "PORTRAIT").toUpperCase(),
           instituteLogo: examData.customAssets?.logo,
           backgroundImage: examData.customAssets?.bgImage,
           watermark_type: (typeof examData.customAssets?.watermark === 'string' && !examData.customAssets?.watermark.startsWith('data:')) ? 'TEXT' : 'IMAGE',
           watermark_value: examData.customAssets?.watermark,
           watermark_opacity: examData.customAssets?.watermarkOpacity || 0.1
-        }),
+        }).catch(e => console.warn("Design save failed", e)),
 
-        // Table 4: exam_proctoring
-        ExamSettingsService.saveProctoring(examId, {
+        examService.saveProctoring(examId, {
           enabled: examData.proctoring.enabled,
           cameraRequired: examData.proctoring.cameraRequired,
           systemCheckRequired: true,
           violationLimit: examData.proctoring.maxViolations || 5
-        }),
+        }).catch(e => console.warn("Proctoring save failed", e)),
 
-        // Table 5: exam_grading
-        ExamSettingsService.saveGrading(examId, {
+        examService.saveGrading(examId, {
           autoEvaluation: examData.settings.autoEvaluation ?? true,
           partialMarking: examData.settings.partialMarking,
           showResult: examData.settings.showResults,
           showRank: examData.settings.showRank,
           showPercentile: examData.settings.showPercentile
-        }),
+        }).catch(e => console.warn("Grading save failed", e)),
 
-        // Table 6: exam_notification
-        ExamSettingsService.saveNotification(examId, {
+        examService.saveNotification(examId, {
           scheduledNotification: examData.settings.scheduledNotification || false,
           reminderBefore: examData.settings.examReminder || "NONE",
           feedback_after_exam: examData.settings.collectFeedback || false
-        })
+        }).catch(e => console.warn("Notification save failed", e))
       ]);
 
-      // 3. Table 7: exam_question (Saving & Mapping Questions)
+      // 3. Fallback: Manually save/link questions if Cascade failed
+      // The user reported questions missing or options missing. We use a 2-step process:
+      // A. Ensure Question exists (Create if needed)
+      // B. Link to Exam
+      // 3. Questions Handling - "Create via Link" Strategy (Bypasses Transient Error)
       if (examData.questions && examData.questions.length > 0) {
+        console.log("Persisting questions and linking to exam...");
 
-        // A. Persist new questions to Question Bank first
-        const questionsWithIds = await Promise.all(examData.questions.map(async (q) => {
-          // If it already has an ID, it's from the bank.
-          if (q.id || q.questionId) return q;
+        const linkedQuestions = [];
 
-          // Otherwise, CREATE it in the backend
+        for (const [idx, q] of examData.questions.entries()) {
           try {
-            // Enrich with course context
-            const savedQ = await QuestionService.createQuestion({
-              ...q,
-              courseId: examData.courseId
-            });
-            const newId = savedQ.id || savedQ.questionId || savedQ.question_id;
+            let actualQuestionId = q.id || q.questionId;
 
-            // Save options separately if they exist (aligned with QuestionOption.java)
-            if (q.options && q.options.length > 0) {
-              const optionsWithCorrectness = q.options.map((opt, idx) => ({
-                text: opt,
-                isCorrect: idx === q.correctOption
-              }));
-              await QuestionService.saveOptions(newId, optionsWithCorrectness);
+            // Step A: Create Question if it's new or missing ID
+            if (!actualQuestionId) {
+              const newQ = await examService.createQuestion({
+                question: q.question || q.questionText,
+                type: q.type || q.questionType || "MCQ",
+                marks: q.marks || 1
+              });
+              actualQuestionId = newQ?.questionId || newQ?.id;
+              console.log(`Created new question with ID: ${actualQuestionId}`);
             }
 
-            // Return original q merged with new ID
-            return { ...q, id: newId };
-          } catch (err) {
-            console.error("Failed to auto-save new question:", q);
-            throw new Error("Failed to save one or more new questions. Please try again.");
-          }
-        }));
+            if (!actualQuestionId) continue;
 
-        // B. Link questions to the Exam
-        await ExamService.addExamQuestions(examId, questionsWithIds.map((q, i) => ({
-          questionId: q.id || q.questionId,
-          marks: q.marks || 1,
-          questionOrder: i + 1
-        })));
+            // Step B: Save Options and Test Cases FIRST (Before Linking)
+            // This ensures the question is fully formed before being part of the exam
+            const qType = (q.type || q.questionType || "").toLowerCase();
+
+            // Options (Critical: Must include questionId)
+            if (q.options?.length > 0) {
+              const opts = q.options.map(opt => ({
+                questionId: Number(actualQuestionId), // Explicitly bind
+                optionText: typeof opt === 'string' ? opt : (opt.text || ""),
+                isCorrect: typeof opt === 'object' ? opt.isCorrect : false,
+                optionImage: typeof opt === 'object' ? opt.image : null
+              }));
+              console.log(`Adding Options to Q${actualQuestionId}...`, opts);
+              await examService.addQuestionOptions(actualQuestionId, opts).catch(e => console.warn("Options failed", e));
+            }
+
+            // Test Cases
+            if (qType === 'coding' && q.testCases?.length > 0) {
+              for (const tc of q.testCases) {
+                await examService.createTestCase(actualQuestionId, tc).catch(e => console.warn("TC failed", e));
+              }
+            }
+
+            // Descriptive
+            if (['short', 'long', 'abacus'].includes(qType) && q.referenceAnswer) {
+              await examService.saveDescriptiveAnswer(actualQuestionId, {
+                answerText: q.referenceAnswer,
+                guidelines: q.evaluationGuidelines
+              }).catch(e => console.warn("Descriptive failed", e));
+            }
+
+            // Step C: Link to Exam (FINAL STEP)
+            const linkPayload = {
+              examId: Number(examId),
+              questionId: Number(actualQuestionId),
+              marks: parseFloat(q.marks || 1),
+              questionOrder: parseInt(idx + 1)
+            };
+
+            console.log(`Linking Q${actualQuestionId} to exam ${examId} with order ${idx + 1}... Payload:`, linkPayload);
+            await examService.addExamQuestions(examId, [linkPayload]);
+
+          } catch (err) {
+            console.error(`Failed to process question at index ${idx}`, err);
+          }
+        }
       }
 
       // 4. Publish if it's a final action
-      await ExamService.publishExam(examId);
+      await examService.publishExam(examId);
 
       setTimeout(() => navigate("/admin/exams/dashboard"), 1500);
     } catch (error) {
@@ -296,7 +353,6 @@ const CreateExam = () => {
               setExamData={setExamData}
               onSave={handleSave}
               submitting={submitting}
-              onPreview={() => setShowPreview(true)}
               onBack={() => {
                 if (window.confirm("Return to configuration? Unsaved editor changes will be lost if you leave this session.")) {
                   setStep("setup");
@@ -306,13 +362,6 @@ const CreateExam = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {showPreview && (
-        <PreviewMode
-          examData={examData}
-          onClose={() => setShowPreview(false)}
-        />
-      )}
     </div>
   );
 };

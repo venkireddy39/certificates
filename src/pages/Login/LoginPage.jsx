@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../Library/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { AUTH_TOKEN_KEY } from '../../services/auth.constants';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -13,7 +14,7 @@ const LoginPage = () => {
 
     // Auto-redirect if already logged in
     React.useEffect(() => {
-        const token = localStorage.getItem('auth_token');
+        const token = localStorage.getItem(AUTH_TOKEN_KEY);
         if (token || user) {
             const userRole = (user?.role || JSON.parse(localStorage.getItem('auth_user') || '{}').role || '').toUpperCase();
             if (userRole === 'STUDENT') navigate('/student/dashboard');
