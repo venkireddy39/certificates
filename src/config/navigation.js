@@ -77,8 +77,7 @@ export const navigationConfig = [
         path: '/admin/fee',
         icon: 'bi-cash-coin',
         subItems: [
-            { label: 'Fee Management', path: '/admin/fee', icon: 'bi-credit-card' },
-            { label: 'Invoices', path: '/admin/invoices', icon: 'bi-file-text' }
+            { label: 'Fee Module', path: '/admin/fee', icon: 'bi-credit-card' }
         ]
     },
 

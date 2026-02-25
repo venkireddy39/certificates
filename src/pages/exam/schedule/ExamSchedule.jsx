@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { motion } from "framer-motion";
-import { Calendar, Clock, Mail, ChevronRight, Loader2, Info } from "lucide-react";
+import { Calendar, Clock, Mail, ChevronRight, Loader2, Info, Search } from "lucide-react";
 import { examService } from "../services/examService";
 import { batchService } from "../../Batches/services/batchService";
+import { courseService } from "../../Courses/services/courseService";
 
 const ExamSchedule = () => {
   const [exams, setExams] = useState([]);
@@ -12,8 +13,13 @@ const ExamSchedule = () => {
   const [submitting, setSubmitting] = useState(false);
   const [selectedExam, setSelectedExam] = useState("");
   const [batches, setBatches] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [searchTermExam, setSearchTermExam] = useState("");
+  const [searchTermCourse, setSearchTermCourse] = useState("");
+  const [searchTermBatch, setSearchTermBatch] = useState("");
   const [scheduleData, setScheduleData] = useState({
-    batchId: "",
+    batchIds: [],
+    courseIds: [],
     startTime: "",
     endTime: "",
     emailNotify: false
@@ -26,12 +32,14 @@ const ExamSchedule = () => {
   const fetchExamsAndBatches = async () => {
     setLoading(true);
     try {
-      const [examsData, batchesData] = await Promise.all([
+      const [examsData, batchesData, coursesData] = await Promise.all([
         examService.getAllExams(),
-        batchService.getAllBatches()
+        batchService.getAllBatches(),
+        courseService.getCourses()
       ]);
       setExams(Array.isArray(examsData) ? examsData : []);
       setBatches(Array.isArray(batchesData) ? batchesData : []);
+      setCourses(Array.isArray(coursesData) ? coursesData : []);
     } catch (error) {
       toast.error("Failed to load initial data");
     } finally {
@@ -42,8 +50,8 @@ const ExamSchedule = () => {
   const handleSchedule = async (e) => {
     e.preventDefault();
 
-    if (!selectedExam || !scheduleData.batchId || !scheduleData.startTime) {
-      toast.error("Please select an exam, a batch and a start time");
+    if (!selectedExam || ((!scheduleData.batchIds || scheduleData.batchIds.length === 0) && (!scheduleData.courseIds || scheduleData.courseIds.length === 0)) || !scheduleData.startTime) {
+      toast.error("Please select an exam, at least one batch or course, and a start time");
       return;
     }
 
@@ -54,14 +62,61 @@ const ExamSchedule = () => {
 
     setSubmitting(true);
     try {
-      await examService.scheduleExam({
-        examId: selectedExam,
-        ...scheduleData
+      const promises = [];
+
+      // Format datetime strings to append seconds if missing (datetime-local usually outputs YYYY-MM-DDThh:mm)
+      const formattedStart = scheduleData.startTime.length === 16 ? scheduleData.startTime + ":00" : scheduleData.startTime;
+      const formattedEnd = scheduleData.endTime.length === 16 ? scheduleData.endTime + ":00" : scheduleData.endTime;
+
+      // Collect all unique batches to schedule
+      const batchesToSchedule = new Map();
+
+      // 1. Add explicitly selected batches
+      scheduleData.batchIds.forEach(bId => {
+        const batchObj = batches.find(b => String(b.batchId || b.id) === String(bId));
+        if (batchObj) {
+          batchesToSchedule.set(String(bId), batchObj);
+        }
       });
 
-      toast.success("Exam scheduled successfully!");
+      // 2. Add all batches belonging to explicitly selected courses
+      scheduleData.courseIds.forEach(cId => {
+        const courseBatches = batches.filter(b => {
+          const bcId = b.course?.courseId || b.courseId || b.course?.id;
+          return String(bcId) === String(cId);
+        });
+        courseBatches.forEach(b => {
+          batchesToSchedule.set(String(b.batchId || b.id), b);
+        });
+      });
+
+      if (batchesToSchedule.size === 0) {
+        toast.error("No valid batches found for the selected courses/batches. The backend requires at least one valid batch.");
+        setSubmitting(false);
+        return;
+      }
+
+      // 3. Dispatch API Calls for each unique batch
+      batchesToSchedule.forEach((batchObj, bIdString) => {
+        const cId = batchObj.course?.courseId || batchObj.courseId || batchObj.course?.id || 1;
+
+        console.log(`[DEBUG] Scheduling Batch: Selected Exam: ${selectedExam}, CourseID: ${cId}, BatchID: ${bIdString}`);
+
+        promises.push(examService.scheduleExam({
+          examId: parseInt(selectedExam, 10),
+          courseId: parseInt(cId, 10),
+          batchId: parseInt(bIdString, 10),
+          startTime: formattedStart,
+          endTime: formattedEnd
+        }));
+      });
+
+      await Promise.all(promises);
+
+      toast.success("Exam scheduled successfully for selected targets!");
       handleReset();
     } catch (error) {
+      console.error(error);
       toast.error("Failed to schedule exam. Please try again.");
     } finally {
       setSubmitting(false);
@@ -70,8 +125,12 @@ const ExamSchedule = () => {
 
   const handleReset = () => {
     setSelectedExam("");
+    setSearchTermExam("");
+    setSearchTermCourse("");
+    setSearchTermBatch("");
     setScheduleData({
-      batchId: "",
+      batchIds: [],
+      courseIds: [],
       startTime: "",
       endTime: "",
       emailNotify: false
@@ -151,38 +210,170 @@ const ExamSchedule = () => {
                   {/* SELECT EXAM */}
                   <div className="col-12">
                     <label className="form-label text-muted small fw-bold text-uppercase mb-2 ls-1">Target Exam</label>
-                    <div className="position-relative">
-                      <select
-                        className="form-select form-select-lg"
-                        value={selectedExam}
-                        onChange={e => setSelectedExam(e.target.value)}
-                        required
-                      >
-                        <option value="">Select an exam template...</option>
-                        {exams.map(exam => (
-                          <option key={exam.id} value={exam.id}>
-                            {exam.title} {exam.course ? `(${exam.course})` : ''}
-                          </option>
-                        ))}
-                      </select>
+                    {selectedExam && (
+                      <div className="mb-2 p-2 bg-primary bg-opacity-10 border border-primary rounded-3 d-flex justify-content-between align-items-center">
+                        <div className="fw-medium text-primary">
+                          ✓ {exams.find(e => String(e.id) === String(selectedExam))?.title || 'Selected Exam'}
+                        </div>
+                        <button type="button" className="btn-close btn-sm" onClick={() => setSelectedExam("")}></button>
+                      </div>
+                    )}
+                    <div className="position-relative mb-2">
+                      <Search className="position-absolute top-50 translate-middle-y text-muted" size={16} style={{ left: '12px' }} />
+                      <input
+                        type="text"
+                        className="form-control form-control-sm ps-5"
+                        placeholder="Search exams..."
+                        value={searchTermExam}
+                        onChange={e => setSearchTermExam(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-control" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      {exams.filter(e => ((e.title || '') + ' ' + (e.course || '')).toLowerCase().includes(searchTermExam.toLowerCase())).length === 0 ? (
+                        <span className="text-muted small">No exams found</span>
+                      ) : (
+                        exams.filter(e => ((e.title || '') + ' ' + (e.course || '')).toLowerCase().includes(searchTermExam.toLowerCase())).map(exam => (
+                          <div key={`exam-${exam.id}`} className="form-check mb-2">
+                            <input
+                              className="form-check-input"
+                              type="radio"
+                              name="targetExam"
+                              id={`exam-${exam.id}`}
+                              value={exam.id}
+                              checked={String(selectedExam) === String(exam.id)}
+                              onChange={e => setSelectedExam(e.target.value)}
+                              style={{ cursor: 'pointer' }}
+                            />
+                            <label className="form-check-label ms-1" htmlFor={`exam-${exam.id}`} style={{ cursor: 'pointer' }}>
+                              {exam.title} {exam.course ? `(${exam.course})` : ''}
+                            </label>
+                          </div>
+                        )))}
                     </div>
                   </div>
 
-                  <div className="col-12">
-                    <label className="form-label text-muted small fw-bold text-uppercase mb-2 ls-1">Course / Batch / Group</label>
-                    <select
-                      className="form-select form-select-lg"
-                      value={scheduleData.batchId}
-                      onChange={e => setScheduleData({ ...scheduleData, batchId: e.target.value })}
-                      required
-                    >
-                      <option value="">Select a batch...</option>
-                      {batches.map(batch => (
-                        <option key={batch.batchId || batch.id} value={batch.batchId || batch.id}>
-                          {batch.batchName || batch.name} {batch.course?.courseName ? `(${batch.course.courseName})` : ''}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="col-12 mt-3">
+                    <label className="form-label text-muted small fw-bold text-uppercase mb-2 ls-1">Select Courses</label>
+                    {scheduleData.courseIds && scheduleData.courseIds.length > 0 && (
+                      <div className="d-flex flex-wrap gap-2 mb-2">
+                        {scheduleData.courseIds.map(cId => {
+                          const course = courses.find(c => String(c.courseId || c.id) === String(cId));
+                          return course ? (
+                            <span key={`pill-course-${cId}`} className="badge bg-primary bg-opacity-10 text-primary border border-primary rounded-pill d-flex align-items-center px-3 py-2">
+                              {course.courseName || course.name}
+                              <button type="button" className="btn-close btn-sm ms-2" style={{ fontSize: '0.65rem' }} onClick={() => {
+                                setScheduleData(prev => ({ ...prev, courseIds: prev.courseIds.filter(id => id !== cId) }));
+                              }}></button>
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
+                    <div className="position-relative mb-2">
+                      <Search className="position-absolute top-50 translate-middle-y text-muted" size={16} style={{ left: '12px' }} />
+                      <input
+                        type="text"
+                        className="form-control form-control-sm ps-5"
+                        placeholder="Search courses..."
+                        value={searchTermCourse}
+                        onChange={e => setSearchTermCourse(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-control" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      {courses.filter(c => (c.courseName || c.name || '').toLowerCase().includes(searchTermCourse.toLowerCase())).length === 0 ? (
+                        <span className="text-muted small">No courses found</span>
+                      ) : (
+                        courses.filter(c => (c.courseName || c.name || '').toLowerCase().includes(searchTermCourse.toLowerCase())).map(course => {
+                          const courseValue = String(course.courseId || course.id);
+                          return (
+                            <div key={`course-${courseValue}`} className="form-check mb-2">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id={`course-${courseValue}`}
+                                value={courseValue}
+                                checked={scheduleData.courseIds?.includes(courseValue)}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  let newCourseIds = [...(scheduleData.courseIds || [])];
+                                  if (e.target.checked) {
+                                    newCourseIds.push(val);
+                                  } else {
+                                    newCourseIds = newCourseIds.filter(id => id !== val);
+                                  }
+                                  setScheduleData({ ...scheduleData, courseIds: newCourseIds });
+                                }}
+                                style={{ cursor: 'pointer' }}
+                              />
+                              <label className="form-check-label ms-1" htmlFor={`course-${courseValue}`} style={{ cursor: 'pointer' }}>
+                                {course.courseName || course.name}
+                              </label>
+                            </div>
+                          )
+                        }))}
+                    </div>
+                  </div>
+
+                  <div className="col-12 mt-3">
+                    <label className="form-label text-muted small fw-bold text-uppercase mb-2 ls-1">Select Batches / Groups</label>
+                    {scheduleData.batchIds && scheduleData.batchIds.length > 0 && (
+                      <div className="d-flex flex-wrap gap-2 mb-2">
+                        {scheduleData.batchIds.map(bId => {
+                          const batch = batches.find(b => String(b.batchId || b.id) === String(bId));
+                          return batch ? (
+                            <span key={`pill-batch-${bId}`} className="badge bg-primary bg-opacity-10 text-primary border border-primary rounded-pill d-flex align-items-center px-3 py-2">
+                              {batch.batchName || batch.name} {batch.course?.courseName ? `(${batch.course.courseName})` : ''}
+                              <button type="button" className="btn-close btn-sm ms-2" style={{ fontSize: '0.65rem' }} onClick={() => {
+                                setScheduleData(prev => ({ ...prev, batchIds: prev.batchIds.filter(id => id !== bId) }));
+                              }}></button>
+                            </span>
+                          ) : null;
+                        })}
+                      </div>
+                    )}
+                    <div className="position-relative mb-2">
+                      <Search className="position-absolute top-50 translate-middle-y text-muted" size={16} style={{ left: '12px' }} />
+                      <input
+                        type="text"
+                        className="form-control form-control-sm ps-5"
+                        placeholder="Search batches..."
+                        value={searchTermBatch}
+                        onChange={e => setSearchTermBatch(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-control" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      {batches.filter(b => ((b.batchName || b.name || '') + ' ' + (b.course?.courseName || '')).toLowerCase().includes(searchTermBatch.toLowerCase())).length === 0 ? (
+                        <span className="text-muted small">No batches found</span>
+                      ) : (
+                        batches.filter(b => ((b.batchName || b.name || '') + ' ' + (b.course?.courseName || '')).toLowerCase().includes(searchTermBatch.toLowerCase())).map(batch => {
+                          const batchValue = String(batch.batchId || batch.id);
+                          return (
+                            <div key={`batch-${batchValue}`} className="form-check mb-2">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id={`batch-${batchValue}`}
+                                value={batchValue}
+                                checked={scheduleData.batchIds?.includes(batchValue)}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  let newBatchIds = [...scheduleData.batchIds];
+                                  if (e.target.checked) {
+                                    newBatchIds.push(val);
+                                  } else {
+                                    newBatchIds = newBatchIds.filter(id => id !== val);
+                                  }
+                                  setScheduleData({ ...scheduleData, batchIds: newBatchIds });
+                                }}
+                                style={{ cursor: 'pointer' }}
+                              />
+                              <label className="form-check-label ms-1" htmlFor={`batch-${batchValue}`} style={{ cursor: 'pointer' }}>
+                                {batch.batchName || batch.name} {batch.course?.courseName ? `(${batch.course.courseName})` : ''}
+                              </label>
+                            </div>
+                          )
+                        }))}
+                    </div>
                   </div>
 
                   {/* DATES */}

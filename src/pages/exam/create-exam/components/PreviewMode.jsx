@@ -96,7 +96,7 @@ const PreviewMode = ({ examData, onClose }) => {
                                     )}
 
                                     {/* Options / Answer Area */}
-                                    {questions[currentIndex].type === 'quiz' && (
+                                    {questions[currentIndex].type === 'mcq' && (
                                         <div className="vstack gap-3">
                                             {questions[currentIndex].options.map((opt, i) => (
                                                 <div key={i} className="p-3 border rounded bg-light d-flex align-items-center">
@@ -218,7 +218,7 @@ const PreviewMode = ({ examData, onClose }) => {
                                                                             </div>
                                                                         )}
 
-                                                                        {q.type === 'quiz' && (
+                                                                        {q.type === 'mcq' && (
                                                                             <div className="ps-3 border-start border-3 border-light">
                                                                                 {q.options.map((opt, i) => (
                                                                                     <div key={i} className="form-check mb-2">
@@ -266,7 +266,7 @@ const PreviewMode = ({ examData, onClose }) => {
                                                                 </div>
                                                             )}
 
-                                                            {q.type === 'quiz' && (
+                                                            {q.type === 'mcq' && (
                                                                 <div className="ps-3 border-start border-3 border-light">
                                                                     {q.options.map((opt, i) => (
                                                                         <div key={i} className="form-check mb-2">

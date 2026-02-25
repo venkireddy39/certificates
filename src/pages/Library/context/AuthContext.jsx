@@ -96,39 +96,22 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         const restoreSession = async () => {
-            // Bypass login: always set a mock admin user
-            const mockUser = {
-                ...DEFAULT_STUDENT,
-                userId: 1, // Admin usually has ID 1
-                email: "admin@gmail.com",
-                role: "ADMIN",
-                permissions: [
-                    "EXAM_VIEW", "EXAM_CREATE", "EXAM_PUBLISH", "EXAM_CLOSE",
-                    "EXAM_DELETE", "EXAM_RESTORE", "EXAM_HARD_DELETE",
-                    "BATCH_VIEW", "COURSE_VIEW", "ATTENDANCE_VIEW",
-                    "ATTENDANCE_START", "ATTENDANCE_END", "ATTENDANCE_DELETE",
-                    "ATTENDANCE_RECORD_CREATE", "ATTENDANCE_RECORD_UPDATE",
-                    "ATTENDANCE_RECORD_VIEW", "ATTENDANCE_RECORD_DELETE",
-                    "ATTENDANCE_CONFIG_UPDATE", "ATTENDANCE_CONFIG_VIEW",
-                    "TOPIC_VIEW", "SESSION_VIEW", "QUESTION_VIEW"
-                ]
-            };
+            const token = localStorage.getItem(AUTH_TOKEN_KEY);
+            const savedUser = localStorage.getItem('auth_user');
 
-            // Create a pseudo JWT token because the backend JwtTokenParser ONLY checks base64 payload
-            const payload = {
-                sub: mockUser.email,
-                userId: mockUser.userId,
-                role: mockUser.role,
-                roles: [mockUser.role],
-                permissions: mockUser.permissions
-            };
-
-            // Base64Url encode it
-            const base64Payload = btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-            const mockJwt = `header.${base64Payload}.signature`;
-
-            localStorage.setItem(AUTH_TOKEN_KEY, mockJwt);
-            setUser(mockUser);
+            if (token) {
+                try {
+                    // Try to restore from saved data first for speed
+                    if (savedUser) {
+                        setUser(JSON.parse(savedUser));
+                    }
+                    // Then re-initialize to ensure everything is fresh/correct
+                    await initUserFromToken(token, savedUser ? JSON.parse(savedUser) : {});
+                } catch (e) {
+                    console.error("Session restoration failed", e);
+                    logout();
+                }
+            }
             setLoading(false);
         };
         restoreSession();

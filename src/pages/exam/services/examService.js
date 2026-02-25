@@ -6,11 +6,17 @@ const apiFetch = async (url, options = {}) => {
     if (typeof data === "string") {
         try { data = JSON.parse(data); } catch (e) { }
     }
+    let reqHeaders = { ...options.headers };
+    if (data instanceof FormData) {
+        // Remove Application/JSON explicitly so Axios generates the boundary
+        delete reqHeaders['Content-Type'];
+    }
+
     return await api({
         url,
         method,
         data,
-        headers: options.headers,
+        headers: Object.keys(reqHeaders).length > 0 ? reqHeaders : undefined,
         params: options.params
     });
 };
@@ -156,12 +162,11 @@ export const examService = {
     },
 
     scheduleExam: async (scheduleData) => {
-        // Fallback: If no dedicated schedule controller, we might use updateExam or settings
-        // For now, attempting a dedicated endpoint as per typical patterns
         try {
-            return await apiFetch(`/api/exams/schedule`, {
+            return await apiFetch(`/api/exam-schedules`, {
                 method: 'POST',
-                body: JSON.stringify(scheduleData)
+                body: JSON.stringify(scheduleData),
+                headers: { "Content-Type": "application/json" }
             });
         } catch (e) {
             console.error("Backend scheduling failed", e);
@@ -360,13 +365,31 @@ export const examService = {
     // Assuming QuestionController exists? (Not provided by user, but let's assume standard CRUD works or default to ApiFetch)
 
     createQuestion: async (questionData) => {
+        const qType = (questionData.type || questionData.questionType || "MCQ").toUpperCase();
+        const dp = questionData.image || questionData.questionImageUrl;
+        const hasImage = !!dp;
+
+        // If it's a descriptive question without an image, send as JSON as requested by User
+        if ((qType === 'DESCRIPTIVE' || qType === 'SHORT' || qType === 'LONG') && !hasImage) {
+            const payload = {
+                questionText: questionData.question || questionData.questionText || "Untitled Question",
+                questionType: "DESCRIPTIVE",
+                contentType: "TEXT",
+                questionImageUrl: null
+            };
+            return await apiFetch('/api/questions', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+                headers: { "Content-Type": "application/json" }
+            });
+        }
+
+        // Fallback to FormData for image/complex questions
         const formData = new FormData();
 
         // 1. Text Fields
         formData.append('questionText', questionData.question || questionData.questionText || "Untitled Question");
-        formData.append('questionType', (questionData.type || questionData.questionType || "MCQ").toUpperCase());
-
-        const hasImage = !!(questionData.image || questionData.questionImageUrl);
+        formData.append('questionType', qType);
         formData.append('contentType', hasImage ? "TEXT_IMAGE" : "TEXT");
 
         // 2. Language Mapping (Coding)
@@ -384,8 +407,7 @@ export const examService = {
         }
 
         // 3. Image Handling (Base64 -> Blob)
-        const dp = questionData.image || questionData.questionImageUrl;
-        if (dp) {
+        if (hasImage) {
             if (dp instanceof File || dp instanceof Blob) {
                 formData.append('questionImage', dp);
             } else if (typeof dp === 'string' && dp.startsWith('data:')) {
@@ -409,8 +431,7 @@ export const examService = {
 
         return await apiFetch('/api/questions', {
             method: 'POST',
-            body: formData,
-            headers: { "Content-Type": null } // Let browser set boundary
+            body: formData
         });
     },
 
@@ -461,51 +482,48 @@ export const examService = {
     // --- Question Options ---
 
     addQuestionOptions: async (questionId, options) => {
+        // 1. Detect if any option has an image file
+        const optionsWithImages = options.filter(opt => opt.image instanceof File || opt.optionImage instanceof File);
+        const hasImages = optionsWithImages.length > 0;
+
+        // --- FLOW A: TEXT ONLY (JSON) ---
+        if (!hasImages) {
+            console.log(`[ExamService] 🚀 Sending PURE JSON options for Q: ${questionId}`);
+            const jsonPayload = options.map(opt => ({
+                questionId: Number(questionId),
+                optionText: typeof opt === 'string' ? opt : (opt.optionText || opt.text || ""),
+                isCorrect: Boolean(opt.isCorrect ?? false)
+            }));
+
+            return await apiFetch(`/api/questions/${questionId}/options`, {
+                method: 'POST',
+                body: JSON.stringify(jsonPayload),
+                headers: { "Content-Type": "application/json" }
+            });
+        }
+
+        // --- FLOW B: WITH IMAGES (CLEAN MULTIPART) ---
+        console.log(`[ExamService] 🖼️ Sending PURE MULTIPART (no empty blobs) for Q: ${questionId}`);
         const formData = new FormData();
 
-        // 1. Append all isCorrect booleans directly as text values ('true' or 'false') 
-        // to match Postman screenshot exactly.
+        // 1. Append Text & Correctness for ALL options
         options.forEach(opt => {
-            const isCorr = Boolean(opt.isCorrect || opt.is_correct || false);
-            formData.append('isCorrect', isCorr); // Send boolean literal to let FormData cast it naturally
+            formData.append('optionText', String(opt.optionText || opt.text || ""));
+            formData.append('isCorrect', String(Boolean(opt.isCorrect ?? false)));
         });
 
-        // 2. Append all option texts directly as string values
-        options.forEach(opt => {
-            const textValue = String(opt.optionText || opt.text || (typeof opt === 'string' ? opt : ''));
-            formData.append('optionText', textValue);
-        });
-
-        // 3. Append all option images (or empty files to maintain array index alignment)
-        options.forEach(opt => {
-            const dp = opt.optionImage || opt.image;
-            if (dp && (dp instanceof File || dp instanceof Blob)) {
-                formData.append('optionImage', dp);
-            } else if (dp && typeof dp === 'string' && dp.startsWith('data:')) {
-                try {
-                    const arr = dp.split(',');
-                    const mime = arr[0].match(/:(.*?);/)[1];
-                    const bstr = atob(arr[1]);
-                    let n = bstr.length;
-                    const u8arr = new Uint8Array(n);
-                    while (n--) {
-                        u8arr[n] = bstr.charCodeAt(n);
-                    }
-                    const blob = new Blob([u8arr], { type: mime });
-                    formData.append('optionImage', blob, "option_image.png");
-                } catch (e) {
-                    formData.append('optionImage', new File([""], "empty.txt", { type: "text/plain" }));
-                }
-            } else {
-                // Spring Boot requires the array lengths to match, so we send an empty txt file
-                formData.append('optionImage', new File([""], "empty.txt", { type: "text/plain" }));
+        // 2. Append ONLY existing images with their corresponding indices
+        options.forEach((opt, index) => {
+            const file = opt.optionImage || opt.image;
+            if (file instanceof File) {
+                formData.append('optionImage', file);
+                formData.append('imageIndex', index); // NEW: Tells backend WHICH option this file belongs to
             }
         });
 
-        return await apiFetch(`/api/questions/${questionId}/options`, {
+        return await apiFetch(`/api/questions/${questionId}/options/images`, {
             method: 'POST',
-            body: formData,
-            headers: { "Content-Type": null } // Let browser set boundary to multipart/form-data
+            body: formData
         });
     },
 
@@ -769,7 +787,8 @@ export const examService = {
             body: JSON.stringify({
                 answerText: data.answerText,
                 guidelines: data.guidelines
-            })
+            }),
+            headers: { "Content-Type": "application/json" }
         });
     },
 
@@ -806,16 +825,25 @@ export const examService = {
         return await api.get(`/api/exam-responses/${responseId}/execution-results`);
     },
 
-    // Matches CodingTestCaseController
-    createTestCase: async (qId, data) => {
-        return apiFetch(`/api/questions/${qId}/coding-test-cases`, {
+    // Matches CodingTestCaseController: POST /api/questions/{qId}/coding-test-cases
+    // Backend expects a LIST of test cases.
+    createTestCases: async (qId, testCases) => {
+        const payload = testCases.map(tc => ({
+            inputData: tc.input || tc.inputData || "",
+            expectedOutput: tc.output || tc.expectedOutput || "",
+            hidden: Boolean(tc.hidden)
+        }));
+
+        return await apiFetch(`/api/questions/${qId}/coding-test-cases`, {
             method: 'POST',
-            body: JSON.stringify({
-                inputData: data.input || data.inputData,
-                expectedOutput: data.output || data.expectedOutput,
-                hidden: data.hidden || false
-            })
+            body: JSON.stringify(payload),
+            headers: { "Content-Type": "application/json" }
         });
+    },
+
+    // Singular fallback (wraps in array)
+    createTestCase: async (qId, data) => {
+        return examService.createTestCases(qId, [data]);
     },
 
     getTestCases: async (qId) => apiFetch(`/api/questions/${qId}/coding-test-cases`),

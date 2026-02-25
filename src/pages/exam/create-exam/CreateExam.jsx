@@ -142,8 +142,8 @@ const CreateExam = () => {
   };
 
   const handleSave = async () => {
-    if (!examData.title || !examData.courseId) {
-      toast.error("Title and Course selection are required.");
+    if (!examData.title) {
+      toast.error("Title is required.");
       return;
     }
 
@@ -153,8 +153,8 @@ const CreateExam = () => {
       // NEST QUESTIONS HERE to support Cascade Save (since separate linking endpoint is missing)
       const corePayload = {
         title: examData.title,
-        courseId: examData.courseId,
-        batchId: examData.batchId,
+        courseId: examData.courseId || 1, // Fallback to 1 if backend rigidly requires courseId
+        batchId: examData.batchId || null,
         examType: examData.type.toUpperCase(),
         totalMarks: examData.totalMarks,
         durationMinutes: examData.duration,
@@ -296,27 +296,62 @@ const CreateExam = () => {
                 const qType = (q.type || q.questionType || "").toLowerCase();
 
                 // Options
-                if (q.options?.length > 0 && typeof q.options[0] !== 'string' && q.options[0].id) {
-                  // already has options saved? Skip or update.
-                } else if (q.options?.length > 0 && (qType === 'quiz' || qType === 'mcq')) {
-                  const opts = q.options.map((opt, oIdx) => {
+                if (q.options?.length > 0 && (qType === 'quiz' || qType === 'mcq')) {
+                  const optsToCreate = [];
+                  const optsToUpdate = [];
+                  for (let oIdx = 0; oIdx < q.options.length; oIdx++) {
+                    const opt = q.options[oIdx];
                     const text = typeof opt === 'string' ? opt : (opt.optionText || opt.text || "");
-                    const isCorrect = typeof opt === 'object' && opt.isCorrect !== undefined ? opt.isCorrect : (q.correctOptionIndex === oIdx || q.answer === text);
-                    return {
+                    const isCorrect = (typeof opt === 'object' && opt.isCorrect !== undefined) ? opt.isCorrect : (q.correctOption === oIdx || q.correctOptionIndex === oIdx || q.answer === text);
+
+                    const optPayload = {
                       questionId: Number(actualQuestionId),
                       optionText: text,
                       isCorrect: Boolean(isCorrect),
-                      optionImage: typeof opt === 'object' ? opt.image : null
+                      optionImage: typeof opt === 'object' ? (opt.image || opt.optionImage) : null
                     };
-                  });
-                  await examService.addQuestionOptions(actualQuestionId, opts).catch(e => console.error("Options failed", e));
+
+                    if (typeof opt === 'object' && (opt.id || opt.optionId)) {
+                      optsToUpdate.push(examService.updateQuestionOption(actualQuestionId, opt.id || opt.optionId, optPayload));
+                    } else {
+                      optsToCreate.push(optPayload);
+                    }
+                  }
+
+                  if (optsToUpdate.length > 0) {
+                    await Promise.all(optsToUpdate)
+                      .then(() => console.log(`[DEBUG] Successfully updated ${optsToUpdate.length} options for question ${actualQuestionId}`))
+                      .catch(e => {
+                        console.error("Option updates failed", e);
+                        if (e.message?.toLowerCase().includes('size exceeded')) {
+                          toast.error(`Image too large for question "${q.question?.substring(0, 20)}...". Increase backend upload limit.`);
+                        } else {
+                          toast.error(`Option update failed: ${e.message}`);
+                        }
+                      });
+                  }
+                  if (optsToCreate.length > 0) {
+                    console.log(`[DEBUG] Sending POST /api/questions/${actualQuestionId}/options with ${optsToCreate.length} options...`);
+                    await examService.addQuestionOptions(actualQuestionId, optsToCreate)
+                      .then(() => console.log(`[DEBUG] Successfully created ${optsToCreate.length} new options for question ${actualQuestionId}!`))
+                      .catch(e => {
+                        console.error("Options add failed", e);
+                        if (e.message?.toLowerCase().includes('size exceeded')) {
+                          toast.error(`Image too large for question "${q.question?.substring(0, 20)}...". Increase backend upload limit.`);
+                        } else {
+                          toast.error(`Failed to save options: ${e.message}`);
+                        }
+                      });
+                  }
                 }
 
-                // Coding Test Cases
+                // Coding Test Cases - Batch Save Strategy
                 if (qType === 'coding' && q.testCases?.length > 0) {
-                  for (const tc of q.testCases) {
-                    await examService.createTestCase(actualQuestionId, tc).catch(() => { });
-                  }
+                  console.log(`[DEBUG] Saving ${q.testCases.length} test cases for question ${actualQuestionId}...`);
+                  await examService.createTestCases(actualQuestionId, q.testCases).catch(e => {
+                    console.error("Test cases save failed", e);
+                    toast.error(`Failed to save test cases for question ${actualQuestionId}`);
+                  });
                 }
 
                 // Descriptive

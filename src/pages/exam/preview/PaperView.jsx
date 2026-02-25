@@ -220,7 +220,7 @@ const PaperView = () => {
                                         {q.question}
                                     </h4>
 
-                                    {q.type === 'quiz' && q.options && q.options.length > 0 && (
+                                    {q.type === 'mcq' && q.options && q.options.length > 0 && (
                                         <div className="row g-3">
                                             {q.options.map((opt, oIdx) => (
                                                 <div key={oIdx} className="col-md-6">
@@ -228,7 +228,7 @@ const PaperView = () => {
                                                         <div className="small font-monospace fw-bold text-muted border rounded px-2 bg-white">
                                                             {String.fromCharCode(65 + oIdx)}
                                                         </div>
-                                                        <div className="text-secondary">{opt}</div>
+                                                        <div className="text-secondary">{opt.text}</div>
                                                     </div>
                                                 </div>
                                             ))}

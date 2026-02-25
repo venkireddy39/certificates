@@ -288,7 +288,7 @@ const ExamPaperView = () => {
 };
 
 const QuestionRenderer = ({ q, index, answers, onChange, disabled }) => {
-    if (q.type === "quiz") {
+    if (q.type === "mcq") {
         return (
             <div className="d-flex flex-column gap-3">
                 {q.options.map((opt, i) => (
@@ -296,7 +296,7 @@ const QuestionRenderer = ({ q, index, answers, onChange, disabled }) => {
                         <input type="radio" className="d-none" name={`q-${index}`} checked={answers[index] === i} onChange={() => onChange(index, i)} disabled={disabled} />
                         <div className="d-flex align-items-center gap-3">
                             <div className="option-indicator">{String.fromCharCode(65 + i)}</div>
-                            <div className="flex-grow-1 text-dark">{opt}</div>
+                            <div className="flex-grow-1 text-dark">{typeof opt === 'object' ? (opt.optionText || opt.text || "") : opt}</div>
                             {answers[index] === i && <CheckCircle className="text-primary" size={20} />}
                         </div>
                         <style>{`

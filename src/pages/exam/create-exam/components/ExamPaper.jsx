@@ -111,7 +111,7 @@ const ExamPaper = ({ examData, zoom, removeQuestion, editQuestion, editingIndex 
                                         )}
 
                                         {/* Question Types UI */}
-                                        {q.type === 'quiz' && (
+                                        {q.type === 'mcq' && (
                                             <div className="ps-4 row g-3 mt-1">
                                                 {(q.options || []).map((o, i) => (
                                                     <div key={i} className="col-6">

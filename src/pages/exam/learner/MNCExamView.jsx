@@ -445,6 +445,15 @@ const MNCExamView = () => {
         }
 
         try {
+            if (attemptId === "SIMULATION_ID") {
+                toast.success("Simulation Submitted Successfully (Mock)!");
+                if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(() => { });
+                }
+                setTimeout(() => navigate('/admin/exams/dashboard'), 1500);
+                return;
+            }
+
             await examService.submitExamAttempt(examData.id, attemptId);
             toast.success("Exam Submitted Successfully!");
 

@@ -31,6 +31,14 @@ api.interceptors.request.use(
                 // Ignore parse errors
             }
         }
+
+        // --- CRITICAL FIX FOR MULTIPART FORM DATA ---
+        // Axios merges default headers with request headers. 
+        // If we don't delete it here, the default "application/json" destroys the browser boundary.
+        if (config.data instanceof FormData) {
+            delete config.headers["Content-Type"];
+        }
+
         return config;
     },
     (error) => Promise.reject(error)
@@ -76,12 +84,19 @@ export async function apiFetch(url, options = {}) {
         }
     }
 
+    // Important: if sending FormData, do NOT stringify and do NOT use application/json
+    let reqHeaders = { ...options.headers };
+    if (data instanceof FormData) {
+        // Remove Application/JSON explicitly so Axios generates the boundary
+        delete reqHeaders['Content-Type'];
+    }
+
     try {
         const response = await api({
             url,
             method,
             data,
-            headers: options.headers,
+            headers: Object.keys(reqHeaders).length > 0 ? reqHeaders : undefined,
             params: options.params
         });
         return response;

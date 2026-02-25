@@ -23,13 +23,17 @@ const BatchBuilder = lazy(() => import('../pages/Batches/BatchBuilder'));
 const CourseBuilder = lazy(() => import('../pages/Courses/CourseBuilder'));
 const CourseOverview = lazy(() => import('../pages/Courses/CourseOverview'));
 const CreateClass = lazy(() => import('../pages/Batches/CreateClass'));
-const FeeManagement = lazy(() => import('../pages/FeeManagement/fee'));
-const CreateFee = lazy(() => import('../pages/FeeManagement/CreateFee'));
+const FeeManagementDashboard = lazy(() => import('../features/fee/pages/FeeManagementDashboard'));
+// Legacy Fee imports logically removed or commented out to ensure clean architecture
+// const FeeManagement = lazy(() => import('../pages/FeeManagement/fee'));
+// const FeeCreate = lazy(() => import('../pages/FeeManagement/FeeCreate'));
+// const InstallmentView = lazy(() => import('../pages/FeeManagement/InstallmentView'));
+// const CreateFee = lazy(() => import('../pages/FeeManagement/CreateFee'));
 const LibraryApp = lazy(() => import('../pages/Library/App'));
 const AffiliateRegister = lazy(() => import('../pages/Affiliates/AffiliateRegister'));
 const AffiliatePortal = lazy(() => import('../pages/Affiliates/AffiliatePortal'));
 const StudentDashboard = lazy(() => import('../pages/Student/Dashboard/StudentDashboard'));
-// Removed LoginPage import as we are bypassing it
+const LoginPage = lazy(() => import('../pages/Login/LoginPage'));
 const StudentCourses = lazy(() => import('../pages/Student/Courses/StudentCourses'));
 const StudentBatches = lazy(() => import('../pages/Student/Batches/StudentBatches'));
 const StudentAttendance = lazy(() => import('../pages/Student/Attendance/StudentAttendance'));
@@ -78,7 +82,7 @@ const AppRoutes = () => {
       <Routes>
 
         {/* ================= PUBLIC ROUTES ================= */}
-        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<RootRedirect />} />
         <Route path="/course-overview/:id" element={<CourseOverview />} />
         <Route path="/share/:shareCode" element={<CourseOverview />} />
@@ -132,8 +136,10 @@ const AppRoutes = () => {
           <Route path="exams/*" element={<Exams />} />
           <Route path="library/*" element={<LibraryApp />} />
           <Route path="users" element={<Users />} />
-          <Route path="fee" element={<FeeManagement />} />
-          <Route path="fee/create" element={<CreateFee />} />
+          <Route path="fee" element={<FeeManagementDashboard />} />
+          {/* Legacy isolated module routes removed since Dashboard handles config and ledger views */}
+          {/* <Route path="fee/create" element={<FeeCreate />} /> */}
+          {/* <Route path="fee/allocation/:id" element={<InstallmentView />} /> */}
           <Route path="marketing" element={<Marketing />} />
           <Route path="affiliates" element={<Affiliates />} />
           <Route path="affiliate/portal" element={<AffiliatePortal />} />

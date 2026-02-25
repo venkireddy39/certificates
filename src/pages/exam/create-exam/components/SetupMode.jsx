@@ -283,8 +283,8 @@ const SetupMode = ({ onComplete, initialData }) => {
     };
 
     const validateAndContinue = () => {
-        if (!config.title.trim() || !config.courseId) {
-            toast.error("Please enter Exam Title and select a Course.");
+        if (!config.title.trim()) {
+            toast.error("Please enter Exam Title.");
             return;
         }
         onComplete({
@@ -432,33 +432,7 @@ const SetupMode = ({ onComplete, initialData }) => {
                                         <option value="coding">Coding</option>
                                     </select>
                                 </div>
-                                <div className="col-md-6">
-                                    <label className="form-label small fw-bold">Course <span className="text-danger">*</span></label>
-                                    <select
-                                        className="form-select form-select-lg"
-                                        value={config.courseId}
-                                        onChange={(e) => handleCourseChange(e.target.value)}
-                                    >
-                                        <option value="">Select Course</option>
-                                        {courses.map(c => (
-                                            <option key={c.courseId} value={c.courseId}>{c.courseName}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="col-md-6">
-                                    <label className="form-label small fw-bold">Batch <span className="small text-muted">(Optional - Assign Later)</span></label>
-                                    <select
-                                        className="form-select form-select-lg"
-                                        value={config.batchId}
-                                        disabled={!config.courseId}
-                                        onChange={(e) => setConfig({ ...config, batchId: e.target.value })}
-                                    >
-                                        <option value="">Select Batch (All)</option>
-                                        {batches.map(b => (
-                                            <option key={b.batchId} value={b.batchId}>{b.batchName}</option>
-                                        ))}
-                                    </select>
-                                </div>
+
                                 <div className="col-md-6">
                                     <label className="form-label small fw-bold">Duration (Minutes)</label>
                                     <input type="number" className="form-control" value={config.duration} onChange={(e) => setConfig({ ...config, duration: e.target.value })} />

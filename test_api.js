@@ -1,20 +1,31 @@
 const http = require('http');
-const fs = require('fs');
 
-http.get('http://192.168.1.63:5151/api/courses', (res) => {
-    let data = '';
-    res.on('data', c => data += c);
-    res.on('end', () => {
-        fs.writeFileSync('api_courses.json', data);
-        console.log('Courses saved');
-    });
-}).on('error', e => console.error('Course err:', e));
+const data = JSON.stringify({
+    title: "Test Draft Exam",
+    examType: "MIXED",
+    totalMarks: 100,
+    durationMinutes: 60,
+    status: "DRAFT"
+});
 
-http.get('http://192.168.1.63:5151/api/batches/course/2', (res) => {
-    let data = '';
-    res.on('data', c => data += c);
-    res.on('end', () => {
-        fs.writeFileSync('api_batches_2.json', data);
-        console.log('Batches saved');
-    });
-}).on('error', e => console.error('Batch err:', e));
+const options = {
+    hostname: '192.168.1.63',
+    port: 5151,
+    path: '/api/exams',
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data)
+    }
+};
+
+const req = http.request(options, (res) => {
+    console.log(`STATUS: ${res.statusCode}`);
+    let body = '';
+    res.on('data', (chunk) => body += chunk);
+    res.on('end', () => console.log(`BODY: ${body}`));
+});
+
+req.on('error', (e) => console.error(`problem with request: ${e.message}`));
+req.write(data);
+req.end();

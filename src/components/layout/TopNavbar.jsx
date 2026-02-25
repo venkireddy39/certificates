@@ -88,8 +88,7 @@ const TopNavbar = () => {
             label: 'Finance',
             icon: DollarSign,
             children: [
-                { label: 'Fee Management', path: '/admin/fee', icon: CreditCard },
-                { label: 'Invoices', path: '/admin/invoices', icon: FileText },
+                { label: 'Fee Module', path: '/admin/fee', icon: CreditCard },
             ]
         },
         {
