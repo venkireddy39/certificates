@@ -1,5 +1,5 @@
 import React from "react";
-import { FiPlus } from "react-icons/fi";
+import { FiPlus, FiLayers, FiGrid } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
 import CourseFilters from "./components/CourseFilters";
@@ -68,6 +68,23 @@ const CoursesPage = () => {
             setStatusFilter={setStatusFilter}
           />
 
+          <button
+            onClick={() => navigate('/admin/batches')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 7,
+              padding: '10px 18px', borderRadius: '11px',
+              fontSize: '13.5px', fontWeight: '700',
+              border: '1px solid #c7d2fe',
+              background: 'linear-gradient(135deg,#eef2ff,#e0e7ff)',
+              color: '#4338ca', cursor: 'pointer', transition: 'all 0.2s',
+              boxShadow: '0 1px 4px rgba(99,102,241,0.10)'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(99,102,241,0.25)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 4px rgba(99,102,241,0.10)'; e.currentTarget.style.transform = 'none'; }}
+          >
+            <FiGrid size={15} /> All Batches
+          </button>
+
           <button className="btn-primary-add" onClick={() => openModal()}>
             <FiPlus size={18} /> Add New Course
           </button>
@@ -75,17 +92,19 @@ const CoursesPage = () => {
       </header>
 
       {/* Course Grid */}
-      <CourseGrid
-        courses={enrichedCourses}
-        onEdit={openModal}
-        onDelete={handleDelete}
-        onToggleStatus={toggleCourseStatus}
-        onManageContent={(id) => navigate(`/admin/courses/builder/${id}`)}
-        onShowDetails={(course) => setViewCourse(course)}
-        onShare={(course) => setShareCourse(course)}
-        onBookmark={toggleBookmark}
-        onCreateBatch={(courseId, courseName) => navigate('/admin/batches', { state: { createBatchForCourse: courseId } })}
-      />
+      <div className="courses-grid-body">
+        <CourseGrid
+          courses={enrichedCourses}
+          onEdit={openModal}
+          onDelete={handleDelete}
+          onToggleStatus={toggleCourseStatus}
+          onManageContent={(id) => navigate(`/admin/courses/builder/${id}`)}
+          onShowDetails={(course) => setViewCourse(course)}
+          onShare={(course) => setShareCourse(course)}
+          onBookmark={toggleBookmark}
+          onCreateBatch={(courseId, courseName) => navigate('/admin/batches', { state: { createForCourse: courseId, courseName } })}
+        />
+      </div>
 
       {/* Create / Edit Modal */}
       <CourseModal

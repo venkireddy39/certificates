@@ -13,14 +13,27 @@ export const batchService = {
 
             if (!courses || courses.length === 0) return [];
 
-            const batchPromises = courses.map(course =>
-                batchService.getBatchesByCourseId(course.courseId || course.id)
-                    .catch(e => []) // If one course fails, ignore it
-            );
+            const batchPromises = courses.map(async (course) => {
+                const cId = course.courseId || course.id;
+                const cName = course.courseName || course.name;
+                try {
+                    const batches = await batchService.getBatchesByCourseId(cId);
+                    // Inject course information into each batch object to ensure UI linking works
+                    return batches.map(b => ({
+                        ...b,
+                        courseId: cId,
+                        courseName: cName
+                    }));
+                } catch (e) {
+                    console.error(`Failed to fetch batches for course ${cId}:`, e);
+                    return [];
+                }
+            });
 
             const results = await Promise.all(batchPromises);
-            // Flatten the array of arrays
-            return results.flat();
+            const flattened = results.flat();
+            console.log("✅ Batches Fetched & Enriched with Course Info:", flattened.length);
+            return flattened;
         } catch (e) {
             console.error("Batch fetch failed (Workaround):", e);
             return [];

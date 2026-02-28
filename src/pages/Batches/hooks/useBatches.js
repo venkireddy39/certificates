@@ -95,13 +95,17 @@ export const useBatches = (courses, instructors = []) => {
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase();
             result = result.filter(b => {
-                const bCourseId = String(b?.courseId || b?.course_id || b?.id || "");
+                const bCourseId = String(b?.courseId || b?.course_id || "");
+                const bCourseName = (b.courseName || "").toLowerCase();
                 const course = courses.find(c => String(c?.courseId || c?.course_id || c?.id || "") === bCourseId) ||
-                    courses.find(c => c?.courseName?.trim() === b?.courseName?.trim());
+                    courses.find(c => c?.courseName?.trim().toLowerCase() === bCourseName.trim());
+
+                const matchedCourseName = (course?.courseName || b.courseName || "").toLowerCase();
+
                 return (
                     (b.batchName && b.batchName.toLowerCase().includes(q)) ||
                     (b.trainerName && b.trainerName.toLowerCase().includes(q)) ||
-                    (course?.courseName && course.courseName.toLowerCase().includes(q))
+                    (matchedCourseName.includes(q))
                 );
             });
         }

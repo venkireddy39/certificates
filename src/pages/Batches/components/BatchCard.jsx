@@ -9,9 +9,10 @@ import { calculateProgress } from '../utils/batchUtils';
 import { BATCH_STATUS } from '../constants/batchConstants';
 
 const BatchCard = ({ batch, courses = [], onEdit, onDelete, onManageContent }) => {
-    const bCourseId = String(batch?.courseId || batch?.course_id || batch?.id || "");
+    // Avoid using batch.id (which is many times the batchId) as a fallback for course lookup
+    const bCourseId = String(batch?.courseId || batch?.course_id || "");
     const course = courses.find(c => String(c?.courseId || c?.course_id || c?.id || "") === bCourseId) ||
-        courses.find(c => c?.courseName?.trim() === batch?.courseName?.trim()); // Fallback by name if available
+        courses.find(c => c?.courseName?.trim() && batch?.courseName?.trim() && c.courseName.trim() === batch.courseName.trim());
 
     const students = batch.students ?? 0;
     const maxStudents = batch.maxStudents ?? 0;
@@ -44,7 +45,7 @@ const BatchCard = ({ batch, courses = [], onEdit, onDelete, onManageContent }) =
             <div className="card-content">
                 <h3 className="batch-title">{batch.batchName}</h3>
                 <p className="course-linked">
-                    {course?.courseName || 'Unassigned Course'}
+                    {course?.courseName || batch?.courseName || 'Unassigned Course'}
                 </p>
 
                 {/* Dates */}

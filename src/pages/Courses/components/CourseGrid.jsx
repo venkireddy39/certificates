@@ -20,9 +20,10 @@ const CourseGrid = ({
 
     return (
         <div className="courses-grid-layout">
-            {courses.map((course) => (
+            {courses.map((course, idx) => (
                 <CourseCard
-                    key={course.id}          // ✅ stable key
+                    key={course.courseId || course.id}
+                    index={idx}
                     course={course}
                     onEdit={onEdit}
                     onDelete={onDelete}

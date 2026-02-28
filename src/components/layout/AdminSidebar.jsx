@@ -135,6 +135,7 @@ const AdminSidebar = ({ isOpen, toggleSidebar, isMobile }) => {
                         {/* FINANCE GROUP */}
                         {canSeeFinance && (
                             <MenuGroup title="Finance" icon="FiDollarSign" isOpen={isOpen} expanded={groups.finance} onToggle={() => toggleGroup('finance')}>
+                                <SidebarItem to="/admin/fee" icon="FiLayout" label="Fee Console" isOpen={isOpen} isSub />
                                 <SidebarItem to="/admin/invoices" icon="FiFileText" label="Invoices" isOpen={isOpen} isSub />
                                 <SidebarItem to="/admin/fee-types" icon="FiFileText" label="Fee Types" isOpen={isOpen} isSub />
                                 <SidebarItem to="/admin/fee-structures" icon="FiFileText" label="Fee Structures" isOpen={isOpen} isSub />

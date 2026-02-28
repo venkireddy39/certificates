@@ -158,6 +158,7 @@ const AppRoutes = () => {
           <Route path="fee-structures" element={<FeeStructureListPage />} />
           <Route path="fee-structures/new" element={<FeeStructureFormPage />} />
           <Route path="fee-structures/:id/edit" element={<FeeStructureFormPage />} />
+          <Route path="fee-structures/:id" element={<FeeStructureFormPage viewOnly={true} />} />
 
           <Route path="fee-allocations" element={<FeeAllocationListPage />} />
           <Route path="fee-allocations/new" element={<FeeAllocationFormPage />} />

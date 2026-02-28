@@ -1,45 +1,48 @@
-/* Course Types */
-export const COURSE_TYPES = {
-    FREE: "FREE",
-    PAID: "PAID",
-};
-
-/* Admin Course Status (soft management only) */
+/* Course Status */
 export const COURSE_STATUS = {
     ALL: "ALL",
     ACTIVE: "ACTIVE",
     DISABLED: "DISABLED",
 };
 
-/* Initial Form State */
+/**
+ * Initial Form State — mirrors the Course entity exactly.
+ *
+ * Entity fields:
+ *   courseName, description, duration, toolsCovered, courseFee,
+ *   certificateProvided, status, showValidity, validityInDays,
+ *   allowOfflineMobile, allowBookmark, courseImageUrl,
+ *   shareCode (read-only), shareEnabled
+ */
 export const INITIAL_FORM_DATA = {
-    // Basic
-    name: "",
-    desc: "",
-    overview: "",
-    toolsCovered: "",
-    img: null,
-    imgPreview: null,
-
-    // Pricing & Duration
-    price: "",
+    // ── Basic ─────────────────────────────
+    courseName: "",
+    description: "",
     duration: "",
+    toolsCovered: "",
 
-    // Validity
+    // ── Pricing ───────────────────────────
+    courseFee: "",
+
+    // ── Image ─────────────────────────────
+    img: null,           // File object for upload
+    imgPreview: null,    // Preview URL (data:// or https://)
+
+    // ── Validity ──────────────────────────
     showValidity: false,
-    validityDuration: "",
+    validityInDays: "",
 
-    // Access
-    accessPlatforms: ["Website"],
-    allowOffline: false,
-    contentAccessEnabled: true,
+    // ── Access ────────────────────────────
+    allowOfflineMobile: false,
+    allowBookmark: false,
 
-    // Certificates
-    certificateEnabled: false,
+    // ── Certificate ───────────────────────
+    certificateProvided: false,
 
-    // Sharing
+    // ── Sharing ───────────────────────────
     shareEnabled: true,
+    shareCode: null,    // Read-only; set by backend
 
-    // Status
+    // ── Status ────────────────────────────
     status: COURSE_STATUS.ACTIVE,
 };

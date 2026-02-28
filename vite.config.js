@@ -10,17 +10,17 @@ export default defineConfig({
 
       // 1. ADMIN & AUTH SERVICE (8081)
       '/admin': {
-        target: 'http://192.168.1.17:8081',
+        target: 'http://192.168.1.87:8081',
         changeOrigin: true,
         secure: false,
       },
       '/auth': {
-        target: 'http://192.168.1.17:8081',
+        target: 'http://192.168.1.87:8081',
         changeOrigin: true,
         secure: false,
       },
       '/api-identity': {
-        target: 'http://192.168.1.17:8081',
+        target: 'http://192.168.1.87:8081',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api-identity/, ''),
@@ -55,44 +55,44 @@ export default defineConfig({
 
       // 3. MANAGEMENT SERVICE (5151)
       '/api/attendance': {
-        target: 'http://192.168.1.17:5151',
+        target: 'http://192.168.1.63:5151',
         changeOrigin: true,
         secure: false,
       },
       '/api/courses': {
-        target: 'http://192.168.1.17:5151',
+        target: 'http://192.168.1.63:5151',
         changeOrigin: true,
         secure: false,
       },
       '/api/batches': {
-        target: 'http://192.168.1.17:5151',
+        target: 'http://192.168.1.63:5151',
         changeOrigin: true,
         secure: false,
       },
       '/api/student-batches': {
-        target: 'http://192.168.1.17:5151',
+        target: 'http://192.168.1.63:5151',
         changeOrigin: true,
         secure: false,
       },
       '/api/sessions': {
-        target: 'http://192.168.1.17:5151',
+        target: 'http://192.168.1.63:5151',
         changeOrigin: true,
         secure: false,
       },
       '/api/student-batch-transfers': {
-        target: 'http://192.168.1.17:5151',
+        target: 'http://192.168.1.63:5151',
         changeOrigin: true,
         secure: false,
       },
 
       // 4. STATIC FILES (5151)
       '/uploads': {
-        target: 'http://192.168.1.17:5151',
+        target: 'http://192.168.1.63:5151',
         changeOrigin: true,
         secure: false,
       },
       '/images': {
-        target: 'http://192.168.1.17:5151',
+        target: 'http://192.168.1.63:5151',
         changeOrigin: true,
         secure: false,
       },

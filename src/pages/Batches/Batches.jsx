@@ -125,16 +125,25 @@ const Batches = () => {
         loading: loadingBatches
     } = useBatches(courses, instructors);
 
-    // Effect to handle navigation from Course Card -> Create Batch
+    // Effect to handle navigation from Courses Page
     useEffect(() => {
-        if (location.state?.createBatchForCourse && !loadingData && !loadingBatches) {
-            setCourseFilter(location.state.createBatchForCourse);
-            openModal(null, { courseId: location.state.createBatchForCourse });
+        if (!loadingData && !loadingBatches) {
+            // Case 1: Just filter by course (when clicking button on course card)
+            if (location.state?.filterByCourse) {
+                setCourseFilter(location.state.filterByCourse);
+            }
 
-            // Clean up history state so a page refresh doesn't pop the modal open again
-            window.history.replaceState({}, document.title);
+            // Case 2: Open "Create New" modal (when clicking "Create Batch" in header)
+            if (location.state?.openCreateModal) {
+                openModal();
+            }
+
+            // Cleanup
+            if (location.state) {
+                window.history.replaceState({}, document.title);
+            }
         }
-    }, [location.state, loadingData, loadingBatches, courses]);
+    }, [location.state, loadingData, loadingBatches]);
 
     // Manual Enrichment: Student counts
     const enrichedBatches = useEnrichedBatches(batches);

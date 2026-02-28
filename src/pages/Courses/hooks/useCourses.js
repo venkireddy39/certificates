@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { INITIAL_FORM_DATA } from '../constants/courseConstants';
-import { validateCourseForm } from '../utils/validators';
 import { courseService } from '../services/courseService';
 
 export const useCourses = () => {
@@ -11,81 +10,93 @@ export const useCourses = () => {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState(INITIAL_FORM_DATA);
 
-    // Fetch courses on mount
+    // ──────────────────────────────────────────
+    // Load on mount
+    // ──────────────────────────────────────────
     useEffect(() => {
         loadCourses();
     }, []);
 
-    // Helper to format image URL
+    // ──────────────────────────────────────────
+    // Image URL helper (strips hard-coded LAN IPs)
+    // ──────────────────────────────────────────
     const getFullImageUrl = (url) => {
         if (!url) return null;
-
-        // Robust fix: Remove any hardcoded 192.168.x.x IP from the start of the URL
-        // This handles cases where DB has http://192.168.1.23:5151/uploads/...
-        // We want to convert it to just /uploads/... so the Vite proxy handles it.
         if (url.includes('192.168.')) {
-            // Replace http://192.168.X.X:PORT/ with just /
-            const relativeUrl = url.replace(/^https?:\/\/192\.168\.\d+\.\d+(:\d+)?/, '');
-            return relativeUrl.startsWith('/') ? relativeUrl : `/${relativeUrl}`;
+            const rel = url.replace(/^https?:\/\/192\.168\.\d+\.\d+(:\d+)?/, '');
+            return rel.startsWith('/') ? rel : `/${rel}`;
         }
-
-        if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) return url;
-
-        // Use relative path so Vite proxy (configured for /uploads) can handle it
+        if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
         return `${url.startsWith('/') ? '' : '/'}${url}`;
     };
+
+    // ──────────────────────────────────────────
+    // Map backend → frontend model
+    // Backend field          Frontend field
+    // courseId           →   id
+    // courseName         →   name  (also kept as courseName)
+    // description        →   description
+    // duration           →   duration
+    // toolsCovered       →   toolsCovered
+    // courseFee          →   courseFee
+    // courseImageUrl     →   img  (display URL)
+    // certificateProvided→   certificateProvided
+    // showValidity       →   showValidity
+    // validityInDays     →   validityInDays
+    // allowOfflineMobile →   allowOfflineMobile
+    // allowBookmark      →   allowBookmark
+    // status             →   status
+    // shareCode          →   shareCode
+    // shareLink          →   shareLink
+    // shareEnabled       →   shareEnabled
+    // ──────────────────────────────────────────
+    const mapCourseFromBackend = (c) => ({
+        id: c.courseId,
+        name: c.courseName,
+        courseName: c.courseName,
+        description: c.description || '',
+        duration: c.duration || '',
+        toolsCovered: c.toolsCovered || '',
+        courseFee: c.courseFee ?? 0,
+        img: getFullImageUrl(c.courseImageUrl) || 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97',
+        certificateProvided: c.certificateProvided ?? false,
+        showValidity: c.showValidity ?? false,
+        validityInDays: c.validityInDays ?? '',
+        allowOfflineMobile: c.allowOfflineMobile ?? false,
+        allowBookmark: c.allowBookmark ?? false,
+        status: c.status || 'ACTIVE',
+        shareCode: c.shareCode || null,
+        shareLink: c.shareLink || null,
+        shareEnabled: c.shareEnabled !== false,
+    });
 
     const loadCourses = async () => {
         try {
             const data = await courseService.getCourses();
-            // Map backend data to frontend model
-            const mappedCourses = data.map(c => ({
-                id: c.courseId,
-                name: c.courseName,
-                // Split description if we combined them, or just use as is
-                description: c.description || "",
-                overview: unescape(c.description || ""),
-                toolsCovered: c.toolsCovered,
-                duration: c.duration,
-                price: c.courseFee,
-                img: getFullImageUrl(c.courseImageUrl) || "https://images.unsplash.com/photo-1517694712202-14dd9538aa97",
-                showValidity: c.showValidity,
-                validityDuration: c.validityInDays,
-                allowOffline: c.allowOfflineMobile,
-                certificateEnabled: c.certificateProvided,
-                contentAccessEnabled: c.enableContentAccess,
-                status: c.status || "ACTIVE", // Default to ACTIVE if null
-                shareCode: c.shareCode,
-                shareLink: c.shareLink,
-                shareEnabled: c.shareEnabled,
-                accessPlatforms: ['Website'] // Default or map if you had a field
-            }));
-            setCourses(mappedCourses);
+            setCourses(data.map(mapCourseFromBackend));
         } catch (error) {
-            console.error("Failed to load courses", error);
+            console.error('Failed to load courses', error);
         }
     };
 
+    // ──────────────────────────────────────────
+    // Form handlers
+    // ──────────────────────────────────────────
     const handleInputChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        let val = value;
+        const { name, value, type } = e.target;
 
-        if (type === 'checkbox') {
-            val = (name === 'accessPlatforms') ? value : checked;
-        } else if (value === 'true') val = true;
+        // Custom toggle type from Toggle component
+        if (type === 'toggle') {
+            setFormData(prev => ({ ...prev, [name]: value }));
+            return;
+        }
+
+        // Boolean radio fields
+        let val = value;
+        if (value === 'true') val = true;
         else if (value === 'false') val = false;
 
-        // Handle Status specifically if needed (though it's string so likely handled by default)
-
-        if (name === 'accessPlatforms') {
-            setFormData(prev => {
-                const current = prev.accessPlatforms || [];
-                if (checked) return { ...prev, accessPlatforms: [...current, value] };
-                return { ...prev, accessPlatforms: current.filter(item => item !== value) };
-            });
-        } else {
-            setFormData(prev => ({ ...prev, [name]: val }));
-        }
+        setFormData(prev => ({ ...prev, [name]: val }));
     };
 
     const handleImageChange = (e) => {
@@ -94,7 +105,7 @@ export const useCourses = () => {
             setFormData(prev => ({
                 ...prev,
                 img: file,
-                imgPreview: URL.createObjectURL(file)
+                imgPreview: URL.createObjectURL(file),
             }));
         }
     };
@@ -106,33 +117,34 @@ export const useCourses = () => {
         setStep(1);
     };
 
+    // ──────────────────────────────────────────
+    // Open modal (create or edit)
+    // ──────────────────────────────────────────
     const openModal = (courseId = null) => {
         if (courseId !== null) {
             const c = courses.find(course => course.id === courseId);
             if (!c) return;
 
             setCurrentCourseId(c.id);
-            // We can keep editIndex for legacy reasons or remove it, 
-            // but tracking currentCourseId is enough for isEdit check.
             setEditIndex(courses.findIndex(x => x.id === courseId));
 
-            // Map course data back to form data
+            // Populate form with entity-aligned fields
             setFormData({
-                name: c.name,
-                description: c.description,
-                overview: c.overview,
-                toolsCovered: c.toolsCovered,
-                duration: c.duration,
-                price: c.price,
+                courseName: c.courseName || c.name || '',
+                description: c.description || '',
+                duration: c.duration || '',
+                toolsCovered: c.toolsCovered || '',
+                courseFee: c.courseFee ?? '',
                 img: null,
-                imgPreview: c.img,
-                showValidity: c.showValidity,
-                validityDuration: c.validityDuration,
-                allowOffline: c.allowOffline,
-                certificateEnabled: c.certificateEnabled,
-                contentAccessEnabled: c.contentAccessEnabled,
-                status: c.status || "ACTIVE",
-                accessPlatforms: c.accessPlatforms || ['Website']
+                imgPreview: c.img || null,
+                certificateProvided: c.certificateProvided ?? false,
+                showValidity: c.showValidity ?? false,
+                validityInDays: c.validityInDays ?? '',
+                allowOfflineMobile: c.allowOfflineMobile ?? false,
+                allowBookmark: c.allowBookmark ?? false,
+                status: c.status || 'ACTIVE',
+                shareEnabled: c.shareEnabled !== false,
+                shareCode: c.shareCode || null,
             });
         } else {
             resetForm();
@@ -140,33 +152,32 @@ export const useCourses = () => {
         setShowModal(true);
     };
 
+    // ──────────────────────────────────────────
+    // Save (create or update)
+    // ──────────────────────────────────────────
     const handleSave = async () => {
-        // Sanitize numeric values
-        const fee = formData.price ? parseFloat(formData.price) : 0.0;
-        const validity = (formData.showValidity && formData.validityDuration)
-            ? parseInt(formData.validityDuration)
+        const fee = formData.courseFee ? parseFloat(formData.courseFee) : 0.0;
+        const validity = (formData.showValidity && formData.validityInDays)
+            ? parseInt(formData.validityInDays)
             : null;
 
-        // Construct Backend Payload
+        // Build payload — names exactly match the Course entity setters
         const payload = {
-            courseName: formData.name || "Untitled Course",
-            description: formData.description || formData.overview || "No Description",
-            duration: formData.duration || "Self Paced",
-            toolsCovered: formData.toolsCovered || "",
+            courseName: (formData.courseName || '').trim() || 'Untitled Course',
+            description: formData.description || '',
+            duration: formData.duration || 'Self Paced',
+            toolsCovered: formData.toolsCovered || '',
             courseFee: fee,
-            // Note: courseImageUrl is intentionally omitted for creation to allow 2-step process
-            // or handled via update if preserved.
-
-            certificateProvided: formData.certificateEnabled === true,
-            status: formData.status || "ACTIVE",
+            certificateProvided: formData.certificateProvided === true,
+            status: formData.status || 'ACTIVE',
             showValidity: formData.showValidity === true,
             validityInDays: validity,
-            allowOfflineMobile: formData.allowOffline === true,
-            enableContentAccess: formData.contentAccessEnabled === true,
-            shareEnabled: true
+            allowOfflineMobile: formData.allowOfflineMobile === true,
+            allowBookmark: formData.allowBookmark === true,
+            shareEnabled: formData.shareEnabled !== false,
         };
 
-        // If editing and no new file, preserve current image URL if needed
+        // If editing with no new file, preserve existing image URL
         if (currentCourseId && !formData.img && formData.imgPreview) {
             payload.courseImageUrl = formData.imgPreview;
         }
@@ -179,7 +190,7 @@ export const useCourses = () => {
                 savedCourse = await courseService.createCourse(payload);
             }
 
-            // Step 2: Upload Image if file exists
+            // Upload image if a new file was selected
             if (formData.img) {
                 const targetId = savedCourse?.courseId || currentCourseId;
                 if (targetId) {
@@ -191,48 +202,50 @@ export const useCourses = () => {
             setShowModal(false);
             resetForm();
         } catch (error) {
-            console.error("Save failed", error);
-            alert("Failed to save course. Check console.");
+            console.error('Save failed', error);
+            throw error; // Let modal display the error
         }
     };
 
+    // ──────────────────────────────────────────
+    // Status toggle
+    // ──────────────────────────────────────────
     const toggleCourseStatus = async (id, status) => {
         try {
             await courseService.updateCourseStatus(id, status);
-            // Optimistic update or reload
-            setCourses(prev => prev.map(c =>
-                c.id === id ? { ...c, status: status } : c
-            ));
+            setCourses(prev => prev.map(c => c.id === id ? { ...c, status } : c));
         } catch (error) {
-            console.error("Failed to update status", error);
-            alert("Failed to update course status");
+            console.error('Failed to update status', error);
+            alert('Failed to update course status');
         }
     };
 
+    // ──────────────────────────────────────────
+    // Delete (soft disable)
+    // ──────────────────────────────────────────
     const handleDelete = async (id) => {
         const c = courses.find(course => course.id === id);
         if (!c) return;
 
-        if (window.confirm(`Are you sure you want to DISABLE "${c.name}"?\n(To permanently delete, please contact admin)`)) {
+        if (window.confirm(`Disable "${c.name}"?\n(Contact admin for permanent deletion)`)) {
             try {
-                // Perform Soft Delete (Disable)
-                await toggleCourseStatus(c.id, "DISABLED");
+                await toggleCourseStatus(c.id, 'DISABLED');
             } catch (error) {
-                console.error("Disable failed", error);
-                alert("Failed to disable course.");
+                console.error('Disable failed', error);
+                alert('Failed to disable course.');
             }
         }
     };
 
+    // ──────────────────────────────────────────
+    // Bookmark toggle (local only)
+    // ──────────────────────────────────────────
     const toggleBookmark = (courseId) => {
-        setCourses(prev => prev.map(course => {
-            if (course.id === courseId) {
-                return { ...course, isBookmarked: !course.isBookmarked };
-            }
-            return course;
-        }));
-        // Optional: Call API to persist bookmark
-        // courseService.toggleBookmark(courseId);
+        setCourses(prev => prev.map(course =>
+            course.id === courseId
+                ? { ...course, isBookmarked: !course.isBookmarked }
+                : course
+        ));
     };
 
     return {
@@ -250,6 +263,6 @@ export const useCourses = () => {
         editIndex,
         setFormData,
         toggleBookmark,
-        toggleCourseStatus
+        toggleCourseStatus,
     };
 };

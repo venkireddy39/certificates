@@ -29,6 +29,10 @@ export const feeApi = {
         return await apiFetch(`/api/fee-management/fee-structures/batch/${batchId}`);
     },
 
+    getAllFeeStructures: async () => {
+        return await apiFetch('/api/fee-management/fee-structures');
+    },
+
     // --- Allocations & Student View ---
 
     allocateFee: async (data) => {
@@ -44,6 +48,10 @@ export const feeApi = {
 
     getStudentInstallments: async (allocationId) => {
         return await apiFetch(`/api/fee-management/installments/allocation/${allocationId}`);
+    },
+
+    getAllFeeAllocations: async () => {
+        return await apiFetch('/api/fee-management/fee-allocations');
     },
 
     // --- Actions (Payments, Discounts, Penalties) ---

@@ -9,12 +9,9 @@ export default function InstallmentTable({
     totalFee = 0
 }) {
 
-    // Handlers for edit mode
+    // Auto Split defaults to 1 installment (no popup)
     const handleAutoSplit = () => {
-        const count = window.prompt("How many equal installments?", "2");
-        if (count && !isNaN(count)) {
-            actions.autoSplit(Number(count));
-        }
+        actions.autoSplit(1);
     };
 
     return (
