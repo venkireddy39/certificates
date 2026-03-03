@@ -164,13 +164,29 @@ export default function FeeConfigForm({ structureId, viewOnly = false }) {
             });
 
             if (structure.components && structure.components.length > 0) {
-                const mappedInst = structure.components.map((c, i) => ({
+                // Tuition installments are typically mandatory components
+                const tuitionInst = structure.components.filter(c => c.mandatory === true || c.feeTypeId === structure.feeTypeId);
+                const mappedInst = tuitionInst.map((c, i) => ({
                     id: c.id || Date.now() + i,
                     name: c.name,
                     amount: c.amount,
                     dueDate: c.dueDate
                 }));
                 actions.setInstallments(mappedInst);
+
+                // Additional components (optional fees like Exam, Library)
+                const extraComps = structure.components.filter(c => c.mandatory === false || (c.feeTypeId !== null && c.feeTypeId !== structure.feeTypeId));
+                if (extraComps.length > 0) {
+                    setAdditionalComponents(extraComps.map(c => ({
+                        feeTypeId: c.feeTypeId,
+                        name: c.name,
+                        amount: c.amount
+                    })));
+                } else {
+                    setAdditionalComponents([]);
+                }
+            } else {
+                setAdditionalComponents([]);
             }
         }
     };
@@ -710,7 +726,7 @@ export default function FeeConfigForm({ structureId, viewOnly = false }) {
                                                 onClick={() => {
                                                     const ft = feeTypes.find(f => String(f.id) === String(newCompTypeId));
                                                     if (!ft) return;
-                                                    setAdditionalComponents(prev => [...prev, { feeTypeId: ft.id, name: ft.name, amount: Number(newCompAmount) }]);
+                                                    setAdditionalComponents(prev => [...prev, { feeTypeId: Number(ft.id), name: ft.name, amount: Number(newCompAmount) }]);
                                                     setNewCompTypeId('');
                                                     setNewCompAmount('');
                                                     setAddingComponent(false);
@@ -731,7 +747,7 @@ export default function FeeConfigForm({ structureId, viewOnly = false }) {
                                         <button
                                             type="button"
                                             onClick={() => setAddingComponent(true)}
-                                            disabled={feeTypes.length === additionalComponents.length}
+                                            disabled={feeTypes.filter(ft => !additionalComponents.some(c => String(c.feeTypeId) === String(ft.id))).length === 0}
                                             className="btn border d-flex align-items-center gap-2 fw-bold text-primary"
                                             style={{
                                                 borderStyle: 'dashed', background: '#f8fafc',

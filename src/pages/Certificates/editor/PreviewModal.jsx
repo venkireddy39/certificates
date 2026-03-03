@@ -6,7 +6,10 @@ import CertificateRenderer from "../renderer/CertificateRenderer";
 const PreviewModal = ({ previewCert, onClose, onExport, settings }) => {
     if (!previewCert) return null;
 
-    const { template, data } = previewCert;
+    // The backend certificate has top level properties, but the UI renderer expects a `data` object
+    // Also `template` might be null depending on how manual generation stores it right now.
+    const { template } = previewCert;
+    const data = previewCert.data || previewCert; // Fallback if data is not nested
 
     return (
         <div

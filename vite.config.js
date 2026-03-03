@@ -52,6 +52,31 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/api/student/payment': {
+        target: 'http://localhost:3130',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/admin/installment': {
+        target: 'http://localhost:3130',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/admin/early-payment': {
+        target: 'http://localhost:3130',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/admin/settings': {
+        target: 'http://localhost:3130',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/payments': {
+        target: 'http://localhost:3130',
+        changeOrigin: true,
+        secure: false,
+      },
 
       // 3. MANAGEMENT SERVICE (5151)
       '/api/attendance': {
@@ -80,6 +105,16 @@ export default defineConfig({
         secure: false,
       },
       '/api/student-batch-transfers': {
+        target: 'http://192.168.1.63:5151',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/certificates': {
+        target: 'http://192.168.1.63:5151',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/exams': {
         target: 'http://192.168.1.63:5151',
         changeOrigin: true,
         secure: false,

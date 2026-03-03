@@ -14,13 +14,10 @@ import "react-toastify/dist/ReactToastify.css";
 // styles
 import "./CertificateModule.css";
 
-// data
-import {
-  initialTemplates,
-  initialCertificates,
-  initialPendingCertificates,
-  initialAdminSettings,
-} from "./data/sampleData";
+
+
+// api
+import { certificateService } from "../../services/certificateService";
 
 // tabs
 import CertificateDashboard from "./tabs/CertificateDashboard";
@@ -50,31 +47,33 @@ const TABS = [
 const CertificateModule = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  const [templates, setTemplates] = useState(initialTemplates);
-  const [certificates, setCertificates] = useState(initialCertificates);
-  const [pendingCertificates, setPendingCertificates] = useState(initialPendingCertificates);
-  const [adminSettings, setAdminSettings] = useState(initialAdminSettings);
+  const [templates, setTemplates] = useState([]);
+  const [certificates, setCertificates] = useState([]);
+  const [pendingCertificates, setPendingCertificates] = useState([]);
+  const [adminSettings, setAdminSettings] = useState({
+    instituteName: "",
+    subTitle: "",
+    defaultFooterText: "",
+    logo: null,
+    sealImage: null,
+    directorSignature: null,
+  });
   const [automationRules, setAutomationRules] = useState([]);
 
-  // DEBUGGING
-  useEffect(() => {
-    console.log("Initial Import:", initialPendingCertificates);
-    console.log("Current Pending State:", pendingCertificates);
-  }, [pendingCertificates]);
 
-  // TODO: API INTEGRATION - Fetch initial data
+
+  // Fetch initial data
   useEffect(() => {
-    // const fetchData = async () => {
-    //   const [templatesRes, certsRes, pendingRes, settingsRes] = await Promise.all([
-    //     fetch('/api/templates'),
-    //     fetch('/api/certificates'),
-    //     fetch('/api/certificates/pending'),
-    //     fetch('/api/settings')
-    //   ]);
-    //   setTemplates(await templatesRes.json());
-    //   ...
-    // };
-    // fetchData();
+    const fetchCertificates = async () => {
+      try {
+        const certs = await certificateService.getAllCertificates();
+        setCertificates(certs || []);
+      } catch (error) {
+        console.error("Error fetching certificates:", error);
+        toast.error("Failed to fetch certificates");
+      }
+    };
+    fetchCertificates();
   }, []);
 
   // editor state
@@ -101,7 +100,7 @@ const CertificateModule = () => {
     return `CERT-${year}-${code}-${Math.floor(1000 + Math.random() * 9000)}`;
   };
 
-  const handleIssueCertificate = (data) => {
+  const handleIssueCertificate = async (data) => {
     if (!data.recipientName) {
       toast.error("Recipient name is required");
       return;
@@ -116,23 +115,25 @@ const CertificateModule = () => {
       return;
     }
 
-    const certId = generateCertificateId(data.courseName, data.date);
+    try {
+      const resp = await certificateService.manualGenerate({
+        userId: 1, // DUMMY USER ID - MUST BE REPLACED WITH REAL SELECTION LATER
+        targetType: "COURSE", // Assume COURSE for manual issue right now
+        targetId: 1, // DUMMY TARGET ID
+        studentName: data.recipientName,
+        studentEmail: "student@example.com", // DUMMY EMAIL
+        eventTitle: data.courseName || "General Event",
+        score: 100
+      });
 
-    // TODO: API INTEGRATION - POST /api/certificates/issue
-    // await axios.post('/api/certificates/issue', { ...data, templateId: template.id });
+      setCertificates((prev) => [resp, ...prev]);
 
-    setCertificates((prev) => [
-      {
-        id: Date.now(),
-        template,
-        data: { ...data, certificateId: certId },
-        issuedAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
-
-    toast.success(`Certificate ${certId} issued`);
-    setActiveTab("history");
+      toast.success(`Certificate issued successfully`);
+      setActiveTab("history");
+    } catch (error) {
+      console.error("Error issuing certificate:", error);
+      toast.error("Failed to issue certificate");
+    }
   };
 
   const handleApprove = (cert) => {
@@ -278,30 +279,50 @@ const CertificateModule = () => {
 
   // ------------------ UI ------------------
   return (
-    <div className="container-fluid min-vh-100 bg-light py-4">
+    <div className="container-fluid bg-light min-vh-100">
       <ToastContainer position="top-right" autoClose={3000} />
 
-      <div className="container">
-        <h2 className="fw-bold mb-4">
-          <FaLayerGroup /> Certificate Management
-        </h2>
+      <div className="container py-4">
 
-        <div className="bg-white p-2 rounded-pill mb-4 d-flex gap-2 overflow-auto">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              className={`btn rounded-pill ${activeTab === tab.id
-                ? "btn-primary"
-                : "btn-outline-secondary"
-                }`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              <tab.icon className="me-1" />
-              {tab.label}
-            </button>
-          ))}
+        {/* Page Header */}
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h4 className="fw-bold mb-0">
+              <FaLayerGroup className="me-2 text-primary" />
+              Certificate Management
+            </h4>
+            <small className="text-muted">Manage, issue, and track all certificates</small>
+          </div>
+          <button
+            className="btn btn-primary"
+            onClick={() => setActiveTab("issue")}
+          >
+            <FaUserEdit className="me-2" /> Issue Certificate
+          </button>
         </div>
 
+        {/* Nav Tabs */}
+        <div className="card border-0 shadow-sm mb-4">
+          <div className="card-body p-2">
+            <ul className="nav nav-pills gap-1 flex-wrap" role="tablist">
+              {TABS.map((tab) => (
+                <li key={tab.id} className="nav-item" role="presentation">
+                  <button
+                    className={`nav-link d-flex align-items-center gap-2 ${activeTab === tab.id ? "active" : "text-muted"
+                      }`}
+                    onClick={() => setActiveTab(tab.id)}
+                    type="button"
+                  >
+                    <tab.icon size={14} />
+                    {tab.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* Tab Content */}
         {renderContent()}
       </div>
 

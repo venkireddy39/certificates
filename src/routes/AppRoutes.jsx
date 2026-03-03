@@ -65,6 +65,7 @@ const StudentHelpDesk = lazy(() => import('../pages/Student/HelpDesk/StudentHelp
 const AutomationDashboard = lazy(() => import('../pages/Automation/AutomationDashboard'));
 const StudentFeePage = lazy(() => import('../pages/Student/Fee/StudentFeePage'));
 const ParentFeePage = lazy(() => import('../pages/Parent/Fee/ParentFeePage'));
+const PayPage = lazy(() => import('../pages/Pay/PayPage'));
 
 const RootRedirect = () => {
   const { user, loading } = useAuth();
@@ -93,6 +94,7 @@ const AppRoutes = () => {
         {/* ================= PUBLIC ROUTES ================= */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<RootRedirect />} />
+        <Route path="/pay/:orderId" element={<PayPage />} />
         <Route path="/course-overview/:id" element={<CourseOverview />} />
         <Route path="/share/:shareCode" element={<CourseOverview />} />
         <Route path="/affiliate/join" element={<AffiliateRegister />} />

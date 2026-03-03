@@ -8,14 +8,14 @@ const History = ({ certificates, onView, onDelete, onEdit }) => {
     const [filterType, setFilterType] = useState("All");
 
     const handleShare = (cert) => {
-        const link = `${window.location.origin}/verify/${cert.data.certificateId}`;
+        const link = `${window.location.origin}/verify/${cert.certificateId}`;
         navigator.clipboard.writeText(link);
         toast.success("Link Copied!");
     };
 
     const filteredCertificates = certificates.filter(cert =>
-        (cert.data.recipientName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (cert.data.certificateId || "").toLowerCase().includes(searchTerm.toLowerCase())
+        (cert.studentName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (cert.certificateId || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     // Helper to find student photo if it exists in elements (looking for image type with specific criteria or just first image)
@@ -30,7 +30,7 @@ const History = ({ certificates, onView, onDelete, onEdit }) => {
     };
 
     const getSignature = (cert) => {
-        return cert.data.signatureImage || "https://via.placeholder.com/80x40?text=Sign";
+        return cert.signatureImage || "https://via.placeholder.com/80x40?text=Sign";
     };
 
     return (
@@ -107,27 +107,27 @@ const History = ({ certificates, onView, onDelete, onEdit }) => {
                                         </td>
 
                                         {/* Name */}
-                                        <td className="text-start fw-bold text-dark">{cert.data.recipientName}</td>
+                                        <td className="text-start fw-bold text-dark">{cert.studentName}</td>
 
                                         {/* Cert No */}
-                                        <td className="font-monospace text-primary">{cert.data.certificateId}</td>
+                                        <td className="font-monospace text-primary">{cert.certificateId}</td>
 
                                         {/* Course */}
                                         <td>
-                                            <span className="small">{cert.data.courseName}</span>
+                                            <span className="small">{cert.eventTitle}</span>
                                         </td>
 
                                         {/* Duration (Mocked) */}
-                                        <td>{cert.data.duration || "6 Months"}</td>
+                                        <td>{cert.duration || "6 Months"}</td>
 
                                         {/* Grade (Mocked) */}
-                                        <td><span className="fw-bold">{cert.data.grade || "A+"}</span></td>
+                                        <td><span className="fw-bold">{cert.score ? cert.score : "A+"}</span></td>
 
                                         {/* Year */}
-                                        <td>{new Date(cert.issuedAt).getFullYear()}</td>
+                                        <td>{new Date(cert.issuedDate || cert.createdAt).getFullYear()}</td>
 
                                         {/* Date */}
-                                        <td className="small text-muted">{new Date(cert.issuedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}<br /><span style={{ fontSize: '0.7rem' }}>{new Date(cert.issuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></td>
+                                        <td className="small text-muted">{new Date(cert.issuedDate || cert.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}<br /><span style={{ fontSize: '0.7rem' }}>{new Date(cert.issuedDate || cert.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></td>
 
                                         {/* Print */}
                                         <td>

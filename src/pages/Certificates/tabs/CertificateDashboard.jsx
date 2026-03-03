@@ -9,13 +9,14 @@ import {
 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const CertificateDashboard = ({ certificates, templates, onNavigate }) => {
+const CertificateDashboard = ({ certificates = [], templates = [], onNavigate }) => {
     // 1. Calculate Stats
     const totalIssued = certificates.length;
     const totalTemplates = templates.length;
 
     const issuedThisMonth = certificates.filter(c => {
-        const d = new Date(c.issuedAt);
+        if (!c) return false;
+        const d = new Date(c.issuedDate || c.createdAt);
         const now = new Date();
         return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
@@ -23,14 +24,17 @@ const CertificateDashboard = ({ certificates, templates, onNavigate }) => {
     // Get most recent certificate
     const recentCert = certificates.length > 0 ? certificates[0] : null;
 
-    // Group by Course (Simple aggregation)
+    // Group by Course (Simple aggregation) - null safe
     const courseStats = certificates.reduce((acc, curr) => {
-        const course = curr.data.courseName || "Unknown";
+        if (!curr) return acc;
+        const course = curr.eventTitle || "Unknown";
         acc[course] = (acc[course] || 0) + 1;
         return acc;
     }, {});
 
-    const topCourse = Object.keys(courseStats).reduce((a, b) => courseStats[a] > courseStats[b] ? a : b, "N/A");
+    const topCourse = Object.keys(courseStats).length > 0
+        ? Object.keys(courseStats).reduce((a, b) => courseStats[a] > courseStats[b] ? a : b)
+        : "N/A";
 
     // Prepare Pie Chart Data
     const pieData = Object.keys(courseStats).map(key => ({
@@ -40,27 +44,27 @@ const CertificateDashboard = ({ certificates, templates, onNavigate }) => {
 
     const COLORS = ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6610f2'];
 
-    // Stats Card Component (Matches Dashboard.jsx)
+    // Stats Card Component
     const StatsCard = ({ title, value, icon: Icon, trend, color, subValue }) => (
-        <div className="card border-0 shadow-sm h-100 stats-card">
-            <div className="card-body">
-                <div className="d-flex justify-content-between align-items-start mb-3">
+        <div className={`card border-0 shadow-sm h-100 border-start border-${color} border-4`}>
+            <div className="card-body py-3 px-4">
+                <div className="d-flex justify-content-between align-items-center">
                     <div>
-                        <p className="text-muted small text-uppercase fw-bold mb-1">{title}</p>
-                        <h2 className="mb-0 fw-bold">{value}</h2>
+                        <p className="text-muted small text-uppercase fw-semibold mb-1">{title}</p>
+                        <h3 className="fw-bold mb-1">{value}</h3>
+                        <div className="d-flex align-items-center">
+                            {trend !== undefined && (
+                                <span className={`badge bg-${trend > 0 ? 'success' : 'danger'}-subtle text-${trend > 0 ? 'success' : 'danger'} me-2 small`}>
+                                    {trend > 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                                    {Math.abs(trend)}%
+                                </span>
+                            )}
+                            <span className="text-muted" style={{ fontSize: '0.78rem' }}>{subValue}</span>
+                        </div>
                     </div>
-                    <div className={`p-2 rounded-3 bg-${color}-subtle`}>
-                        <Icon className={`text-${color}`} size={24} />
+                    <div className={`p-3 rounded-3 bg-${color}-subtle`}>
+                        <Icon className={`text-${color}`} size={26} />
                     </div>
-                </div>
-                <div className="d-flex align-items-center">
-                    {trend !== undefined && (
-                        <span className={`badge bg-${trend > 0 ? 'success' : 'danger'}-subtle text-${trend > 0 ? 'success' : 'danger'} me-2`}>
-                            {trend > 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                            {Math.abs(trend)}%
-                        </span>
-                    )}
-                    <span className="text-muted small">{subValue}</span>
                 </div>
             </div>
         </div>
@@ -139,14 +143,14 @@ const CertificateDashboard = ({ certificates, templates, onNavigate }) => {
                                                 <td className="ps-4 fw-medium">
                                                     <div className="d-flex align-items-center">
                                                         <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style={{ width: 32, height: 32, fontSize: 12 }}>
-                                                            {cert.data.recipientName.charAt(0)}
+                                                            {cert.studentName ? cert.studentName.charAt(0) : '?'}
                                                         </div>
-                                                        {cert.data.recipientName}
+                                                        {cert.studentName}
                                                     </div>
                                                 </td>
-                                                <td className="small text-muted">{cert.data.courseName}</td>
-                                                <td className="small text-muted">{new Date(cert.issuedAt).toLocaleDateString()}</td>
-                                                <td><span className="badge bg-success bg-opacity-10 text-success rounded-pill px-3">Issued</span></td>
+                                                <td className="small text-muted">{cert.eventTitle}</td>
+                                                <td className="small text-muted">{new Date(cert.issuedDate || cert.createdAt).toLocaleDateString()}</td>
+                                                <td><span className="badge bg-success bg-opacity-10 text-success rounded-pill px-3">{cert.status || 'Issued'}</span></td>
                                             </tr>
                                         ))}
                                         {certificates.length === 0 && (

@@ -1,5 +1,6 @@
-import React from 'react';
-import { FiTrash2, FiPlus, FiDivideCircle } from 'react-icons/fi';
+import React, { useState } from 'react';
+import { FiTrash2, FiPlus, FiDivideCircle, FiLink } from 'react-icons/fi';
+import { apiFetch } from '../../../services/api';
 
 export default function InstallmentTable({
     installments,
@@ -53,6 +54,7 @@ export default function InstallmentTable({
                             {!isEditMode && <th className="px-4 py-3">Fine/Penalty</th>}
                             {!isEditMode && <th className="px-4 py-3">Balance</th>}
                             {!isEditMode && <th className="px-4 py-3">Status</th>}
+                            {!isEditMode && <th className="px-4 py-3">Action</th>}
                             {isEditMode && <th className="px-4 py-3 text-end">Actions</th>}
                         </tr>
                     </thead>
@@ -125,6 +127,9 @@ export default function InstallmentTable({
                                             <td className="px-4 py-3">
                                                 <InstallmentStatusBadge status={inst.status} dueDate={inst.dueDate} remainingAmount={inst.remainingAmount || (inst.amount - (inst.paidAmount || 0))} />
                                             </td>
+                                            <td className="px-4 py-3">
+                                                <GenerateLinkButton installmentId={inst.id} status={inst.status} />
+                                            </td>
                                         </>
                                     )}
 
@@ -147,6 +152,58 @@ export default function InstallmentTable({
                     </tbody>
                 </table>
             </div>
+        </div>
+    );
+}
+
+// ─── Generate Link Button ─────────────────────────────────────────────────────
+function GenerateLinkButton({ installmentId, status }) {
+    const [loading, setLoading] = useState(false);
+    const [msg, setMsg] = useState(null); // { type: 'success'|'error', text }
+
+    const canGenerate = status === 'PENDING' || status === 'LOCKED_FOR_EARLY_PAYMENT';
+
+    if (!canGenerate) return null;
+    if (status === 'LOCKED_FOR_EARLY_PAYMENT') {
+        return <span className="badge bg-warning text-dark">Locked (Early Pay)</span>;
+    }
+
+    const handleGenerate = async () => {
+        setLoading(true);
+        setMsg(null);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`/api/admin/installment/${installmentId}/generate-link`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed');
+            setMsg({ type: 'success', text: '✅ Link sent to student via email!' });
+        } catch (e) {
+            setMsg({ type: 'error', text: '❌ ' + e.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div>
+            <button
+                className="btn btn-outline-primary btn-sm d-flex align-items-center gap-1"
+                onClick={handleGenerate}
+                disabled={loading}
+            >
+                {loading
+                    ? <span className="spinner-border spinner-border-sm" role="status" />
+                    : <FiLink size={13} />}
+                {loading ? 'Sending...' : 'Send Link'}
+            </button>
+            {msg && (
+                <small className={`d-block mt-1 ${msg.type === 'success' ? 'text-success' : 'text-danger'}`}>
+                    {msg.text}
+                </small>
+            )}
         </div>
     );
 }

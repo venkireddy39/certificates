@@ -6,11 +6,12 @@ import InstallmentTable from '../components/InstallmentTable';
 import PaymentForm from '../components/PaymentForm';
 import FeePayments from '../../../pages/FeeManagement/FeePayments';
 import FeeAuditLogs from '../../../pages/FeeManagement/FeeAuditLogs';
+import FeeSettingsPage from './FeeSettingsPage';
 import { feeApi } from '../api/feeApi';
 import {
     Settings, Users, CreditCard, Activity, Search,
     RefreshCw, ChevronRight, Tag, Layers, Eye,
-    IndianRupee, TrendingUp, ArrowUpRight, FileText
+    IndianRupee, TrendingUp, ArrowUpRight, FileText, SlidersHorizontal
 } from 'lucide-react';
 
 /* ══════════════════════════════════════════════════════════
@@ -216,6 +217,7 @@ const TABS = [
     { id: 'ledger', label: 'Student Ledgers', icon: Users },
     { id: 'payments', label: 'Payment History', icon: CreditCard },
     { id: 'audit', label: 'Audit Log', icon: Activity },
+    { id: 'settings', label: 'Settings', icon: SlidersHorizontal },
 ];
 
 export default function FeeManagementDashboard() {
@@ -463,6 +465,13 @@ export default function FeeManagementDashboard() {
                     {activeTab === 'audit' && (
                         <div className="fmd-anim">
                             <FeeAuditLogs />
+                        </div>
+                    )}
+
+                    {/* Settings Tab */}
+                    {activeTab === 'settings' && (
+                        <div className="fmd-anim">
+                            <FeeSettingsPage />
                         </div>
                     )}
                 </div>
