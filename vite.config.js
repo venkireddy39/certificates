@@ -3,6 +3,19 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-bootstrap', 'bootstrap', 'react-router-dom', 'axios', 'react-toastify'],
+          pdfutils: ['html2canvas', 'jspdf'],
+          charts: ['recharts'],
+          icons: ['react-icons', 'lucide-react']
+        }
+      }
+    }
+  },
   server: {
     port: 5173,
     host: true,

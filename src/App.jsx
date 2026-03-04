@@ -1,18 +1,11 @@
-import "./App.css"
-import AppRoutes from "./routes/AppRoutes"
-import useAffiliateTracker from "./hooks/useAffiliateTracker"
-import { AuthProvider } from "./pages/Library/context/AuthContext"
-import { ToastProvider } from "./pages/Library/context/ToastContext"
+import React from "react";
+import AppRoutes from "./routes/AppRoutes";
+import "./App.css";
 
 function App() {
-  useAffiliateTracker();
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <AppRoutes />
-      </ToastProvider>
-    </AuthProvider>
-  )
+    <AppRoutes />
+  );
 }
 
-export default App
+export default App;

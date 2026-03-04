@@ -1,5 +1,4 @@
 import axios from "axios";
-import { AUTH_TOKEN_KEY } from "./auth.constants";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -14,27 +13,15 @@ const api = axios.create({
 // Request Interceptor
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem(AUTH_TOKEN_KEY);
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
+        // Use token from env (VITE_DEV_AUTH_TOKEN in .env.local) or from localStorage
+        const envToken = import.meta.env.VITE_DEV_AUTH_TOKEN;
+        const token = localStorage.getItem('auth_token') || envToken;
 
-        const savedUser = localStorage.getItem('auth_user');
-        if (savedUser) {
-            try {
-                const parsed = JSON.parse(savedUser);
-                const tenant = parsed.tenant || parsed.tenantDb;
-                if (tenant) {
-                    config.headers["X-Tenant-DB"] = tenant;
-                }
-            } catch (e) {
-                // Ignore parse errors
-            }
+        if (token) {
+            config.headers.Authorization = `Bearer ${token.trim()}`;
         }
 
         // --- CRITICAL FIX FOR MULTIPART FORM DATA ---
-        // Axios merges default headers with request headers. 
-        // If we don't delete it here, the default "application/json" destroys the browser boundary.
         if (config.data instanceof FormData) {
             delete config.headers["Content-Type"];
         }
@@ -51,12 +38,11 @@ api.interceptors.response.use(
         const { response } = error;
         if (response) {
             if (response.status === 401) {
-                console.warn("API 401: Session expired.");
+                console.warn("API 401: Session expired or unauthorized.");
             }
 
             let errorMsg = "An error occurred";
             if (response.data) {
-                // Handle different error structures from backend
                 if (typeof response.data === 'string') {
                     errorMsg = response.data;
                 } else {
@@ -84,10 +70,8 @@ export async function apiFetch(url, options = {}) {
         }
     }
 
-    // Important: if sending FormData, do NOT stringify and do NOT use application/json
     let reqHeaders = { ...options.headers };
     if (data instanceof FormData) {
-        // Remove Application/JSON explicitly so Axios generates the boundary
         delete reqHeaders['Content-Type'];
     }
 
@@ -103,21 +87,6 @@ export async function apiFetch(url, options = {}) {
     } catch (error) {
         throw error;
     }
-}
-
-/**
- * Utility to construct full URL path for fee-management API
- */
-export function getUrl(path) {
-    if (path.startsWith('http')) return path;
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
-
-    // Check if the path is explicitly for payment gateway or fee management
-    if (cleanPath.startsWith('/payment-gateway')) {
-        return `/api${cleanPath}`;
-    }
-
-    return `/api/fee-management${cleanPath}`;
 }
 
 export default api;
