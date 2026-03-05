@@ -73,9 +73,9 @@ const CertificateDashboard = ({ certificates = [], templates = [], onNavigate })
     return (
         <div className="animate-fade-in text-start"> {/* text-start ensures left alignment like admin panels usually are */}
 
-            {/* Stats Cards Row */}
-            <div className="row g-4 mb-5">
-                <div className="col-xl-3 col-md-6">
+            {/* Dashboard Stats Grid */}
+            <div className="row g-3 g-lg-4 mb-4">
+                <div className="col-xl-3 col-md-6 col-sm-6">
                     <StatsCard
                         title="Total Issued"
                         value={totalIssued}
@@ -86,7 +86,7 @@ const CertificateDashboard = ({ certificates = [], templates = [], onNavigate })
                     />
                 </div>
 
-                <div className="col-xl-3 col-md-6">
+                <div className="col-xl-3 col-md-6 col-sm-6">
                     <StatsCard
                         title="Issued This Month"
                         value={issuedThisMonth}
@@ -97,7 +97,7 @@ const CertificateDashboard = ({ certificates = [], templates = [], onNavigate })
                     />
                 </div>
 
-                <div className="col-xl-3 col-md-6">
+                <div className="col-xl-3 col-md-6 col-sm-6">
                     <StatsCard
                         title="Top Course"
                         value={topCourse}
@@ -107,7 +107,7 @@ const CertificateDashboard = ({ certificates = [], templates = [], onNavigate })
                     />
                 </div>
 
-                <div className="col-xl-3 col-md-6">
+                <div className="col-xl-3 col-md-6 col-sm-6">
                     <StatsCard
                         title="Templates"
                         value={totalTemplates}

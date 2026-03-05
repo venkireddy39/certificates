@@ -15,23 +15,24 @@ const History = ({ certificates, onView, onDelete, onEdit }) => {
 
     const filteredCertificates = certificates.filter(cert =>
         (cert.studentName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (cert.certificateId || "").toLowerCase().includes(searchTerm.toLowerCase())
+        (cert.certificateId || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(cert.userId || "").includes(searchTerm)
     );
 
 
     return (
-        <div className="card border-0 shadow-sm rounded-4 animate-fade-in bg-white">
+        <div className="card border-0 shadow-sm rounded-4 animate-fade-in bg-white cert-history-table">
             {/* Header / Toolbar */}
             <div className="card-header bg-white border-bottom pt-4 px-4 pb-3">
-                <div className="row g-3 align-items-center justify-content-between">
-                    <div className="col-md-4">
+                <div className="row g-3 align-items-center">
+                    <div className="col-lg-4 col-md-5">
                         <select className="form-select bg-light border-0" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
                             <option value="All">All Certificates</option>
                             <option value="Course">By Course</option>
                             <option value="Department">By Department</option>
                         </select>
                     </div>
-                    <div className="col-md-8 d-flex justify-content-end gap-3 align-items-center">
+                    <div className="col-lg-8 col-md-7 d-flex flex-column flex-sm-row justify-content-md-end gap-3 align-items-sm-center">
                         <div className="d-flex align-items-center gap-2">
                             <span className="small text-muted text-nowrap">Show</span>
                             <select className="form-select form-select-sm" style={{ width: '70px' }} value={entriesCount} onChange={(e) => setEntriesCount(e.target.value)}>
@@ -41,7 +42,7 @@ const History = ({ certificates, onView, onDelete, onEdit }) => {
                             </select>
                             <span className="small text-muted text-nowrap">entries</span>
                         </div>
-                        <div className="input-group" style={{ maxWidth: '250px' }}>
+                        <div className="input-group" style={{ maxWidth: '100%' }}>
                             <span className="input-group-text bg-light border-end-0"><FaSearch className="text-muted" /></span>
                             <input
                                 type="text"
@@ -61,6 +62,7 @@ const History = ({ certificates, onView, onDelete, onEdit }) => {
                         <thead className="bg-light text-dark fw-bold border-bottom">
                             <tr>
                                 <th className="py-3 text-start">Student Name</th>
+                                <th className="py-3">Student ID</th>
                                 <th className="py-3">Course Name</th>
                                 <th className="py-3">Certificate Number</th>
                                 <th className="py-3">Issue Date</th>
@@ -71,12 +73,17 @@ const History = ({ certificates, onView, onDelete, onEdit }) => {
                         <tbody>
                             {filteredCertificates.length === 0 ? (
                                 <tr>
-                                    <td colSpan="12" className="text-center py-5 text-muted">No records found.</td>
+                                    <td colSpan="7" className="text-center py-5 text-muted">No records found.</td>
                                 </tr>
                             ) : (
                                 filteredCertificates.map((cert) => (
                                     <tr key={cert.id}>
                                         <td className="text-start fw-bold text-dark">{cert.studentName || cert.recipientName || 'N/A'}</td>
+                                        <td>
+                                            {cert.userId
+                                                ? <span className="badge bg-secondary-subtle text-secondary fw-semibold"># {cert.userId}</span>
+                                                : <span className="text-muted small">—</span>}
+                                        </td>
                                         <td><span className="small">{cert.eventTitle || cert.courseName || 'N/A'}</span></td>
                                         <td className="font-monospace text-primary">{cert.certificateId || 'N/A'}</td>
                                         <td className="small text-muted">{new Date(cert.issuedDate || cert.createdAt || new Date()).toLocaleDateString('en-GB')}</td>

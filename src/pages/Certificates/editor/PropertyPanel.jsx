@@ -9,7 +9,7 @@ import {
     FaAlignCenter,
     FaAlignRight
 } from 'react-icons/fa';
-
+import { compressImage } from '../../../utils/imageUtils';
 const PropertyPanel = ({
     selectedEl,
     updateElement,
@@ -25,7 +25,6 @@ const PropertyPanel = ({
             </div>
         );
     }
-
     return (
         <div className="card p-3">
             <h6 className="fw-bold mb-3">Edit Element</h6>
@@ -36,8 +35,8 @@ const PropertyPanel = ({
                     <input
                         type="number"
                         className="form-control form-control-sm"
-                        value={Math.round(selectedEl.x)}
-                        onChange={(e) => updateElement(selectedEl.id, "x", parseInt(e.target.value))}
+                        value={Math.round(selectedEl.x) || 0}
+                        onChange={(e) => updateElement(selectedEl.id, "x", parseInt(e.target.value, 10) || 0)}
                     />
                 </div>
                 <div className="col-6">
@@ -45,8 +44,8 @@ const PropertyPanel = ({
                     <input
                         type="number"
                         className="form-control form-control-sm"
-                        value={Math.round(selectedEl.y)}
-                        onChange={(e) => updateElement(selectedEl.id, "y", parseInt(e.target.value))}
+                        value={Math.round(selectedEl.y) || 0}
+                        onChange={(e) => updateElement(selectedEl.id, "y", parseInt(e.target.value, 10) || 0)}
                     />
                 </div>
                 <div className="col-6">
@@ -54,8 +53,8 @@ const PropertyPanel = ({
                     <input
                         type="number"
                         className="form-control form-control-sm"
-                        value={Math.round(selectedEl.w)}
-                        onChange={(e) => updateElement(selectedEl.id, "w", parseInt(e.target.value))}
+                        value={Math.round(selectedEl.w) || 0}
+                        onChange={(e) => updateElement(selectedEl.id, "w", parseInt(e.target.value, 10) || 0)}
                     />
                 </div>
                 {selectedEl.h !== undefined && (
@@ -64,8 +63,8 @@ const PropertyPanel = ({
                         <input
                             type="number"
                             className="form-control form-control-sm"
-                            value={Math.round(selectedEl.h)}
-                            onChange={(e) => updateElement(selectedEl.id, "h", parseInt(e.target.value))}
+                            value={Math.round(selectedEl.h) || 0}
+                            onChange={(e) => updateElement(selectedEl.id, "h", parseInt(e.target.value, 10) || 0)}
                         />
                     </div>
                 )}
@@ -87,7 +86,7 @@ const PropertyPanel = ({
                         type="number"
                         className="form-control mb-2"
                         value={parseInt(selectedEl.style?.fontSize) || 20}
-                        onChange={(e) => updateStyle(selectedEl.id, "fontSize", `${e.target.value}px`)}
+                        onChange={(e) => updateStyle(selectedEl.id, "fontSize", `${e.target.value || 0}px`)}
                     />
 
                     <label className="form-label small fw-bold">Color</label>
@@ -142,11 +141,18 @@ const PropertyPanel = ({
                         onChange={(e) => {
                             const file = e.target.files[0];
                             if (file) {
-                                const reader = new FileReader();
-                                reader.onload = (ev) => updateElement(selectedEl.id, "src", ev.target.result);
-                                reader.readAsDataURL(file);
+                                compressImage(file, (dataUrl) => {
+                                    updateElement(selectedEl.id, "src", dataUrl);
+                                });
                             }
                         }}
+                    />
+                    <input
+                        type="text"
+                        className="form-control mb-2"
+                        placeholder="Or External URL..."
+                        value={selectedEl.src?.startsWith('data:') ? '' : (selectedEl.src || '')}
+                        onChange={(e) => updateElement(selectedEl.id, "src", e.target.value)}
                     />
                     <label className="form-label small fw-bold">Opacity</label>
                     <input

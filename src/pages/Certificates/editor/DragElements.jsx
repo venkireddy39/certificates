@@ -1,5 +1,6 @@
 import React from 'react';
 import { FaFont, FaImage, FaSignature, FaStamp } from 'react-icons/fa';
+import { compressImage } from '../../../utils/imageUtils';
 
 const DragElements = ({
     editingTemplate,
@@ -22,6 +23,17 @@ const DragElements = ({
                 />
 
                 <div className="mb-2">
+                    <label className="form-label small fw-bold">Footer Text</label>
+                    <textarea
+                        className="form-control"
+                        rows={2}
+                        value={editingTemplate?.footerText || ''}
+                        onChange={e => setEditingTemplate({ ...editingTemplate, footerText: e.target.value })}
+                        placeholder="e.g. Issued by LMS Academy | www.lms.com"
+                    />
+                </div>
+
+                <div className="mb-2">
                     <label className="form-label small fw-bold">Orientation</label>
                     <div className="btn-group w-100">
                         <button
@@ -39,10 +51,73 @@ const DragElements = ({
                     </div>
                 </div>
                 <div className="mb-2">
+                    <label className="form-label small fw-bold">Logo Image</label>
+                    <input type="file" className="form-control form-control-sm mb-1" accept="image/*" onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            compressImage(file, (dataUrl) => {
+                                setEditingTemplate({ ...editingTemplate, logoUrl: dataUrl });
+                            });
+                        }
+                    }} />
+                    <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="Or External URL..."
+                        value={editingTemplate?.logoUrl?.startsWith('data:') ? '' : (editingTemplate?.logoUrl || '')}
+                        onChange={(e) => setEditingTemplate({ ...editingTemplate, logoUrl: e.target.value })}
+                    />
+                    {editingTemplate?.logoUrl && (
+                        <button className="btn btn-sm btn-outline-danger w-100 mt-1" onClick={() => setEditingTemplate({ ...editingTemplate, logoUrl: '' })}>
+                            Remove Logo
+                        </button>
+                    )}
+                </div>
+
+                <div className="mb-2">
+                    <label className="form-label small fw-bold">Signature Image</label>
+                    <input type="file" className="form-control form-control-sm mb-1" accept="image/*" onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            compressImage(file, (dataUrl) => {
+                                setEditingTemplate({ ...editingTemplate, signatureUrl: dataUrl });
+                            });
+                        }
+                    }} />
+                    <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="Or External URL..."
+                        value={editingTemplate?.signatureUrl?.startsWith('data:') ? '' : (editingTemplate?.signatureUrl || '')}
+                        onChange={(e) => setEditingTemplate({ ...editingTemplate, signatureUrl: e.target.value })}
+                    />
+                    {editingTemplate?.signatureUrl && (
+                        <button className="btn btn-sm btn-outline-danger w-100 mt-1" onClick={() => setEditingTemplate({ ...editingTemplate, signatureUrl: '' })}>
+                            Remove Signature
+                        </button>
+                    )}
+                </div>
+
+                <div className="mb-2">
                     <label className="form-label small fw-bold">Background Image</label>
-                    <input type="file" className="form-control mb-1" accept="image/*" onChange={handleBgUpload} />
+                    <input type="file" className="form-control form-control-sm mb-1" accept="image/*" onChange={handleBgUpload} />
+                    <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="Or External URL..."
+                        value={editingTemplate?.theme?.backgroundImage?.startsWith('data:') ? '' : (editingTemplate?.theme?.backgroundImage || '')}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setEditingTemplate(prev => ({
+                                ...prev,
+                                backgroundImageUrl: val,
+                                backgroundUrl: val,
+                                theme: { ...prev.theme, backgroundImage: val }
+                            }));
+                        }}
+                    />
                     {editingTemplate?.theme?.backgroundImage && (
-                        <button className="btn btn-sm btn-outline-danger w-100 mt-2" onClick={removeBackgroundImage}>
+                        <button className="btn btn-sm btn-outline-danger w-100 mt-1" onClick={removeBackgroundImage}>
                             Remove Background
                         </button>
                     )}
@@ -138,9 +213,9 @@ const DragElements = ({
                             onChange={(e) => {
                                 const file = e.target.files[0];
                                 if (file) {
-                                    const reader = new FileReader();
-                                    reader.onload = ev => updateTheme("watermark", { ...editingTemplate.theme.watermark, src: ev.target.result });
-                                    reader.readAsDataURL(file);
+                                    compressImage(file, (dataUrl) => {
+                                        updateTheme("watermark", { ...editingTemplate.theme.watermark, src: dataUrl });
+                                    });
                                 }
                             }}
                         />

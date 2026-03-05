@@ -3,6 +3,7 @@ import { FaCheck } from "react-icons/fa";
 import CertificateRenderer from "../renderer/CertificateRenderer";
 import DragElements from "./DragElements";
 import PropertyPanel from "./PropertyPanel";
+import { compressImage } from "../../../utils/imageUtils";
 
 const CanvasEditor = ({
     editingTemplate,
@@ -24,6 +25,8 @@ const CanvasEditor = ({
     const removeBackgroundImage = () => {
         setEditingTemplate(prev => ({
             ...prev,
+            backgroundUrl: "",
+            backgroundImageUrl: "",
             theme: {
                 ...prev.theme,
                 backgroundImage: ""
@@ -35,10 +38,17 @@ const CanvasEditor = ({
         const file = e.target.files[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = ev => updateTheme("backgroundImage", ev.target.result);
-        reader.readAsDataURL(file);
-
+        compressImage(file, (dataUrl) => {
+            setEditingTemplate(prev => ({
+                ...prev,
+                backgroundImageUrl: dataUrl,
+                backgroundUrl: dataUrl,
+                theme: {
+                    ...prev.theme,
+                    backgroundImage: dataUrl
+                }
+            }));
+        });
         e.target.value = "";
     };
 
@@ -152,8 +162,10 @@ const CanvasEditor = ({
                 <CertificateRenderer
                     template={editingTemplate}
                     data={{
+                        recipientName: "John Doe",
                         studentName: "John Doe",
                         courseName: "React Mastery",
+                        date: new Date().toLocaleDateString('en-GB'),
                         issueDate: new Date().toLocaleDateString('en-GB'),
                         certificateId: "CERT-2026-001",
                         instituteName: settings?.instituteName || "LMS Academy",

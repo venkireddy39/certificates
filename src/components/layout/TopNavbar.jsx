@@ -12,7 +12,7 @@ const TopNavbar = () => {
                 <div className="nav-left">
                     <div className="navbar-brand" onClick={() => navigate('/admin/certificates')} style={{ cursor: 'pointer' }}>
                         <Layers size={28} className="brand-icon" />
-                        <span className="brand-name">LMS Certificates</span>
+                        <span className="brand-name d-none d-sm-inline">LMS Certificates</span>
                     </div>
                 </div>
 

@@ -21,15 +21,31 @@ const CertificateRenderer = ({
 }) => {
   if (!template) return null;
 
-  const { page, theme, elements } = template;
+  // Support both flat template objects AND objects where design is a sub-property
+  const designData = template.design || template || {};
+  const { page = {}, theme = {}, elements = [] } = designData;
+
+  const cleanVal = (val) => (typeof val === 'string' && val !== "null" && val.trim() !== "") ? val : undefined;
+
+  // Mix in top-level template properties into the theme for convenience
+  const effectiveTheme = {
+    ...theme,
+    backgroundImage: cleanVal(template.backgroundUrl) || cleanVal(template.backgroundImageUrl) || cleanVal(theme.backgroundImage),
+    logoUrl: cleanVal(template.logoUrl) || cleanVal(theme.logoUrl),
+    signatureUrl: cleanVal(template.signatureUrl) || cleanVal(theme.signatureUrl)
+  };
+
   const containerRef = useRef(null);
   const [scale, setScale] = useState(1);
 
+  // Use page dimensions from design if available, otherwise from PAGE_SIZE
   const pageDef =
-    PAGE_SIZE[page?.type]?.[page?.orientation] ||
-    PAGE_SIZE.A4.landscape;
+    (page.width && page.height) ? { w: page.width, h: page.height } :
+      PAGE_SIZE[page?.type]?.[page?.orientation] ||
+      PAGE_SIZE.A4.landscape;
 
-  const { w, h } = pageDef;
+  const { w = 1000, h = 707 } = pageDef;
+
 
   // ---- SCALE HANDLING ----
   useEffect(() => {
@@ -41,7 +57,7 @@ const CertificateRenderer = ({
     const resize = () => {
       if (!containerRef.current) return;
       const width = containerRef.current.clientWidth;
-      if (width > 0) {
+      if (width > 0 && w > 0) {
         setScale(width / w);
       }
     };
@@ -129,18 +145,18 @@ const CertificateRenderer = ({
           transform: `scale(${scale})`,
           transformOrigin: "top left",
           position: "relative",
-          backgroundColor: theme.backgroundImage ? "transparent" : "#fff",
-          backgroundImage: theme.backgroundImage
-            ? `url(${theme.backgroundImage})`
+          backgroundColor: effectiveTheme.backgroundImage ? "transparent" : "#fff",
+          backgroundImage: effectiveTheme.backgroundImage
+            ? `url("${effectiveTheme.backgroundImage}")`
             : "none",
           backgroundSize: "cover",
-          fontFamily: theme.fontFamily,
-          color: theme.textColor,
+          fontFamily: effectiveTheme.fontFamily,
+          color: effectiveTheme.textColor,
           boxShadow: "0 4px 6px rgba(0,0,0,.1)"
         }}
       >
         {/* WATERMARK LAYER */}
-        {theme.watermark && theme.watermark.type !== "none" && (
+        {effectiveTheme.watermark && effectiveTheme.watermark.type !== "none" && (
           <div
             style={{
               position: "absolute",
@@ -151,22 +167,22 @@ const CertificateRenderer = ({
             }}
           >
             {/* TEXT WATERMARK */}
-            {theme.watermark.type === "text" && (
-              theme.watermark.isRepeated ? (
+            {effectiveTheme.watermark.type === "text" && (
+              effectiveTheme.watermark.isRepeated ? (
                 <svg width="100%" height="100%">
                   <defs>
                     <pattern id="wm-pattern" x="0" y="0" width="300" height="300" patternUnits="userSpaceOnUse">
                       <text
                         x="150"
                         y="150"
-                        fill={theme.watermark.color || "rgba(0,0,0,0.1)"}
+                        fill={effectiveTheme.watermark.color || "rgba(0,0,0,0.1)"}
                         fontSize="24"
                         transform="rotate(-45, 150, 150)"
                         textAnchor="middle"
                         dominantBaseline="middle"
                         style={{ fontWeight: "bold" }}
                       >
-                        {theme.watermark.text || "WATERMARK"}
+                        {effectiveTheme.watermark.text || "WATERMARK"}
                       </text>
                     </pattern>
                   </defs>
@@ -176,31 +192,31 @@ const CertificateRenderer = ({
                 <div style={{
                   display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%",
                   transform: "rotate(-45deg)",
-                  color: theme.watermark.color || "rgba(0,0,0,0.1)",
+                  color: effectiveTheme.watermark.color || "rgba(0,0,0,0.1)",
                   fontSize: "80px", fontWeight: "bold"
                 }}>
-                  {theme.watermark.text || "WATERMARK"}
+                  {effectiveTheme.watermark.text || "WATERMARK"}
                 </div>
               )
             )}
 
             {/* IMAGE WATERMARK */}
-            {theme.watermark.type === "image" && theme.watermark.src && (
+            {effectiveTheme.watermark.type === "image" && effectiveTheme.watermark.src && (
               <div style={{
                 width: "100%",
                 height: "100%",
-                backgroundImage: `url(${theme.watermark.src})`,
-                backgroundRepeat: theme.watermark.isRepeated ? "repeat" : "no-repeat",
+                backgroundImage: `url("${effectiveTheme.watermark.src}")`,
+                backgroundRepeat: effectiveTheme.watermark.isRepeated ? "repeat" : "no-repeat",
                 backgroundPosition: "center",
-                backgroundSize: theme.watermark.isRepeated ? "200px" : "50%",
-                opacity: theme.watermark.opacity ?? 0.1
+                backgroundSize: effectiveTheme.watermark.isRepeated ? "200px" : "50%",
+                opacity: effectiveTheme.watermark.opacity ?? 0.1
               }} />
             )}
           </div>
         )}
 
         {/* BORDER LAYER */}
-        {theme.border && theme.border.type !== "none" && (
+        {effectiveTheme.border && effectiveTheme.border.type !== "none" && (
           <div
             style={{
               position: "absolute",
@@ -208,19 +224,57 @@ const CertificateRenderer = ({
               zIndex: 1,
               pointerEvents: "none",
               borderStyle:
-                theme.border.type === "modern" ? "double" :
-                  theme.border.type === "premium" ? "ridge" :
-                    theme.border.type === "dashed" ? "dashed" :
-                      theme.border.type === "dotted" ? "dotted" : "solid",
-              borderWidth: `${theme.border.width || 5}px`,
-              borderColor: theme.border.color || "#000",
-              borderRadius: `${theme.border.radius || 0}px`,
+                effectiveTheme.border.type === "modern" ? "double" :
+                  effectiveTheme.border.type === "premium" ? "ridge" :
+                    effectiveTheme.border.type === "dashed" ? "dashed" :
+                      effectiveTheme.border.type === "dotted" ? "dotted" : "solid",
+              borderWidth: `${effectiveTheme.border.width || 5}px`,
+              borderColor: effectiveTheme.border.color || "#000",
+              borderRadius: `${effectiveTheme.border.radius || 0}px`,
               boxSizing: "border-box"
             }}
           />
         )}
+
+        {/* FIXED LOGO LAYER */}
+        {effectiveTheme.logoUrl && (
+          <img
+            src={effectiveTheme.logoUrl}
+            alt="Logo"
+            style={{
+              position: "absolute",
+              top: "40px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              maxHeight: "100px",
+              maxWidth: "250px",
+              objectFit: "contain",
+              zIndex: 2,
+              pointerEvents: "none"
+            }}
+          />
+        )}
+
+        {/* FIXED SIGNATURE LAYER */}
+        {effectiveTheme.signatureUrl && (
+          <img
+            src={effectiveTheme.signatureUrl}
+            alt="Signature"
+            style={{
+              position: "absolute",
+              bottom: "60px",
+              right: "80px",
+              maxHeight: "80px",
+              maxWidth: "250px",
+              objectFit: "contain",
+              zIndex: 2,
+              pointerEvents: "none"
+            }}
+          />
+        )}
+
         {/* GRID OVERLAY */}
-        {theme.showGrid && (
+        {effectiveTheme.showGrid && (
           <div
             style={{
               position: "absolute",
@@ -237,7 +291,7 @@ const CertificateRenderer = ({
         )}
 
         {/* RULERS */}
-        {theme.showGrid && (
+        {effectiveTheme.showGrid && (
           <>
             <Ruler length={w} orientation="horizontal" />
             <Ruler length={h} orientation="vertical" />
@@ -252,7 +306,7 @@ const CertificateRenderer = ({
             isEnabled={isDesigning}
             resizable={isDesigning}
             scale={scale}
-            gridSize={theme.showGrid ? 50 : 0} // Enable snapping
+            gridSize={effectiveTheme.showGrid ? 50 : 0} // Enable snapping
             isSelected={selectedId === el.id}
             onSelect={() => onSelectElement?.(el.id)}
             onDragEnd={pos => updateElement(el.id, pos)}

@@ -18,6 +18,7 @@ import "./CertificateModule.css";
 
 // api
 import { certificateService } from "../../services/certificateService";
+import { templateService } from "../../services/templateService";
 
 // tabs
 import CertificateDashboard from "./tabs/CertificateDashboard";
@@ -83,12 +84,12 @@ const CertificateModule = () => {
   });
   const [automationRules, setAutomationRules] = useState([]);
 
+  const [templatesLoading, setTemplatesLoading] = useState(false);
 
-
-  // Fetch initial data
+  // Fetch initial data — each call is independent
   useEffect(() => {
     const fetchInitialData = async () => {
-      // Each call is independent — one failure won't block others
+      // 1. Certificates
       try {
         const certsRes = await certificateService.getAllCertificates();
         const certsArray = Array.isArray(certsRes) ? certsRes : (certsRes?.data || []);
@@ -96,6 +97,18 @@ const CertificateModule = () => {
       } catch (error) {
         console.warn("Could not load certificates:", error.message);
         setCertificates([]);
+      }
+
+      // 2. Templates
+      setTemplatesLoading(true);
+      try {
+        const tmplRes = await templateService.getAll();
+        setTemplates(tmplRes);
+      } catch (error) {
+        console.warn("Could not load templates:", error.message);
+        setTemplates([]);
+      } finally {
+        setTemplatesLoading(false);
       }
     };
     fetchInitialData();
@@ -124,9 +137,14 @@ const CertificateModule = () => {
   // ------------------ HELPERS ------------------
 
   const handleIssueCertificate = async () => {
-    const { userId, studentName, studentEmail, targetType, targetId, eventTitle } = issueData;
+    const { userId, studentName, studentEmail, targetType, targetId, eventTitle, selectedTemplateId, score } = issueData;
     if (!userId || !studentName || !studentEmail || !targetId || !eventTitle) {
       toast.error("Please fill all required fields (Student Name, Email, User ID, Target ID, Event Title)");
+      return;
+    }
+
+    if (!selectedTemplateId) {
+      toast.error("Please select a template first.");
       return;
     }
 
@@ -138,7 +156,8 @@ const CertificateModule = () => {
         targetId: parseInt(targetId),
         eventTitle: eventTitle.trim(),
         studentEmail: studentEmail.trim(),
-        score: issueData.score !== '' ? parseFloat(issueData.score) : 0,
+        score: score !== '' && score !== undefined ? parseFloat(score) : 0,
+        templateId: parseInt(selectedTemplateId)
       };
 
       const resp = await certificateService.manualGenerate(payload);
@@ -209,6 +228,7 @@ const CertificateModule = () => {
           return (
             <TemplateGallery
               templates={templates}
+              loading={templatesLoading}
               onEdit={(template) => {
                 setEditingTemplate(template);
                 setIsEditorOpen(true);
@@ -217,9 +237,14 @@ const CertificateModule = () => {
                 setEditingTemplate(newTemplate);
                 setIsEditorOpen(true);
               }}
-              onDelete={(id) => {
-                setTemplates(prev => prev.filter(t => t.id !== id));
-                toast.info("Template deleted");
+              onDelete={async (id) => {
+                try {
+                  await templateService.delete(id);
+                  setTemplates(prev => prev.filter(t => t.id !== id));
+                  toast.info("Template deleted");
+                } catch (err) {
+                  toast.error(err.message || "Failed to delete template");
+                }
               }}
             />
           );
@@ -231,19 +256,25 @@ const CertificateModule = () => {
             setEditingTemplate={setEditingTemplate}
             settings={adminSettings}
             setIsEditorOpen={setIsEditorOpen}
-            handleTemplateSave={() => {
-              // TODO: API INTEGRATION - PUT /api/templates/:id
-              setTemplates((prev) => {
-                const exists = prev.find((t) => t.id === editingTemplate.id);
-                if (exists) {
-                  return prev.map((t) =>
-                    t.id === editingTemplate.id ? editingTemplate : t
+            handleTemplateSave={async () => {
+              try {
+                const isNew = !editingTemplate.id ||
+                  String(editingTemplate.id).length > 10; // temp id from Date.now()
+                let saved;
+                if (isNew) {
+                  saved = await templateService.create(editingTemplate);
+                  setTemplates(prev => [saved, ...prev]);
+                } else {
+                  saved = await templateService.update(editingTemplate.id, editingTemplate);
+                  setTemplates(prev =>
+                    prev.map(t => t.id === saved.id ? saved : t)
                   );
                 }
-                return [...prev, editingTemplate];
-              });
-              setIsEditorOpen(false);
-              toast.success("Template saved");
+                setIsEditorOpen(false);
+                toast.success("Template saved successfully");
+              } catch (err) {
+                toast.error(err.message || "Failed to save template");
+              }
             }}
           />
         );
@@ -263,7 +294,11 @@ const CertificateModule = () => {
         return (
           <History
             certificates={certificates}
-            onView={setPreviewCert}
+            onView={(cert) => {
+              // Vital: Find full template object so renderer has the design
+              const temp = templates.find(t => t.id === cert.templateId);
+              setPreviewCert({ ...cert, template: temp });
+            }}
             settings={adminSettings}
           />
         );
@@ -308,16 +343,16 @@ const CertificateModule = () => {
       <div className="container py-4">
 
         {/* Page Header */}
-        <div className="d-flex justify-content-between align-items-center mb-4">
+        <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
           <div>
             <h4 className="fw-bold mb-0">
               <FaLayerGroup className="me-2 text-primary" />
               Certificate Management
             </h4>
-            <small className="text-muted">Manage, issue, and track all certificates</small>
+            <small className="text-muted d-none d-sm-block">Manage, issue, and track all certificates</small>
           </div>
           <button
-            className="btn btn-primary"
+            className="btn btn-primary d-flex align-items-center justify-content-center"
             onClick={() => setActiveTab("issue")}
           >
             <FaUserEdit className="me-2" /> Issue Certificate
@@ -325,24 +360,22 @@ const CertificateModule = () => {
         </div>
 
         {/* Nav Tabs */}
-        <div className="card border-0 shadow-sm mb-4">
-          <div className="card-body p-2">
-            <ul className="nav nav-pills gap-1 flex-wrap" role="tablist">
-              {TABS.map((tab) => (
-                <li key={tab.id} className="nav-item" role="presentation">
-                  <button
-                    className={`nav-link d-flex align-items-center gap-2 ${activeTab === tab.id ? "active" : "text-muted"
-                      }`}
-                    onClick={() => setActiveTab(tab.id)}
-                    type="button"
-                  >
-                    <tab.icon size={14} />
-                    {tab.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+        <div className="mb-4">
+          <ul className="nav nav-pills gap-1 flex-wrap cert-module-nav" role="tablist">
+            {TABS.map((tab) => (
+              <li key={tab.id} className="nav-item" role="presentation">
+                <button
+                  className={`nav-link d-flex align-items-center gap-2 ${activeTab === tab.id ? "active" : "text-muted"
+                    }`}
+                  onClick={() => setActiveTab(tab.id)}
+                  type="button"
+                >
+                  <tab.icon size={14} />
+                  {tab.label}
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
 
         {/* Tab Content */}
