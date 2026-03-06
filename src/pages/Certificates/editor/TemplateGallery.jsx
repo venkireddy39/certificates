@@ -2,7 +2,7 @@ import React from "react";
 import { FaPlus, FaEdit, FaTrash, FaSpinner } from "react-icons/fa";
 import CertificateRenderer from "../renderer/CertificateRenderer";
 
-const TemplateGallery = ({ templates, loading, onCreate, onEdit, onDelete }) => {
+const TemplateGallery = ({ templates, loading, onCreate, onEdit, onDelete, onToggleActive }) => {
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
@@ -16,6 +16,9 @@ const TemplateGallery = ({ templates, loading, onCreate, onEdit, onDelete }) => 
             onCreate({
               id: Date.now().toString(),
               name: "New Template",
+              templateType: "DESIGNER",
+              targetType: "EXAM",
+              templateFile: null,
               page: { type: "A4", orientation: "landscape" },
               theme: {
                 backgroundImage: "",
@@ -60,24 +63,41 @@ const TemplateGallery = ({ templates, loading, onCreate, onEdit, onDelete }) => 
               <div className="card h-100 shadow-sm cert-template-card">
                 {/* Card Header */}
                 <div className="card-header bg-white border-bottom-0 pt-3 px-3 d-flex justify-content-between align-items-center">
-                  <h6 className="fw-bold mb-0 text-truncate" style={{ maxWidth: "170px" }}>
+                  <h6 className="fw-bold mb-0 text-truncate" style={{ maxWidth: "150px" }}>
                     {t.name}
                   </h6>
-                  {t.isActive && (
-                    <span className="badge bg-success-subtle text-success me-auto ms-2">Active</span>
-                  )}
-                  {onDelete && (
-                    <button
-                      className="btn btn-sm btn-outline-danger p-1 border-0"
-                      title="Delete Template"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (window.confirm(`Delete "${t.name}"?`)) onDelete(t.id);
-                      }}
-                    >
-                      <FaTrash size={13} />
-                    </button>
-                  )}
+
+                  <div className="ms-auto d-flex align-items-center gap-2">
+                    <div className="form-check form-switch mb-0">
+                      <input
+                        className="form-check-input mt-1"
+                        type="checkbox"
+                        role="switch"
+                        id={`activeSwitch-${t.id}`}
+                        checked={t.isActive}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          if (onToggleActive) onToggleActive(t.id, e.target.checked);
+                        }}
+                        style={{ cursor: 'pointer' }}
+                        title={t.isActive ? "Deactivate Template" : "Activate Template"}
+                      />
+                    </div>
+
+                    {onDelete && (
+                      <button
+                        className="btn btn-sm btn-outline-danger p-1 border-0 shadow-none"
+                        style={{ background: 'transparent' }}
+                        title="Delete Template"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Delete "${t.name}"?`)) onDelete(t.id);
+                        }}
+                      >
+                        <FaTrash size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Preview Area */}

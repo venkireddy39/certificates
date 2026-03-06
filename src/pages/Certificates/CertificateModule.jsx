@@ -246,6 +246,43 @@ const CertificateModule = () => {
                   toast.error(err.message || "Failed to delete template");
                 }
               }}
+              onToggleActive={async (id, isActive) => {
+                try {
+                  if (isActive) {
+                    // 1. Optimistic UI: only the chosen template is active
+                    setTemplates(prev => prev.map(t => ({
+                      ...t,
+                      isActive: t.id === id
+                    })));
+
+                    // 2. Deactivate all OTHER currently-active templates in the DB
+                    const activeOthers = templates.filter(t => t.id !== id && t.isActive);
+                    await Promise.all(
+                      activeOthers.map(t => templateService.setActive(t.id, false, t))
+                    );
+
+                    // 3. Activate the selected template in the DB
+                    const target = templates.find(t => t.id === id);
+                    await templateService.setActive(id, true, target);
+                    toast.success("Template activated — others deactivated");
+                  } else {
+                    // Just deactivate this one
+                    setTemplates(prev => prev.map(t =>
+                      t.id === id ? { ...t, isActive: false } : t
+                    ));
+                    const target = templates.find(t => t.id === id);
+                    await templateService.setActive(id, false, target);
+                    toast.info("Template deactivated");
+                  }
+                } catch (err) {
+                  // Re-fetch from DB so UI always matches backend
+                  try {
+                    const fresh = await templateService.getAll();
+                    setTemplates(fresh);
+                  } catch (_) { }
+                  toast.error(err.message || "Failed to update template status");
+                }
+              }}
             />
           );
         }

@@ -136,6 +136,60 @@ const DragElements = ({
                         <option value="'Courier New', Courier, monospace">Courier New</option>
                     </select>
                 </div>
+                <div className="mb-2">
+                    <label className="form-label small fw-bold">Template Type</label>
+                    <select
+                        className="form-select form-select-sm"
+                        value={editingTemplate?.templateType || "DESIGNER"}
+                        onChange={e => setEditingTemplate({ ...editingTemplate, templateType: e.target.value })}
+                    >
+                        <option value="DESIGNER">Designer (JSON based)</option>
+                        <option value="HTML">HTML Template</option>
+                        <option value="IMAGE">Image Template</option>
+                    </select>
+                </div>
+
+                <div className="mb-2">
+                    <label className="form-label small fw-bold">Target Type</label>
+                    <select
+                        className="form-select form-select-sm"
+                        value={editingTemplate?.targetType || "EXAM"}
+                        onChange={e => setEditingTemplate({ ...editingTemplate, targetType: e.target.value })}
+                    >
+                        <option value="EXAM">Exam</option>
+                        <option value="COURSE">Course Completion</option>
+                        <option value="EVENT">Event Participation</option>
+                        <option value="WEBINAR">Webinar</option>
+                    </select>
+                </div>
+
+                <div className="mb-2">
+                    <label className="form-label small fw-bold">Optional: Template File</label>
+                    <input
+                        type="file"
+                        className="form-control form-control-sm"
+                        onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+
+                            // Handle image templates for preview
+                            if (file.type.startsWith('image/')) {
+                                compressImage(file, (dataUrl) => {
+                                    setEditingTemplate(prev => ({
+                                        ...prev,
+                                        templateFile: file, // Keep original for upload
+                                        backgroundUrl: dataUrl, // Use for preview
+                                        theme: { ...prev.theme, backgroundImage: dataUrl }
+                                    }));
+                                }, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 });
+                            } else {
+                                setEditingTemplate({ ...editingTemplate, templateFile: file });
+                            }
+                        }}
+                    />
+                    <small className="text-muted" style={{ fontSize: '10px' }}>Upload HTML or Image if not using designer</small>
+                </div>
+
                 <div className="form-check form-switch mt-2">
                     <input
                         className="form-check-input"

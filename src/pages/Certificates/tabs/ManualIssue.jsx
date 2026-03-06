@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { FaDownload, FaPalette } from 'react-icons/fa';
+import React, { useEffect, useState } from 'react';
+import { FaDownload, FaPalette, FaEdit, FaEye } from 'react-icons/fa';
 import CertificateRenderer from '../renderer/CertificateRenderer';
 
 const TARGET_TYPES = ['EXAM', 'COURSE', 'BATCH', 'ASSIGNMENT'];
@@ -11,6 +11,10 @@ const ManualIssue = ({
     onIssue,
     settings
 }) => {
+    const [isAdjusting, setIsAdjusting] = useState(false);
+    const [localTemplate, setLocalTemplate] = useState(null);
+    const [selectedElementId, setSelectedElementId] = useState(null);
+
     // Auto-select active template when list loads
     useEffect(() => {
         if (!issueData.selectedTemplateId && templates && templates.length > 0) {
@@ -23,7 +27,44 @@ const ManualIssue = ({
         setIssueData(prev => ({ ...prev, [field]: value }));
     };
 
-    const selectedTemplate = templates.find(t => t.id === Number(issueData.selectedTemplateId) || t.id === issueData.selectedTemplateId);
+    const rawTemplate = templates.find(t =>
+        t.id === Number(issueData.selectedTemplateId) || t.id === issueData.selectedTemplateId
+    );
+
+    // Use localTemplate (with dragged positions) if adjusting, else raw
+    const selectedTemplate = localTemplate?.id === rawTemplate?.id ? localTemplate : rawTemplate;
+
+    // When template changes, reset local copy
+    useEffect(() => {
+        if (rawTemplate) setLocalTemplate(rawTemplate);
+    }, [rawTemplate?.id]);
+
+    // Update element position/size in localTemplate
+    const handleElementUpdate = (elementId, updates) => {
+        setLocalTemplate(prev => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                elements: (prev.elements || []).map(el =>
+                    (el.id || el._id) === elementId ? { ...el, ...updates } : el
+                )
+            };
+        });
+    };
+
+    const previewData = {
+        studentName: issueData.studentName || 'Student Name',
+        recipientName: issueData.studentName || 'Student Name',
+        eventTitle: issueData.eventTitle || 'Course / Event Title',
+        courseName: issueData.eventTitle || 'Course / Event Title',
+        userId: issueData.userId || 'USER-ID',
+        score: issueData.score !== '' && issueData.score !== undefined ? String(issueData.score) : '0',
+        issuedDate: new Date().toLocaleDateString('en-GB'),
+        issueDate: new Date().toLocaleDateString('en-GB'),
+        date: new Date().toLocaleDateString('en-GB'),
+        certificateId: 'CERT-PREVIEW',
+        ...(settings || {})
+    };
 
     return (
         <div className="row g-4">
@@ -181,19 +222,28 @@ const ManualIssue = ({
                                 <span className="small fw-semibold text-muted text-truncate">
                                     Preview — <strong className="text-dark">{selectedTemplate.name}</strong>
                                 </span>
+                                <button
+                                    className={`btn btn-sm ms-auto ${isAdjusting ? 'btn-warning' : 'btn-outline-secondary'}`}
+                                    onClick={() => setIsAdjusting(v => !v)}
+                                    title={isAdjusting ? 'Exit layout adjust mode' : 'Drag elements to reposition'}
+                                >
+                                    {isAdjusting ? <><FaEye className="me-1" />Preview</> : <><FaEdit className="me-1" />Adjust Layout</>}
+                                </button>
                             </div>
+                            {isAdjusting && (
+                                <div className="alert alert-warning py-1 px-3 mb-0 small rounded-0 border-0 border-bottom">
+                                    ✋ Drag elements to reposition them. Changes apply to this issuance only.
+                                </div>
+                            )}
                             <div className="preview-content-container p-3" style={{ overflowX: 'auto' }}>
                                 <div style={{ minWidth: '400px', margin: '0 auto' }}>
                                     <CertificateRenderer
                                         template={selectedTemplate}
-                                        data={{
-                                            studentName: issueData.studentName || 'Student Name',
-                                            courseName: issueData.eventTitle || 'Course / Event Title',
-                                            issueDate: new Date().toLocaleDateString('en-GB'),
-                                            certificateId: 'PREVIEW',
-                                            ...settings
-                                        }}
-                                        isDesigning={false}
+                                        data={previewData}
+                                        isDesigning={isAdjusting}
+                                        selectedId={selectedElementId}
+                                        onSelectElement={setSelectedElementId}
+                                        onElementsChange={(elementId, updates) => handleElementUpdate(elementId, updates)}
                                     />
                                 </div>
                             </div>
@@ -207,7 +257,7 @@ const ManualIssue = ({
                     )}
                 </div>
                 <p className="text-center small text-muted mt-2 d-none d-sm-block">
-                    Live preview updates as you fill the form
+                    {isAdjusting ? 'Drag elements to reposition • Click Preview when done' : 'Live preview updates as you fill the form'}
                 </p>
             </div>
         </div>

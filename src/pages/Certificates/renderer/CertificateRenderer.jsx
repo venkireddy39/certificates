@@ -12,7 +12,7 @@ const PAGE_SIZE = {
 
 const CertificateRenderer = ({
   template,
-  data,
+  data = {},
   isDesigning = false,
   scale: fixedScale,
   onUpdateTemplate,
@@ -21,9 +21,14 @@ const CertificateRenderer = ({
 }) => {
   if (!template) return null;
 
-  // Support both flat template objects AND objects where design is a sub-property
-  const designData = template.design || template || {};
-  const { page = {}, theme = {}, elements = [] } = designData;
+  // Prefer top-level flat structure (from templateService.mapBackendToFrontend)
+  // Fall back to template.design sub-property for backward compatibility
+  const designData = template.design || {};
+  const page = template.page || designData.page || {};
+  const theme = template.theme || designData.theme || {};
+  const elements = Array.isArray(template.elements) ? template.elements
+    : Array.isArray(designData.elements) ? designData.elements
+      : [];
 
   const cleanVal = (val) => (typeof val === 'string' && val !== "null" && val.trim() !== "") ? val : undefined;
 
@@ -298,58 +303,101 @@ const CertificateRenderer = ({
           </>
         )}
 
-        {elements.map(el => (
-          <Draggable
-            key={el.id}
-            initialPos={{ x: el.x, y: el.y }}
-            initialSize={{ w: el.w, h: el.h }}
-            isEnabled={isDesigning}
-            resizable={isDesigning}
-            scale={scale}
-            gridSize={effectiveTheme.showGrid ? 50 : 0} // Enable snapping
-            isSelected={selectedId === el.id}
-            onSelect={() => onSelectElement?.(el.id)}
-            onDragEnd={pos => updateElement(el.id, pos)}
-            onResizeEnd={size => updateElement(el.id, size)}
-          >
-            {el.type === "text" && (
-              <div style={el.style}>
-                {String(el.content || "").replace(
-                  /{{(.*?)}}/g,
-                  (_, k) => {
-                    const mappedKey = k === "studentName" ? "recipientName"
-                      : k === "issueDate" ? "date"
-                        : k;
-                    return data[mappedKey] ?? `{{${k}}}`;
-                  }
-                )}
-              </div>
-            )}
+        {elements.map((el, idx) => {
+          // Normalize element properties to support both internal and external (user-provided) formats
+          const elementId = el.id || `el-${idx}`;
+          const type = el.type || 'text';
+          const x = el.x || 0;
+          const y = el.y || 0;
+          const w = el.w || el.width || (type === 'image' ? 200 : 300);
+          const h = el.h || el.height || (type === 'text' ? (el.fontSize || 30) * 1.5 : 200);
 
-            {el.type === "image" && (
-              <img
-                src={el.src}
-                alt=""
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "contain",
-                  opacity: el.style?.opacity ?? 1
-                }}
-              />
-            )}
+          // Get raw content/src
+          const rawValue = el.content || el.src || el.value || "";
 
-            {el.type === "qr" && (
-              <div style={{ width: "100%", height: "100%" }}>
-                <QRCodeCanvas
-                  value={`https://lms.com/verify/${data.certificateId || 'CERT-SAMPLE'}`}
-                  size={Math.min(el.w, el.h)}
-                  style={{ width: "100%", height: "100%" }}
+          // Apply variable replacements to the value
+          const processedValue = String(rawValue).replace(
+            /{{(.*?)}}/g,
+            (_, k) => {
+              k = k.trim();
+              if (k === "backgroundImageUrl") return effectiveTheme.backgroundImage || "";
+              if (k === "logoUrl") return effectiveTheme.logoUrl || "";
+              if (k === "qrCode") return data.qrCode || ""; // Fallback to provided base64 qr if available
+
+              const kLower = k.toLowerCase();
+              const mappedKey = kLower === "studentname" ? (data.studentName ? "studentName" : "recipientName")
+                : kLower === "recipientname" ? (data.recipientName ? "recipientName" : "studentName")
+                  : kLower === "eventtitle" || kLower === "event_title" ? (data.eventTitle ? "eventTitle" : "courseName")
+                    : kLower === "coursename" || kLower === "course_name" ? (data.courseName ? "courseName" : "eventTitle")
+                      : kLower === "score" ? "score"
+                        : (kLower.includes("date")) ? (data.issuedDate ? "issuedDate" : (data.date ? "date" : "createdAt"))
+                          : k;
+
+              const val = data[mappedKey];
+              if (val === undefined || val === null) return `{{${k}}}`;
+
+              // Format date values if they look like dates and the key implies a date
+              if (val && (k.toLowerCase().includes('date') || k === 'createdAt') && !isNaN(Date.parse(val))) {
+                return new Date(val).toLocaleDateString('en-GB');
+              }
+
+              return val;
+            }
+          );
+
+          // Build style object
+          const elementStyle = {
+            ...(el.style || {}),
+            fontSize: el.fontSize ? `${el.fontSize}px` : (el.style?.fontSize || "20px"),
+            color: el.color || el.style?.color || "#000000",
+            textAlign: el.textAlign || el.style?.textAlign || "left",
+          };
+
+          return (
+            <Draggable
+              key={elementId}
+              initialPos={{ x, y }}
+              initialSize={{ w, h }}
+              isEnabled={isDesigning}
+              resizable={isDesigning}
+              scale={scale}
+              gridSize={effectiveTheme.showGrid ? 50 : 0}
+              isSelected={selectedId === elementId}
+              onSelect={() => onSelectElement?.(elementId)}
+              onDragEnd={pos => updateElement(elementId, pos)}
+              onResizeEnd={size => updateElement(elementId, size)}
+            >
+              {type === "text" && (
+                <div style={elementStyle}>
+                  {processedValue}
+                </div>
+              )}
+
+              {type === "image" && (
+                <img
+                  src={processedValue}
+                  alt=""
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    opacity: elementStyle.opacity ?? 1
+                  }}
                 />
-              </div>
-            )}
-          </Draggable>
-        ))}
+              )}
+
+              {type === "qr" && (
+                <div style={{ width: "100%", height: "100%" }}>
+                  <QRCodeCanvas
+                    value={`https://lms.com/verify/${data.certificateId || 'CERT-SAMPLE'}`}
+                    size={Math.min(w, h)}
+                    style={{ width: "100%", height: "100%" }}
+                  />
+                </div>
+              )}
+            </Draggable>
+          );
+        })}
       </div>
     </div>
   );

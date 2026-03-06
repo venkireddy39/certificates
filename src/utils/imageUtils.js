@@ -1,4 +1,4 @@
-export const compressImage = (file, callback) => {
+export const compressImage = (file, callback, options = {}) => {
     if (!file) return;
 
     const reader = new FileReader();
@@ -11,9 +11,10 @@ export const compressImage = (file, callback) => {
             let width = img.width;
             let height = img.height;
 
-            // Max dimensions for templates to keep string size down
-            const MAX_WIDTH = 400;
-            const MAX_HEIGHT = 400;
+            // Default max dimensions (for logos/signatures)
+            const MAX_WIDTH = options.maxWidth || 400;
+            const MAX_HEIGHT = options.maxHeight || 400;
+            const quality = options.quality || 0.6;
 
             if (width > height) {
                 if (width > MAX_WIDTH) {
@@ -33,9 +34,9 @@ export const compressImage = (file, callback) => {
             const ctx = canvas.getContext("2d");
             ctx.drawImage(img, 0, 0, width, height);
 
-            // Compress heavily to JPEG (often 10x smaller than raw PNG base64)
-            // Quality 0.6 is a good balance of size vs readability for logos/signatures
-            const dataUrl = canvas.toDataURL("image/jpeg", 0.6);
+            // Compress to JPEG
+            // Quality is a balance of size vs readability
+            const dataUrl = canvas.toDataURL("image/jpeg", quality);
             callback(dataUrl);
         };
     };

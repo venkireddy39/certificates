@@ -21,32 +21,90 @@ const mapBackendToFrontend = (backend) => {
         if (typeof backend.layoutConfigJson === 'string' && !backend.layoutConfigJson.trim().toLowerCase().startsWith('<html')) {
             try {
                 const parsed = JSON.parse(backend.layoutConfigJson);
-                // Ensure we merge correctly if only parts of the design are in JSON
+                // Normalize elements to ensure consistent properties for the frontend editor
+                const normalizedElements = (parsed.elements || []).map(el => {
+                    const rawValue = el.content || el.value || "";
+                    // For image elements, convert absolute URLs to relative paths (Vite proxy)
+                    const safeValue = (el.type === 'image' && !rawValue.startsWith('{{'))
+                        ? (() => {
+                            try {
+                                if (rawValue.startsWith('http')) {
+                                    const u = new URL(rawValue);
+                                    return u.pathname + u.search;
+                                }
+                            } catch { /* ignore */ }
+                            return rawValue;
+                        })()
+                        : rawValue;
+
+                    return {
+                        ...el,
+                        id: el.id || String(Math.random()),
+                        type: el.type || 'text',
+                        content: safeValue,
+                        value: safeValue,
+                        w: el.w || el.width || (el.type === 'image' ? 200 : 300),
+                        h: el.h || el.height || (el.type === 'image' ? 200 : 50),
+                        style: {
+                            fontSize: "20px",
+                            color: "#000000",
+                            textAlign: "left",
+                            ...(el.style || {}),
+                            ...(el.fontSize ? { fontSize: `${el.fontSize}px` } : {}),
+                            ...(el.color ? { color: el.color } : {}),
+                            ...(el.textAlign ? { textAlign: el.textAlign } : {}),
+                        }
+                    };
+                });
+
                 design = {
                     page: parsed.page || design.page,
                     theme: { ...design.theme, ...parsed.theme },
-                    elements: parsed.elements || []
+                    elements: normalizedElements
                 };
             } catch (e) {
                 console.error("Error parsing layoutConfigJson:", e);
-                // Silently fallback instead of crashing the app
+                // Ensure elements exists even on failure
+                design.elements = [];
             }
         } else {
             console.warn(`Ignoring invalid layout JSON for template ${backend.id}`);
+            design.elements = [];
         }
+    } else {
+        design.elements = [];
     }
+
+    /**
+     * Converts an absolute backend URL → relative path so it goes through the Vite proxy.
+     * e.g. "http://192.168.1.63:5151/uploads/logo.png" → "/uploads/logo.png"
+     * Leaves relative paths, base64 strings, and empty values untouched.
+     */
+    const toRelativeUrl = (url) => {
+        if (!url || url.startsWith('data:') || url.startsWith('/') || url.startsWith('{{')) return url;
+        try {
+            const parsed = new URL(url);
+            return parsed.pathname + parsed.search;
+        } catch {
+            return url; // already relative or invalid — leave as-is
+        }
+    };
 
     return {
         id: backend.id,
         name: backend.templateName || backend.template_name,
-        logoUrl: backend.logoUrl || backend.logo_url || "",
-        backgroundUrl: backend.backgroundImageUrl || backend.background_image_url || backend.backgroundUrl || backend.background_url || "",
-        signatureUrl: backend.signatureUrl || backend.signature_url || "",
+        logoUrl: toRelativeUrl(backend.logoUrl || backend.logo_url || ""),
+        backgroundUrl: toRelativeUrl(backend.backgroundImageUrl || backend.background_image_url || backend.backgroundUrl || backend.background_url || ""),
+        signatureUrl: toRelativeUrl(backend.signatureUrl || backend.signature_url || ""),
         isActive: backend.isActive || backend.is_active || false,
         isDefault: backend.isActive || backend.is_active || false, // Mapping isActive to isDefault for frontend consistency
         createdAt: backend.createdAt || backend.created_at,
         updatedAt: backend.updatedAt || backend.updated_at,
-        design: design
+        templateType: backend.templateType || "DESIGNER",
+        targetType: backend.targetType || "EXAM",
+        page: design.page,
+        theme: design.theme,
+        elements: design.elements
     };
 };
 
@@ -59,18 +117,26 @@ const createFormData = (frontend) => {
 
     // Serialise the detailed design object into layoutConfigJson
     const layoutConfigJson = JSON.stringify({
-        page: frontend.design?.page || {},
+        page: frontend.page || frontend.design?.page || {},
         theme: {
-            ...(frontend.design?.theme || {}),
-            backgroundImage: frontend.backgroundUrl
+            ...(frontend.theme || frontend.design?.theme || {}),
+            backgroundImage: frontend.backgroundUrl || frontend.backgroundImageUrl || (frontend.theme || frontend.design?.theme)?.backgroundImage
         },
-        elements: frontend.design?.elements || []
+        elements: frontend.elements || frontend.design?.elements || []
     });
 
     // Required fields in FormData as text
     formData.append("templateName", frontend.name || "New Template");
     formData.append("isActive", String(frontend.isDefault || frontend.isActive || false));
     formData.append("layoutConfigJson", layoutConfigJson);
+
+    // New fields based on backend requirements
+    formData.append("templateType", frontend.templateType || "DESIGNER");
+    formData.append("targetType", frontend.targetType || "EXAM");
+
+    if (frontend.templateFile) {
+        formData.append("templateFile", frontend.templateFile);
+    }
 
     // Image helper: checks if it's a base64 string and converts to a File object
     const appendImageIfBase64 = (base64Str, fieldName, filename) => {
@@ -133,6 +199,21 @@ export const templateService = {
             body: formData,
         });
         return mapBackendToFrontend(data);
+    },
+
+    /**
+     * Lightweight toggle — sends only isActive + required fields via PUT.
+     * Pass the existing template object so name/targetType are preserved in the DB.
+     */
+    setActive: async (id, isActive, template = {}) => {
+        const fd = new FormData();
+        fd.append("isActive", String(isActive));
+        fd.append("templateName", template.name || "Certificate Template");
+        fd.append("targetType", template.targetType || "EXAM");
+        return apiFetch(`${API_BASE_URL}/${id}`, {
+            method: "PUT",
+            body: fd,
+        });
     },
 
     delete: async (id) => {
